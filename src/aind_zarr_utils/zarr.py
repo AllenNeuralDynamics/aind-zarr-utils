@@ -9,9 +9,25 @@ from ome_zarr.io import parse_url
 from ome_zarr.reader import Reader
 
 
-# I think this assumes C-style array ordering
-def direction_from_acquisition_metadata(metadata):
-    axes_dict = {d["dimension"]: d for d in metadata["axes"]}
+def direction_from_acquisition_metadata(acq_metadata):
+    """
+    Extracts direction, axes, and dimensions from acquisition metadata.
+
+    Parameters
+    ----------
+    acq_metadata : dict
+        Acquisition metadata
+
+    Returns
+    -------
+    dimensions : ndarray
+        Sorted array of dimension names.
+    axes : list
+        List of axis names in lowercase.
+    directions : list
+        List of direction codes (e.g., 'L', 'R', etc.).
+    """
+    axes_dict = {d["dimension"]: d for d in acq_metadata["axes"]}
     dimensions = np.sort(np.array(list(axes_dict.keys())))
     axes = []
     directions = []
@@ -22,6 +38,24 @@ def direction_from_acquisition_metadata(metadata):
 
 
 def units_to_meter(unit):
+    """
+    Converts a unit of length to meters.
+
+    Parameters
+    ----------
+    unit : str
+        Unit of length (e.g., 'micrometer', 'millimeter').
+
+    Returns
+    -------
+    float
+        Conversion factor to meters.
+
+    Raises
+    ------
+    ValueError
+        If the unit is unknown.
+    """
     if unit == "micrometer":
         return 1e-6
     elif unit == "millimeter":
@@ -37,6 +71,21 @@ def units_to_meter(unit):
 
 
 def unit_conversion(src, dst):
+    """
+    Converts between two units of length.
+
+    Parameters
+    ----------
+    src : str
+        Source unit.
+    dst : str
+        Destination unit.
+
+    Returns
+    -------
+    float
+        Conversion factor from src to dst.
+    """
     if src == dst:
         return 1.0
     src_meters = units_to_meter(src)
@@ -44,7 +93,22 @@ def unit_conversion(src, dst):
     return src_meters / dst_meters
 
 
-def zarr_to_numpy(uri, level=3):
+def _open_zarr(uri):
+    """
+    Opens a ZARR file and retrieves its metadata.
+
+    Parameters
+    ----------
+    uri : str
+        URI of the ZARR file.
+
+    Returns
+    -------
+    image_node : ome_zarr.reader.Node
+        The image node of the ZARR file.
+    zarr_meta : dict
+        Metadata of the ZARR file.
+    """
     reader = Reader(parse_url(uri))
 
     # nodes may include images, labels etc
@@ -53,16 +117,65 @@ def zarr_to_numpy(uri, level=3):
     # first node will be the image pixel data
     image_node = nodes[0]
     zarr_meta = image_node.metadata
+    return image_node, zarr_meta
+
+
+def zarr_to_numpy(uri, level=3):
+    """
+    Converts a ZARR file to a NumPy array.
+
+    Parameters
+    ----------
+    uri : str
+        URI of the ZARR file.
+    level : int, optional
+        Resolution level to read, by default 3.
+
+    Returns
+    -------
+    arr_data : ndarray
+        NumPy array of the image data.
+    zarr_meta : dict
+        Metadata of the ZARR file.
+    level : int
+        Resolution level used.
+    """
+    image_node, zarr_meta = _open_zarr(uri)
     arr_data = image_node.data[level].compute()
     return arr_data, zarr_meta, level
 
 
-def _zarr_to_anatomical(uri, metadata, level=3, scale_unit="millimeter"):
+def _zarr_to_anatomical(uri, acq_metadata, level=3, scale_unit="millimeter"):
+    """
+    Extracts anatomical information from a ZARR file.
+
+    Parameters
+    ----------
+    uri : str
+        URI of the ZARR file.
+    acq_metadata : dict
+        Acquisition metadata.
+    level : int, optional
+        Resolution level to read, by default 3.
+    scale_unit : str, optional
+        Unit for scaling, by default "millimeter".
+
+    Returns
+    -------
+    image_node : ome_zarr.reader.Node
+        The image node of the ZARR file.
+    rej_axes : set
+        Rejected axes indices.
+    dirs : list
+        List of direction codes.
+    spacing : list
+        List of spacing values.
+    """
     # Get direction metadata
-    _, axes, directions = direction_from_acquisition_metadata(metadata)
+    _, axes, directions = direction_from_acquisition_metadata(acq_metadata)
     metadata_axes_to_dir = {a: d for a, d in zip(axes, directions)}
     # Create the zarr reader
-    arr_data, zarr_meta, _ = zarr_to_numpy(uri, level)
+    image_node, zarr_meta = _open_zarr(uri)
     scale = np.array(zarr_meta["coordinateTransformations"][level][0]["scale"])
     zarr_axes = zarr_meta["axes"]
     spatial_dims = set(["x", "y", "z"])
@@ -76,7 +189,6 @@ def _zarr_to_anatomical(uri, metadata, level=3, scale_unit="millimeter"):
     rej_axes = set(range(len(zarr_axes))) - set(
         original_to_subset_axes_map.keys()
     )
-    arr_data_spatial = np.squeeze(arr_data, axis=tuple(rej_axes))
     dirs = []
     spacing = []
     for i in original_to_subset_axes_map.keys():
@@ -84,12 +196,65 @@ def _zarr_to_anatomical(uri, metadata, level=3, scale_unit="millimeter"):
         dirs.append(metadata_axes_to_dir[zarr_axis])
         scale_factor = unit_conversion(zarr_axes[i]["unit"], scale_unit)
         spacing.append(scale_factor * scale[i])
+    return image_node, rej_axes, dirs, spacing
+
+
+def _zarr_to_numpy_anatomical(uri, acq_metadata, level=3, scale="millimeter"):
+    """
+    Converts a ZARR file to a NumPy array with anatomical information.
+
+    Parameters
+    ----------
+    uri : str
+        URI of the ZARR file.
+    acq_metadata : dict
+        Acquisition metadata.
+    level : int, optional
+        Resolution level to read, by default 3.
+    scale : str, optional
+        Unit for scaling, by default "millimeter".
+
+    Returns
+    -------
+    arr_data_spatial : ndarray
+        NumPy array of the image data with spatial dimensions.
+    dirs : list
+        List of direction codes.
+    spacing : list
+        List of spacing values.
+    """
+    image_node, rej_axes, dirs, spacing = _zarr_to_anatomical(
+        uri, acq_metadata, level=level, scale_unit=scale
+    )
+    arr_data = image_node.data[level].compute()
+    arr_data_spatial = np.squeeze(arr_data, axis=rej_axes)
     return arr_data_spatial, dirs, spacing
 
 
 def zarr_to_ants(
-    uri, metadata, level=3, scale_unit="millimeter", set_origin=None
+    uri, acq_metadata, level=3, scale_unit="millimeter", set_origin=None
 ):
+    """
+    Converts a ZARR file to an ANTs image.
+
+    Parameters
+    ----------
+    uri : str
+        URI of the ZARR file.
+    acq_metadata : dict
+        Acquisition metadata.
+    level : int, optional
+        Resolution level to read, by default 3.
+    scale_unit : str, optional
+        Unit for scaling, by default "millimeter".
+    set_origin : tuple, optional
+        Origin of the image, by default None.
+
+    Returns
+    -------
+    ants.ANTsImage
+        ANTs image object.
+    """
     if set_origin is None:
         origin = (0.0, 0.0, 0.0)
     else:
@@ -98,7 +263,9 @@ def zarr_to_ants(
         arr_data_spatial,
         dirs,
         spacing,
-    ) = _zarr_to_anatomical(uri, metadata, level=level, scale_unit=scale_unit)
+    ) = _zarr_to_numpy_anatomical(
+        uri, acq_metadata, level=level, scale_unit=scale_unit
+    )
 
     # Get direction metadata
     dir_str = "".join(dirs)
@@ -113,8 +280,29 @@ def zarr_to_ants(
 
 
 def zarr_to_sitk(
-    uri, metadata, level=3, scale_unit="millimeter", set_origin=None
+    uri, acq_metadata, level=3, scale_unit="millimeter", set_origin=None
 ):
+    """
+    Converts a ZARR file to a SimpleITK image.
+
+    Parameters
+    ----------
+    uri : str
+        URI of the ZARR file.
+    acq_metadata : dict
+        Acquisition metadata.
+    level : int, optional
+        Resolution level to read, by default 3.
+    scale_unit : str, optional
+        Unit for scaling, by default "millimeter".
+    set_origin : tuple, optional
+        Origin of the image, by default None.
+
+    Returns
+    -------
+    sitk.Image
+        SimpleITK image object.
+    """
     if set_origin is None:
         origin = (0.0, 0.0, 0.0)
     else:
@@ -123,7 +311,9 @@ def zarr_to_sitk(
         arr_data_spatial,
         dirs,
         spacing,
-    ) = _zarr_to_anatomical(uri, metadata, level=level, scale_unit=scale_unit)
+    ) = _zarr_to_numpy_anatomical(
+        uri, acq_metadata, level=level, scale_unit=scale_unit
+    )
     # SimpleITK uses fortran-style arrays, not C-style, so we need to reverse
     # the order of the axes
     dir_str = "".join(reversed(dirs))
@@ -136,3 +326,55 @@ def zarr_to_sitk(
     sitk_image.SetOrigin(origin)
     sitk_image.SetDirection(dir_tup)
     return sitk_image
+
+
+def zarr_to_stub_image(
+    uri, acq_metadata, level=0, scale_unit="millimeter", set_origin=None
+):
+    """
+    Creates a stub image with the same metadata as the ZARR file.
+
+    Parameters
+    ----------
+    uri : str
+        URI of the ZARR file.
+    acq_metadata : dict
+        Acquisition metadata.
+    level : int, optional
+        Resolution level to read, by default 0.
+    scale_unit : str, optional
+        Unit for scaling, by default "millimeter".
+    set_origin : tuple, optional
+        Origin of the image, by default None.
+
+    Returns
+    -------
+    sitk.Image
+        SimpleITK stub image object.
+    """
+    if set_origin is None:
+        origin = (0.0, 0.0, 0.0)
+    else:
+        raise NotImplementedError("Setting origin is not implemented yet")
+    (
+        image_node,
+        rej_axes,
+        dirs,
+        spacing,
+    ) = _zarr_to_anatomical(
+        uri, acq_metadata, level=level, scale_unit=scale_unit
+    )
+    # SimpleITK uses fortran-style arrays, not C-style, so we need to reverse
+    # the order of the axes
+    image_dims = len(image_node.data[level].shape)
+    n_spatial = image_dims - len(rej_axes)
+    dir_str = "".join(reversed(dirs))
+    spacing_rev = spacing[::-1]
+    dir_tup = sitk.DICOMOrientImageFilter.GetDirectionCosinesFromOrientation(
+        dir_str
+    )
+    stub_image = sitk.Image([1] * n_spatial, sitk.sitkUInt8)
+    stub_image.SetSpacing(tuple(spacing_rev))
+    stub_image.SetOrigin(origin)
+    stub_image.SetDirection(dir_tup)
+    return stub_image

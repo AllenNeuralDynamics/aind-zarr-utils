@@ -16,15 +16,27 @@ readme = "README.md"
 dynamic = ["version"]
 
 dependencies = [
-    "antspyx >= 0.5, < 0.6",
-    "boto3 >= 1, <2",
-    "numpy >= 1, < 2",
-    "ome-zarr >= 0.11, < 0.12",
-    "SimpleITK >= 2, < 3",
+    "antspyx>=0.5,<0.6",
+    "boto3>=1,<2",
+    "numpy>=1,<2",
+    "ome-zarr>=0.11,<0.12",
+    "requests>2,<3",
+    "s3fs>2025",
+    "SimpleITK>=2,<3",
 ]
 
 [project.optional-dependencies]
-dev = ['black', 'coverage', 'flake8', 'interrogate', 'isort', 'Sphinx', 'furo']
+dev = [
+    'black',
+    'coverage',
+    'flake8',
+    'interrogate',
+    'isort',
+    'Sphinx',
+    'furo',
+    'pip',
+    'ipykernel',
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
