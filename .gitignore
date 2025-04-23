@@ -137,3 +137,9 @@ dmypy.json
 
 # MacOs
 **/.DS_Store
+
+# VSCode
+.vscode/
+
+# UV
+uv.lock

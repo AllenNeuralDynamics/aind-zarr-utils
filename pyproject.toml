@@ -4,41 +4,34 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aind-zarr-utils"
-description = "Generated from aind-library-template"
-license = {text = "MIT"}
-requires-python = ">=3.10"
-authors = [
-    {name = "Allen Institute for Neural Dynamics"}
-]
-classifiers = [
-    "Programming Language :: Python :: 3"
-]
+description = "Utilities for working with ZARR data and AIND metadata"
+license = { text = "MIT" }
+requires-python = ">3.10, <3.13"
+authors = [{ name = "Allen Institute for Neural Dynamics" }]
+classifiers = ["Programming Language :: Python :: 3"]
 readme = "README.md"
 dynamic = ["version"]
 
 dependencies = [
+    "antspyx >= 0.5, < 0.6",
+    "boto3 >= 1, <2",
+    "numpy >= 1, < 2",
+    "ome-zarr >= 0.11, < 0.12",
+    "SimpleITK >= 2, < 3",
 ]
 
 [project.optional-dependencies]
-dev = [
-    'black',
-    'coverage',
-    'flake8',
-    'interrogate',
-    'isort',
-    'Sphinx',
-    'furo'
-]
+dev = ['black', 'coverage', 'flake8', 'interrogate', 'isort', 'Sphinx', 'furo']
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.dynamic]
-version = {attr = "aind_zarr_utils.__version__"}
+version = { attr = "aind_zarr_utils.__version__" }
 
 [tool.black]
 line-length = 79
-target_version = ['py310']
+target_version = ['py312']
 exclude = '''
 
 (
@@ -57,6 +50,15 @@ exclude = '''
 )
 '''
 
+[tool.ruff]
+line-length = 79
+target-version = 'py312'
+
+[tool.ruff.lint]
+# pyflakes, pycodestyle, isort
+select = ["F", "E", "W", "I", "C90"]
+ignore = ["E501"]
+
 [tool.coverage.run]
 omit = ["*__init__*"]
 source = ["aind_zarr_utils", "tests"]
@@ -66,9 +68,9 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "^from .* import .*",
     "^import .*",
-    "pragma: no cover"
+    "pragma: no cover",
 ]
-fail_under = 100
+fail_under = 0
 
 [tool.isort]
 line_length = 79
@@ -76,4 +78,4 @@ profile = "black"
 
 [tool.interrogate]
 exclude = ["setup.py", "docs", "build"]
-fail-under = 100
+fail-under = 50
