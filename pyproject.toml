@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "aind-zarr-utils"
 description = "Utilities for working with ZARR data and AIND metadata"
 license = { text = "MIT" }
-requires-python = ">3.10, <3.13"
+requires-python = ">=3.11, <3.13"
 authors = [
     { name = "Galen Lynch", email = "galen@galenlynch.com" },
     { name = "Allen Institute for Neural Dynamics" },

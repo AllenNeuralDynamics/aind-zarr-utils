@@ -16,16 +16,16 @@ jobs:
         ref: ${{ env.DEFAULT_BRANCH }}
         fetch-depth: 0
         token: ${{ secrets.SERVICE_TOKEN }}
-    - name: Set up Python 3.10
+    - name: Set up Python 3.12
       uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: '3.12'
     - name: Install dependencies
       run: | 
         python -m pip install -e .[dev] --no-cache-dir
     - name: Get Python version and Update README.md
       run: |
-        python_version=$(grep "requires-python" pyproject.toml | grep -o ">=[^\"]*")
+        python_version=$(grep "requires-python" pyproject.toml | grep -o ">=[^\",]*")
         python_badge=$(grep -o 'python-[^)]*' README.md)
         new_python_badge="python-$python_version-blue?logo=python"
         sed -i "s/$python_badge/$new_python_badge/g" README.md
@@ -68,16 +68,16 @@ jobs:
       SERVICE_TOKEN: ${{ secrets.SERVICE_TOKEN }}
   publish:
     needs: tag
-    if: false
+    if: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Pull latest changes
         run: git pull origin main
-      - name: Set up Python 3.10
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.12'
       - name: Install dependencies
         run: |
           pip install --upgrade setuptools wheel twine build
