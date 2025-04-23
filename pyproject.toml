@@ -21,7 +21,6 @@ dependencies = [
     "numpy>=1,<2",
     "ome-zarr>=0.11,<0.12",
     "requests>2,<3",
-    "fsspec>2025",
     "SimpleITK>=2,<3",
 ]
 
