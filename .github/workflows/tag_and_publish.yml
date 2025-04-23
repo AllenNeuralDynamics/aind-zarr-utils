@@ -25,7 +25,7 @@ jobs:
         python -m pip install -e .[dev] --no-cache-dir
     - name: Get Python version and Update README.md
       run: |
-        python_version=$(grep "requires-python" pyproject.toml | grep -P -o ">=?[^\"]*")
+        python_version=$(grep "requires-python" pyproject.toml | grep -o ">=[^\",]*")
         python_badge=$(grep -o 'python-[^)]*' README.md)
         new_python_badge="python-$python_version-blue?logo=python"
         sed -i "s/$python_badge/$new_python_badge/g" README.md
