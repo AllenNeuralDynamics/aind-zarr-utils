@@ -199,7 +199,9 @@ def _zarr_to_anatomical(uri, acq_metadata, level=3, scale_unit="millimeter"):
     return image_node, rej_axes, dirs, spacing
 
 
-def _zarr_to_numpy_anatomical(uri, acq_metadata, level=3, scale="millimeter"):
+def _zarr_to_numpy_anatomical(
+    uri, acq_metadata, level=3, scale_unit="millimeter"
+):
     """
     Converts a ZARR file to a NumPy array with anatomical information.
 
@@ -211,7 +213,7 @@ def _zarr_to_numpy_anatomical(uri, acq_metadata, level=3, scale="millimeter"):
         Acquisition metadata.
     level : int, optional
         Resolution level to read, by default 3.
-    scale : str, optional
+    scale_unit : str, optional
         Unit for scaling, by default "millimeter".
 
     Returns
@@ -224,10 +226,10 @@ def _zarr_to_numpy_anatomical(uri, acq_metadata, level=3, scale="millimeter"):
         List of spacing values.
     """
     image_node, rej_axes, dirs, spacing = _zarr_to_anatomical(
-        uri, acq_metadata, level=level, scale_unit=scale
+        uri, acq_metadata, level=level, scale_unit=scale_unit
     )
     arr_data = image_node.data[level].compute()
-    arr_data_spatial = np.squeeze(arr_data, axis=rej_axes)
+    arr_data_spatial = np.squeeze(arr_data, axis=tuple(rej_axes))
     return arr_data_spatial, dirs, spacing
 
 
