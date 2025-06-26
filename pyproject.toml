@@ -16,7 +16,7 @@ readme = "README.md"
 dynamic = ["version"]
 
 dependencies = [
-    "antspyx>=0.5,<0.6",
+    "antspyx>=0.5,<0.7",
     "boto3>=1,<2",
     "numpy>=1,<2",
     "ome-zarr>=0.11,<0.12",
