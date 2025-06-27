@@ -16,6 +16,7 @@ readme = "README.md"
 dynamic = ["version"]
 
 dependencies = [
+    "aind-anatomical-utils>=0.0.1, <0.1",
     "antspyx>=0.6,<0.7",
     "boto3>=1,<2",
     "numpy>=2,<3",
