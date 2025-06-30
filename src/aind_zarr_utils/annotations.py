@@ -4,20 +4,14 @@ Module for working with points in ZARR files
 
 import re
 
-from aind_mri_utils.file_io.neuroglancer import (
-    get_neuroglancer_annotation_points,
-)
 from aind_anatomical_utils.sitk_volume import (
     transform_sitk_indices_to_physical_points,
 )
 
-from aind_zarr_utils.utils import read_metadata_json
-from aind_zarr_utils.zarr import zarr_to_stub_image
 
-
-def transform_annotation_indices(img, annotations):
+def annotation_indices_to_anatomical(img, annotations):
     """
-    Transforms annotation indices from image space to physical space.
+    Transforms annotation indices from image space to anatomical space.
 
     Parameters
     ----------
@@ -43,6 +37,34 @@ def transform_annotation_indices(img, annotations):
             )
         )
     return physical_points
+
+
+def annotations_and_descriptions_to_dict(annotation_points, descriptions):
+    """
+    Converts annotation points and descriptions to a description to point
+    dictionary.
+
+    Parameters
+    ----------
+    annotation_points : dict
+        Dictionary where keys are annotation names and values are lists of
+        points.
+    descriptions : dict
+        Dictionary where keys are annotation names and values are lists of
+        descriptions.
+
+    Returns
+    -------
+    dict
+        Dictionary where keys are annotation names and values are point
+        dictionaries.
+    """
+    pt_dicts = {}
+    for annotation_name, points in annotation_points.items():
+        description_list = descriptions[annotation_name]
+        pt_dict = _pts_and_descriptions_to_pt_dict(points, description_list)
+        pt_dicts[annotation_name] = pt_dict
+    return pt_dicts
 
 
 def _pts_and_descriptions_to_pt_dict(points, description_list):
@@ -75,68 +97,3 @@ def _pts_and_descriptions_to_pt_dict(points, description_list):
             )
         pt_dict[pt_description_sanitized] = point
     return pt_dict
-
-
-def _convert_annotation_pts_to_pt_dicts(annotation_points, descriptions):
-    """
-    Converts annotation points and descriptions into dictionaries.
-
-    Parameters
-    ----------
-    annotation_points : dict
-        Dictionary where keys are annotation names and values are lists of
-        points.
-    descriptions : dict
-        Dictionary where keys are annotation names and values are lists of
-        descriptions.
-
-    Returns
-    -------
-    dict
-        Dictionary where keys are annotation names and values are point
-        dictionaries.
-    """
-    pt_dicts = {}
-    for annotation_name, points in annotation_points.items():
-        description_list = descriptions[annotation_name]
-        pt_dict = _pts_and_descriptions_to_pt_dict(points, description_list)
-        pt_dicts[annotation_name] = pt_dict
-    return pt_dicts
-
-
-def transform_neuroglancer_annotations_to_physical_points(
-    zarr_s3_path,
-    acq_metadata_s3,
-    ng_annotation_path,
-):
-    """
-    Transforms Neuroglancer annotations to physical points in the image space.
-
-    Parameters
-    ----------
-    zarr_s3_path : str
-        S3 path to the Zarr file.
-    acq_metadata_s3 : str
-        S3 path to the acquisition metadata JSON file.
-    ng_annotation_path : str
-        Path to the Neuroglancer annotation file.
-
-    Returns
-    -------
-    physical_points : dict
-        Dictionary where keys are annotation names and values are physical
-        points.
-    descriptions : dict
-        Dictionary where keys are annotation names and values are lists of
-        descriptions.
-    """
-    acq_metadata = read_metadata_json(acq_metadata_s3)
-    stub_img = zarr_to_stub_image(zarr_s3_path, acq_metadata)
-    annotations, descriptions = get_neuroglancer_annotation_points(
-        ng_annotation_path,
-    )
-    annotation_points = transform_annotation_indices(
-        stub_img,
-        annotations,
-    )
-    return annotation_points, descriptions

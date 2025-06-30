@@ -5,6 +5,8 @@ from urllib.parse import urlparse
 
 import boto3
 import requests
+from botocore import UNSIGNED
+from botocore.config import Config
 
 
 def _is_url_parsed(parsed):
@@ -105,7 +107,7 @@ def parse_s3_uri(s3_uri):
     return parsed.netloc, parsed.path.lstrip("/")
 
 
-def get_s3_json(bucket, key, s3_client=None):
+def get_json_s3(bucket, key, s3_client=None, anon=False):
     """
     Retrieve a JSON object from an S3 bucket.
 
@@ -117,6 +119,8 @@ def get_s3_json(bucket, key, s3_client=None):
         The key of the JSON object in the bucket.
     s3_client : boto3.client, optional
         An existing S3 client. If None, a new client is created.
+    anon : bool, optional
+        If True, the S3 client will be created in anonymous mode.
 
     Returns
     -------
@@ -124,12 +128,17 @@ def get_s3_json(bucket, key, s3_client=None):
         The JSON object.
     """
     if s3_client is None:
-        s3_client = boto3.client("s3")
+        if anon:
+            s3_client = boto3.client(
+                "s3", config=Config(signature_version=UNSIGNED)
+            )
+        else:
+            s3_client = boto3.client("s3")
     resp = s3_client.get_object(Bucket=bucket, Key=key)
     return json.load(resp["Body"])
 
 
-def get_s3_json_uri(uri, s3_client=None):
+def get_json_s3_uri(uri, s3_client=None):
     """
     Retrieve a JSON object from an S3 URI.
 
@@ -146,10 +155,10 @@ def get_s3_json_uri(uri, s3_client=None):
         The JSON object.
     """
     bucket, key = parse_s3_uri(uri)
-    return get_s3_json(bucket, key, s3_client=s3_client)
+    return get_json_s3(bucket, key, s3_client=s3_client)
 
 
-def get_json_from_url(url):
+def get_json_url(url):
     """
     Retrieve a JSON object from a URL.
 
@@ -173,7 +182,7 @@ def get_json_from_url(url):
     return response.json()
 
 
-def read_metadata_json(file_url_or_bucket, key=None, *args):
+def get_json(file_url_or_bucket, key=None, *args, **kwargs):
     """
     Read a JSON file from a local path, URL, or S3.
 
@@ -185,6 +194,8 @@ def read_metadata_json(file_url_or_bucket, key=None, *args):
         The key for the S3 object. Required if reading from S3.
     *args : tuple
         Additional arguments for S3 client or HTTP requests.
+    **kwargs : dict
+        Additional keyword arguments for S3 client or HTTP requests.
 
     Returns
     -------
@@ -200,9 +211,9 @@ def read_metadata_json(file_url_or_bucket, key=None, *args):
         parsed = urlparse(file_url_or_bucket)
         if _is_url_parsed(parsed):
             if parsed.scheme == "s3":
-                data = get_s3_json_uri(file_url_or_bucket, *args)
+                data = get_json_s3_uri(file_url_or_bucket, *args, **kwargs)
             else:
-                data = get_json_from_url(file_url_or_bucket)
+                data = get_json_url(file_url_or_bucket)
         elif _is_file_parsed(parsed):
             with open(file_url_or_bucket, "r") as f:
                 data = json.load(f)
@@ -211,5 +222,5 @@ def read_metadata_json(file_url_or_bucket, key=None, *args):
                 f"Unsupported URL or file path: {file_url_or_bucket}"
             )
     else:
-        data = get_s3_json(file_url_or_bucket, key, *args)
+        data = get_json_s3(file_url_or_bucket, key, *args)
     return data
