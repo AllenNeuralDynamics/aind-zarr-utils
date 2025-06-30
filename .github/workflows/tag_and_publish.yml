@@ -4,7 +4,7 @@ on:
     branches:
       - main
 # Remove line 65 to enable automated semantic version bumps.
-# Change line 71 from "if: false" to "if: true" to enable PyPI publishing. 
+# Change line 71 from "if: false" to "if: true" to enable PyPI publishing.
 # Requires that svc-aindscicomp be added as an admin to repo.
 jobs:
   update_badges:
@@ -16,12 +16,12 @@ jobs:
         ref: ${{ env.DEFAULT_BRANCH }}
         fetch-depth: 0
         token: ${{ secrets.SERVICE_TOKEN }}
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v5
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v6
       with:
-        python-version: '3.12'
+        python-version: '3.13'
     - name: Install dependencies
-      run: | 
+      run: |
         python -m pip install -e .[dev] --no-cache-dir
     - name: Get Python version and Update README.md
       run: |
@@ -46,7 +46,7 @@ jobs:
         coverage run -m unittest discover
         coverage_val=$(coverage report | grep "^TOTAL" | grep -o '[0-9]\+%' | grep -o '[0-9]\+')
         coverage_badge=$(grep -o "coverage-[^?]*" README.md)
-        if (( $(echo "$coverage_val >= 90.00" | bc -l) )); then 
+        if (( $(echo "$coverage_val >= 90.00" | bc -l) )); then
             new_coverage_badge="coverage-$coverage_val%25-brightgreen"
         elif (( $(echo "$coverage_val < 80.00" | bc -l) )); then
             new_coverage_badge="coverage-$coverage_val%25-red"
@@ -73,10 +73,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Pull latest changes
         run: git pull origin main
-      - name: Set up Python 3.12
+      - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.13'
       - name: Install dependencies
         run: |
           pip install --upgrade setuptools wheel twine build

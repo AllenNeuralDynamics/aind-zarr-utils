@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "aind-zarr-utils"
 description = "Utilities for working with ZARR data and AIND metadata"
 license = { text = "MIT" }
-requires-python = ">=3.11, <3.14"
+requires-python = ">=3.10, <3.14"
 authors = [
     { name = "Galen Lynch", email = "galen@galenlynch.com" },
     { name = "Allen Institute for Neural Dynamics" },
@@ -17,10 +17,16 @@ dynamic = ["version"]
 
 dependencies = [
     "antspyx>=0.6,<0.7",
-    "boto3>=1,<2",
+    # boto3
+    # Package depends on boto3, but ome-zarr requires s3fs and this causes
+    # pip dependency resolution issues if specified here.
     "numpy>=2,<3",
     "ome-zarr>=0.11,<0.12",
-    "requests>2,<3",
+    "requests>=2,<3",
+    # This is a workaround for pip dependency problems with ome-zarr: s3fs is
+    # NOT a direct dependency of this package, but ome-zarr requires it.
+    # boto3 option required to help pip resolve dependencies
+    "s3fs[boto3]>=2021",
     "SimpleITK>=2,<3",
 ]
 
