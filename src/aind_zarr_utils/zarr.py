@@ -37,7 +37,28 @@ def direction_from_acquisition_metadata(acq_metadata):
     return dimensions, axes, directions
 
 
-def units_to_meter(unit):
+def direction_from_nd_metadata(nd_metadata):
+    """
+    Extracts direction, axes, and dimensions from ND metadata.
+
+    Parameters
+    ----------
+    nd_metadata : dict
+        ND metadata
+
+    Returns
+    -------
+    dimensions : ndarray
+        Sorted array of dimension names.
+    axes : list
+        List of axis names in lowercase.
+    directions : list
+        List of direction codes (e.g., 'L', 'R', etc.).
+    """
+    return direction_from_acquisition_metadata(nd_metadata["acquisition"])
+
+
+def _units_to_meter(unit):
     """
     Converts a unit of length to meters.
 
@@ -70,7 +91,7 @@ def units_to_meter(unit):
         raise ValueError(f"Unknown unit: {unit}")
 
 
-def unit_conversion(src, dst):
+def _unit_conversion(src, dst):
     """
     Converts between two units of length.
 
@@ -88,8 +109,8 @@ def unit_conversion(src, dst):
     """
     if src == dst:
         return 1.0
-    src_meters = units_to_meter(src)
-    dst_meters = units_to_meter(dst)
+    src_meters = _units_to_meter(src)
+    dst_meters = _units_to_meter(dst)
     return src_meters / dst_meters
 
 
@@ -145,7 +166,7 @@ def zarr_to_numpy(uri, level=3):
     return arr_data, zarr_meta, level
 
 
-def _zarr_to_anatomical(uri, acq_metadata, level=3, scale_unit="millimeter"):
+def _zarr_to_anatomical(uri, nd_metadata, level=3, scale_unit="millimeter"):
     """
     Extracts anatomical information from a ZARR file.
 
@@ -153,8 +174,8 @@ def _zarr_to_anatomical(uri, acq_metadata, level=3, scale_unit="millimeter"):
     ----------
     uri : str
         URI of the ZARR file.
-    acq_metadata : dict
-        Acquisition metadata.
+    nd_metadata : dict
+        Neural Dynamics metadata.
     level : int, optional
         Resolution level to read, by default 3.
     scale_unit : str, optional
@@ -172,7 +193,7 @@ def _zarr_to_anatomical(uri, acq_metadata, level=3, scale_unit="millimeter"):
         List of spacing values.
     """
     # Get direction metadata
-    _, axes, directions = direction_from_acquisition_metadata(acq_metadata)
+    _, axes, directions = direction_from_nd_metadata(nd_metadata)
     metadata_axes_to_dir = {a: d for a, d in zip(axes, directions)}
     # Create the zarr reader
     image_node, zarr_meta = _open_zarr(uri)
@@ -194,13 +215,13 @@ def _zarr_to_anatomical(uri, acq_metadata, level=3, scale_unit="millimeter"):
     for i in original_to_subset_axes_map.keys():
         zarr_axis = zarr_axes[i]["name"]
         dirs.append(metadata_axes_to_dir[zarr_axis])
-        scale_factor = unit_conversion(zarr_axes[i]["unit"], scale_unit)
+        scale_factor = _unit_conversion(zarr_axes[i]["unit"], scale_unit)
         spacing.append(scale_factor * scale[i])
     return image_node, rej_axes, dirs, spacing
 
 
 def _zarr_to_numpy_anatomical(
-    uri, acq_metadata, level=3, scale_unit="millimeter"
+    uri, nd_metadata, level=3, scale_unit="millimeter"
 ):
     """
     Converts a ZARR file to a NumPy array with anatomical information.
@@ -209,8 +230,8 @@ def _zarr_to_numpy_anatomical(
     ----------
     uri : str
         URI of the ZARR file.
-    acq_metadata : dict
-        Acquisition metadata.
+    nd_metadata : dict
+        Neural Dynamics metadata.
     level : int, optional
         Resolution level to read, by default 3.
     scale_unit : str, optional
@@ -226,7 +247,7 @@ def _zarr_to_numpy_anatomical(
         List of spacing values.
     """
     image_node, rej_axes, dirs, spacing = _zarr_to_anatomical(
-        uri, acq_metadata, level=level, scale_unit=scale_unit
+        uri, nd_metadata, level=level, scale_unit=scale_unit
     )
     arr_data = image_node.data[level].compute()
     arr_data_spatial = np.squeeze(arr_data, axis=tuple(rej_axes))
@@ -234,7 +255,7 @@ def _zarr_to_numpy_anatomical(
 
 
 def zarr_to_ants(
-    uri, acq_metadata, level=3, scale_unit="millimeter", set_origin=None
+    uri, nd_metadata, level=3, scale_unit="millimeter", set_origin=None
 ):
     """
     Converts a ZARR file to an ANTs image.
@@ -243,8 +264,8 @@ def zarr_to_ants(
     ----------
     uri : str
         URI of the ZARR file.
-    acq_metadata : dict
-        Acquisition metadata.
+    nd_metadata : dict
+        Neural Dynamics metadata.
     level : int, optional
         Resolution level to read, by default 3.
     scale_unit : str, optional
@@ -266,7 +287,7 @@ def zarr_to_ants(
         dirs,
         spacing,
     ) = _zarr_to_numpy_anatomical(
-        uri, acq_metadata, level=level, scale_unit=scale_unit
+        uri, nd_metadata, level=level, scale_unit=scale_unit
     )
 
     # Get direction metadata
@@ -282,7 +303,7 @@ def zarr_to_ants(
 
 
 def zarr_to_sitk(
-    uri, acq_metadata, level=3, scale_unit="millimeter", set_origin=None
+    uri, nd_metadata, level=3, scale_unit="millimeter", set_origin=None
 ):
     """
     Converts a ZARR file to a SimpleITK image.
@@ -291,8 +312,8 @@ def zarr_to_sitk(
     ----------
     uri : str
         URI of the ZARR file.
-    acq_metadata : dict
-        Acquisition metadata.
+    nd_metadata : dict
+        Neural Dynamics metadata.
     level : int, optional
         Resolution level to read, by default 3.
     scale_unit : str, optional
@@ -314,7 +335,7 @@ def zarr_to_sitk(
         dirs,
         spacing,
     ) = _zarr_to_numpy_anatomical(
-        uri, acq_metadata, level=level, scale_unit=scale_unit
+        uri, nd_metadata, level=level, scale_unit=scale_unit
     )
     # SimpleITK uses fortran-style arrays, not C-style, so we need to reverse
     # the order of the axes
@@ -330,18 +351,18 @@ def zarr_to_sitk(
     return sitk_image
 
 
-def zarr_to_stub_image(
-    uri, acq_metadata, level=0, scale_unit="millimeter", set_origin=None
+def zarr_to_sitk_stub(
+    uri, nd_metadata, level=0, scale_unit="millimeter", set_origin=None
 ):
     """
-    Creates a stub image with the same metadata as the ZARR file.
+    Creates a stub SimpleITK image with the same metadata as the ZARR file.
 
     Parameters
     ----------
     uri : str
         URI of the ZARR file.
-    acq_metadata : dict
-        Acquisition metadata.
+    nd_metadata : dict
+        Neural Dynamics metadata.
     level : int, optional
         Resolution level to read, by default 0.
     scale_unit : str, optional
@@ -364,7 +385,7 @@ def zarr_to_stub_image(
         dirs,
         spacing,
     ) = _zarr_to_anatomical(
-        uri, acq_metadata, level=level, scale_unit=scale_unit
+        uri, nd_metadata, level=level, scale_unit=scale_unit
     )
     # SimpleITK uses fortran-style arrays, not C-style, so we need to reverse
     # the order of the axes

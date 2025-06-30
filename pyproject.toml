@@ -16,12 +16,13 @@ readme = "README.md"
 dynamic = ["version"]
 
 dependencies = [
-    "antspyx>=0.6,<0.7",
+    "aind-anatomical-utils>=0.0.1, <0.1",
+    "antspyx>=0.2,<0.7",
     # boto3
     # Package depends on boto3, but ome-zarr requires s3fs and this causes
     # pip dependency resolution issues if specified here.
     "numpy>=2,<3",
-    "ome-zarr>=0.11,<0.12",
+    "ome-zarr>=0.7,<0.12",
     "requests>=2,<3",
     # This is a workaround for pip dependency problems with ome-zarr: s3fs is
     # NOT a direct dependency of this package, but ome-zarr requires it.
