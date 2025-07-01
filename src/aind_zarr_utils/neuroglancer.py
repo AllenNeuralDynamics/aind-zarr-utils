@@ -71,6 +71,14 @@ def neuroglancer_annotations_to_anatomical(
     """
     Transforms Neuroglancer annotations to physical points in the image space.
 
+    Notes
+    -----
+    This function assumes that none of the layers have had their transform
+    altered. If any has, this will likely return incorrect values.
+
+    The points in the Neuroglancer annotation layers are assumed to be in the
+    order z, y, x, t. Only the indices for z, y, x are returned, in that order.
+
     Parameters
     ----------
     neuroglancer_data : dict
@@ -96,7 +104,8 @@ def neuroglancer_annotations_to_anatomical(
     -------
     physical_points : dict
         Dictionary where keys are annotation names and values are physical
-        points.
+        points. The points are in LPS (Left, Posterior, Superior) order,
+        which is the standard for medical imaging.
     descriptions : dict
         Dictionary where keys are annotation names and values are lists of
         descriptions.
@@ -125,10 +134,6 @@ def neuroglancer_annotations_to_global(
     Reads annotation layers from a Neuroglancer JSON file and returns points in
     neuroglancer global coordinates.
 
-    NOTE: The physical coordinates are scaled by the voxel spacing found in the
-    JSON file and are in units described by the `units` return value. They do
-    NOT take into account how the brain was imaged.
-
     This function reads the annotation layers from a Neuroglancer JSON file and
     returns the points in physical coordinates. The points are scaled by the
     voxel spacing found in the JSON file and are in units described by the
@@ -137,6 +142,15 @@ def neuroglancer_annotations_to_global(
 
     Notes
     -----
+    This function assumes that none of the layers have had their transform
+    altered. If any has, this will likely return incorrect values.
+
+    The physical coordinates are scaled by the voxel spacing found in the
+    JSON file and are in units described by the `units` return value. They do
+    NOT take into account how the brain was imaged, or what orientation the
+    brain is in. For that, use `neuroglancer_annotations_to_anatomical`
+    instead.
+
     The points in the Neuroglancer annotation layers are assumed to be in the
     order z, y, x, t. Only the spatial dimensions z, y, x are returned, in that
     order.
