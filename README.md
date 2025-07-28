@@ -33,28 +33,16 @@ There are several libraries used to run linters, check documentation, and run te
 - Please test your changes using the **coverage** library, which will run the tests and log a coverage report:
 
 ```bash
-coverage run -m unittest discover && coverage report
+./scripts/run_linters_and_checks.sh -c
 ```
 
-- Use **interrogate** to check that modules, methods, etc. have been documented thoroughly:
-
+which is equivalent to:
 ```bash
-interrogate .
-```
-
-- Use **flake8** to check that code is up to standards (no unused imports, etc.):
-```bash
-flake8 .
-```
-
-- Use **black** to automatically format the code into PEP standards:
-```bash
-black .
-```
-
-- Use **isort** to automatically sort import statements:
-```bash
-isort .
+uv run --frozen ruff format
+uv run --frozen ruff check
+uv run --frozen interrogate -v
+uv run --frozen codespell --check-filenames
+uv run --frozen pytest --cov aind_zarr_utils
 ```
 
 ### Pull requests

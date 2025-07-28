@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "aind-zarr-utils"
 description = "Utilities for working with ZARR data and AIND metadata"
-license = { text = "MIT" }
+license = "MIT"
 requires-python = ">=3.10, <3.14"
 authors = [
     { name = "Galen Lynch", email = "galen@galenlynch.com" },
@@ -31,28 +31,36 @@ dependencies = [
     "SimpleITK>=2,<3",
 ]
 
-[project.optional-dependencies]
-dev = [
-    'black',
-    'coverage',
-    'flake8',
-    'interrogate',
-    'isort',
-    'Sphinx',
-    'furo',
-    'pip',
-    'ipykernel',
+[project.urls]
+Repository = "https://github.com/AllenNeuralDynamics/aind-zarr-utils/"
+Issues = "https://github.com/AllenNeuralDynamics/aind-zarr-utils/issues"
+Changelog = "https://github.com/AllenNeuralDynamics/aind-zarr-utils/blob/main/CHANGELOG.md"
+
+[dependency-groups]
+dev = ['codespell', 'pytest', 'pytest-cov', 'ruff', 'interrogate']
+vscode = [{include-group = 'dev'}, 'ipykernel', 'pip']
+docs = [
+  {include-group = 'dev'},
+  'mkdocs',
+  'mkdocs-material',
+  'mkdocstrings[python]',
+  'pymdown-extensions',
+  'ruff',
 ]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.dynamic]
-version = { attr = "aind_zarr_utils.__version__" }
+readme = { file = "README.md", content-type = "text/markdown" }
+
+[tool.ruff]
+line-length = 79
+target-version = 'py313'
 
 [tool.black]
 line-length = 79
-target_version = ['py312']
+target-version = ['py313']
 exclude = '''
 
 (
@@ -71,32 +79,53 @@ exclude = '''
 )
 '''
 
-[tool.ruff]
-line-length = 79
-target-version = 'py312'
-
 [tool.ruff.lint]
-# pyflakes, pycodestyle, isort
-select = ["F", "E", "W", "I", "C90"]
-ignore = ["E501"]
+extend-select = ['Q', 'RUF100', 'C90', 'I', 'F', 'E', 'W']
+extend-ignore = []
+mccabe = { max-complexity = 14 }
+pydocstyle = { convention = 'numpy' }
+
+[tool.codespell]
+skip = '.git,*.pdf,*.svg,./bonsai,*.bonsai,./docs/_build,uv.lock,./doc_template'
+ignore-words-list = 'nd'
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers --tb=short --cov=src --cov-report=term-missing --cov-fail-under=0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
 
 [tool.coverage.run]
 omit = ["*__init__*"]
-source = ["aind_zarr_utils", "tests"]
+source = ["src"]
 
 [tool.coverage.report]
-exclude_lines = [
-    "if __name__ == .__main__.:",
-    "^from .* import .*",
-    "^import .*",
-    "pragma: no cover",
-]
-fail_under = 0
+exclude_lines = ["if __name__ == .__main__.:", "# pragma: no cover"]
+fail_under = 30
 
 [tool.isort]
 line_length = 79
 profile = "black"
 
 [tool.interrogate]
-exclude = ["setup.py", "docs", "build"]
-fail-under = 50
+ignore-init-method = true
+ignore-magic = true
+ignore_module = true
+fail-under = 30
+exclude = [
+  "__init__.py",
+  "tests",
+  "docs",
+  "build",
+  "setup.py",
+  "examples",
+  "site",
+]
+
+[tool.commitizen]
+version_provider = "pep621"
+version_files = ["pyproject.toml", "src/aind_zarzarr_utils/__init__.py:__version__"]
+update_changelog_on_bump = true
+tag_format = "v$version"
+major_version_zero = true
