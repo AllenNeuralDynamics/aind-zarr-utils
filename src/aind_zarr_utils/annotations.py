@@ -3,13 +3,18 @@ Module for working with points in ZARR files
 """
 
 import re
+from typing import Dict, List, Optional
 
+import SimpleITK
 from aind_anatomical_utils.sitk_volume import (
     transform_sitk_indices_to_physical_points,
 )
+from numpy.typing import NDArray
 
 
-def annotation_indices_to_anatomical(img, annotations):
+def annotation_indices_to_anatomical(
+    img: SimpleITK.Image, annotations: Dict[str, NDArray]
+) -> Dict[str, NDArray]:
     """
     Transforms annotation indices from image space to anatomical space.
 
@@ -39,7 +44,10 @@ def annotation_indices_to_anatomical(img, annotations):
     return physical_points
 
 
-def annotations_and_descriptions_to_dict(annotation_points, descriptions):
+def annotations_and_descriptions_to_dict(
+    annotation_points: Dict[str, List[List[float]]],
+    descriptions: Dict[str, List[Optional[str]]],
+) -> Dict[str, Dict[str, List[float]]]:
     """
     Converts annotation points and descriptions to a description to point
     dictionary.
@@ -67,7 +75,9 @@ def annotations_and_descriptions_to_dict(annotation_points, descriptions):
     return pt_dicts
 
 
-def _pts_and_descriptions_to_pt_dict(points, description_list):
+def _pts_and_descriptions_to_pt_dict(
+    points: List[List[float]], description_list: List[Optional[str]]
+) -> Dict[str, List[float]]:
     """
     Converts points and their descriptions into a dictionary.
 

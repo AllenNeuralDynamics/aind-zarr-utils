@@ -1,6 +1,7 @@
 """S3 utilities for reading and writing JSON files."""
 
 import json
+from typing import Optional
 from urllib.parse import urlparse
 
 import boto3
@@ -9,7 +10,7 @@ from botocore import UNSIGNED
 from botocore.config import Config
 
 
-def _is_url_parsed(parsed):
+def _is_url_parsed(parsed: urlparse) -> bool:
     """
     Check if a parsed URL is an HTTP, HTTPS, or S3 URL.
 
@@ -26,7 +27,7 @@ def _is_url_parsed(parsed):
     return parsed.scheme in ("http", "https", "s3")
 
 
-def _is_file_parsed(parsed):
+def _is_file_parsed(parsed: urlparse) -> bool:
     """
     Check if a parsed URL represents a file path.
 
@@ -82,7 +83,7 @@ def is_file_path(path_or_url: str) -> bool:
     return _is_file_parsed(parsed)
 
 
-def parse_s3_uri(s3_uri):
+def parse_s3_uri(s3_uri: str) -> tuple[str, str]:
     """
     Parse an S3 URI into bucket and key components.
 
@@ -107,7 +108,12 @@ def parse_s3_uri(s3_uri):
     return parsed.netloc, parsed.path.lstrip("/")
 
 
-def get_json_s3(bucket, key, s3_client=None, anon=False):
+def get_json_s3(
+    bucket: str,
+    key: str,
+    s3_client: Optional[boto3.client] = None,
+    anon: bool = False,
+) -> dict:
     """
     Retrieve a JSON object from an S3 bucket.
 
@@ -138,7 +144,10 @@ def get_json_s3(bucket, key, s3_client=None, anon=False):
     return json.load(resp["Body"])
 
 
-def get_json_s3_uri(uri, s3_client=None):
+def get_json_s3_uri(
+    uri: str,
+    s3_client: Optional[boto3.client] = None,
+) -> dict:
     """
     Retrieve a JSON object from an S3 URI.
 
@@ -158,7 +167,7 @@ def get_json_s3_uri(uri, s3_client=None):
     return get_json_s3(bucket, key, s3_client=s3_client)
 
 
-def get_json_url(url):
+def get_json_url(url: str) -> dict:
     """
     Retrieve a JSON object from a URL.
 
@@ -182,7 +191,9 @@ def get_json_url(url):
     return response.json()
 
 
-def get_json(file_url_or_bucket, key=None, *args, **kwargs):
+def get_json(
+    file_url_or_bucket: str, key: Optional[str] = None, *args, **kwargs
+) -> dict:
     """
     Read a JSON file from a local path, URL, or S3.
 

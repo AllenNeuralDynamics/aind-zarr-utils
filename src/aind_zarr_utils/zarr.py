@@ -4,12 +4,16 @@ Module for turning ZARRs into ants images and vice versa.
 
 import ants
 import numpy as np
+import SimpleITK
 import SimpleITK as sitk
+from numpy.typing import NDArray
 from ome_zarr.io import parse_url
-from ome_zarr.reader import Reader
+from ome_zarr.reader import Node, Reader
 
 
-def direction_from_acquisition_metadata(acq_metadata):
+def direction_from_acquisition_metadata(
+    acq_metadata: dict,
+) -> tuple[NDArray, list[str], list[str]]:
     """
     Extracts direction, axes, and dimensions from acquisition metadata.
 
@@ -37,7 +41,9 @@ def direction_from_acquisition_metadata(acq_metadata):
     return dimensions, axes, directions
 
 
-def direction_from_nd_metadata(nd_metadata):
+def direction_from_nd_metadata(
+    nd_metadata: dict,
+) -> tuple[NDArray, list[str], list[str]]:
     """
     Extracts direction, axes, and dimensions from ND metadata.
 
@@ -58,7 +64,7 @@ def direction_from_nd_metadata(nd_metadata):
     return direction_from_acquisition_metadata(nd_metadata["acquisition"])
 
 
-def _units_to_meter(unit):
+def _units_to_meter(unit: str) -> float:
     """
     Converts a unit of length to meters.
 
@@ -91,7 +97,7 @@ def _units_to_meter(unit):
         raise ValueError(f"Unknown unit: {unit}")
 
 
-def _unit_conversion(src, dst):
+def _unit_conversion(src: str, dst: str) -> float:
     """
     Converts between two units of length.
 
@@ -114,7 +120,7 @@ def _unit_conversion(src, dst):
     return src_meters / dst_meters
 
 
-def _open_zarr(uri):
+def _open_zarr(uri: str) -> tuple[Node, dict]:
     """
     Opens a ZARR file and retrieves its metadata.
 
@@ -141,7 +147,7 @@ def _open_zarr(uri):
     return image_node, zarr_meta
 
 
-def zarr_to_numpy(uri, level=3):
+def zarr_to_numpy(uri: str, level: int = 3) -> tuple[NDArray, dict, int]:
     """
     Converts a ZARR file to a NumPy array.
 
@@ -166,7 +172,9 @@ def zarr_to_numpy(uri, level=3):
     return arr_data, zarr_meta, level
 
 
-def _zarr_to_anatomical(uri, nd_metadata, level=3, scale_unit="millimeter"):
+def _zarr_to_anatomical(
+    uri: str, nd_metadata: dict, level: int = 3, scale_unit: str = "millimeter"
+) -> tuple[Node, set[int], list[str], list[float]]:
     """
     Extracts anatomical information from a ZARR file.
 
@@ -221,8 +229,12 @@ def _zarr_to_anatomical(uri, nd_metadata, level=3, scale_unit="millimeter"):
 
 
 def _zarr_to_numpy_anatomical(
-    uri, nd_metadata, level=3, scale_unit="millimeter"
-):
+    uri: str,
+    nd_metadata: dict,
+    level: int = 3,
+    scale_unit: str = "millimeter",
+    set_origin=None,
+) -> tuple[NDArray, list[str], list[float]]:
     """
     Converts a ZARR file to a NumPy array with anatomical information.
 
@@ -255,7 +267,11 @@ def _zarr_to_numpy_anatomical(
 
 
 def zarr_to_ants(
-    uri, nd_metadata, level=3, scale_unit="millimeter", set_origin=None
+    uri: str,
+    nd_metadata: dict,
+    level: int = 3,
+    scale_unit: str = "millimeter",
+    set_origin=None,
 ):
     """
     Converts a ZARR file to an ANTs image.
@@ -303,8 +319,12 @@ def zarr_to_ants(
 
 
 def zarr_to_sitk(
-    uri, nd_metadata, level=3, scale_unit="millimeter", set_origin=None
-):
+    uri: str,
+    nd_metadata: dict,
+    level: int = 3,
+    scale_unit: str = "millimeter",
+    set_origin=None,
+) -> SimpleITK.Image:
     """
     Converts a ZARR file to a SimpleITK image.
 
@@ -352,8 +372,12 @@ def zarr_to_sitk(
 
 
 def zarr_to_sitk_stub(
-    uri, nd_metadata, level=0, scale_unit="millimeter", set_origin=None
-):
+    uri: str,
+    nd_metadata: dict,
+    level: int = 0,
+    scale_unit: str = "millimeter",
+    set_origin=None,
+) -> SimpleITK.Image:
     """
     Creates a stub SimpleITK image with the same metadata as the ZARR file.
 

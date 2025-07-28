@@ -2,17 +2,20 @@
 Module for reading Neuroglancer annotation layers.
 """
 
+from typing import Optional, Union
+
 import numpy as np
+from numpy.typing import NDArray
 
 from aind_zarr_utils.annotations import annotation_indices_to_anatomical
 from aind_zarr_utils.zarr import zarr_to_sitk_stub
 
 
 def neuroglancer_annotations_to_indices(
-    data,
-    layer_names=None,
-    return_description=True,
-):
+    data: dict,
+    layer_names: Optional[Union[str, list[str]]] = None,
+    return_description: bool = True,
+) -> tuple[dict[str, NDArray], Optional[dict[str, list[str]]]]:
     """
     Reads annotation layers from a Neuroglancer JSON file and returns points in
     voxel indices.
@@ -60,14 +63,14 @@ def neuroglancer_annotations_to_indices(
 
 
 def neuroglancer_annotations_to_anatomical(
-    neuroglancer_data,
-    zarr_uri,
-    metadata,
-    layer_names=None,
-    return_description=True,
-    scale_unit="millimeter",
-    set_origin=None,
-):
+    neuroglancer_data: dict,
+    zarr_uri: str,
+    metadata: dict,
+    layer_names: Optional[Union[str, list[str]]] = None,
+    return_description: bool = True,
+    scale_unit: str = "millimeter",
+    set_origin: Optional[tuple] = None,
+) -> tuple[dict[str, NDArray], Optional[dict[str, list[str]]]]:
     """
     Transforms Neuroglancer annotations to physical points in the image space.
 
@@ -126,10 +129,10 @@ def neuroglancer_annotations_to_anatomical(
 
 
 def neuroglancer_annotations_to_global(
-    data,
-    layer_names=None,
-    return_description=True,
-):
+    data: dict,
+    layer_names: Optional[Union[str, list[str]]] = None,
+    return_description: bool = True,
+) -> tuple[dict[str, NDArray], list[str], Optional[dict[str, list[str]]]]:
     """
     Reads annotation layers from a Neuroglancer JSON file and returns points in
     neuroglancer global coordinates.
@@ -197,7 +200,7 @@ def neuroglancer_annotations_to_global(
     return annotations, units, descriptions
 
 
-def _extract_spacing(dimension_data):
+def _extract_spacing(dimension_data: dict) -> tuple[NDArray, list[str]]:
     """
     Extracts voxel spacing from the Neuroglancer file.
 
