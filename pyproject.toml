@@ -37,7 +37,8 @@ Issues = "https://github.com/AllenNeuralDynamics/aind-zarr-utils/issues"
 Changelog = "https://github.com/AllenNeuralDynamics/aind-zarr-utils/blob/main/CHANGELOG.md"
 
 [dependency-groups]
-dev = ['codespell', 'pytest', 'pytest-cov', 'ruff', 'interrogate']
+types = ['mypy', 'types-requests']
+dev = [{include-group = 'types'}, 'codespell', 'pytest', 'pytest-cov', 'ruff', 'interrogate',]
 vscode = [{include-group = 'dev'}, 'ipykernel', 'pip']
 docs = [
   {include-group = 'dev'},
@@ -129,3 +130,16 @@ version_files = ["pyproject.toml", "src/aind_zarr_utils/__init__.py:__version__"
 update_changelog_on_bump = true
 tag_format = "v$version"
 major_version_zero = true
+
+[tool.mypy]
+files = ["src/aind_zarr_utils"]
+warn_return_any = true
+warn_unused_configs = true
+strict_optional = true
+ignore_missing_imports = true
+disallow_any_unimported = true
+check_untyped_defs = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+show_error_codes = true
+warn_unused_ignores = true
