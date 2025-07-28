@@ -181,5 +181,5 @@ def test_get_json_s3_bucket_key():
 
 
 def test_get_json_invalid():
-    with pytest.raises(ValueError):
+    with pytest.raises(FileNotFoundError):
         json_utils.get_json(":not_a_valid_path:")

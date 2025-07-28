@@ -17,7 +17,7 @@ def test_direction_from_acquisition_metadata():
     )
     assert set(dims) == {"0", "1", "2"}
     assert set(axes) == {"x", "y", "z"}
-    assert set(dirs) == {"L", "P", "I"}
+    assert set(dirs) == {"R", "A", "S"}
 
 
 def test_direction_from_nd_metadata():
@@ -41,7 +41,7 @@ def test_direction_from_nd_metadata():
     dims, axes, dirs = zarr_mod.direction_from_nd_metadata(nd_metadata)
     assert set(dims) == {"0", "1", "2"}
     assert set(axes) == {"x", "y", "z"}
-    assert set(dirs) == {"L", "P", "I"}
+    assert set(dirs) == {"R", "A", "S"}
 
 
 def test_units_to_meter():
@@ -61,7 +61,7 @@ def test_unit_conversion():
     assert zarr_mod._unit_conversion("centimeter", "millimeter") == 10.0
 
 
-def make_fake_image_node(shape=(1, 1, 3, 4, 5), level=3):
+def make_fake_image_node(shape=(1, 1, 3, 4, 5), level=0):
     class FakeData:
         def __init__(self, shape):
             self.shape = shape
@@ -88,9 +88,11 @@ def make_fake_image_node(shape=(1, 1, 3, 4, 5), level=3):
     return FakeNode(shape)
 
 
+def fake_reader(*args, **kwargs):
+    return [make_fake_image_node(*args, **kwargs)]
+
+
 def test_open_zarr(monkeypatch):
-    fake_node = make_fake_image_node()
-    fake_reader = lambda: [fake_node]
     monkeypatch.setattr(zarr_mod, "Reader", lambda url: fake_reader)
     monkeypatch.setattr(zarr_mod, "parse_url", lambda uri: uri)
     image_node, zarr_meta = zarr_mod._open_zarr("fake_uri")
@@ -99,19 +101,15 @@ def test_open_zarr(monkeypatch):
 
 
 def test_zarr_to_numpy(monkeypatch):
-    fake_node = make_fake_image_node()
-    fake_reader = lambda: [fake_node]
     monkeypatch.setattr(zarr_mod, "Reader", lambda url: fake_reader)
     monkeypatch.setattr(zarr_mod, "parse_url", lambda uri: uri)
-    arr, meta, level = zarr_mod.zarr_to_numpy("fake_uri", level=3)
+    arr, meta, level = zarr_mod.zarr_to_numpy("fake_uri", level=0)
     assert arr.shape == (1, 1, 3, 4, 5)
     assert "axes" in meta
-    assert level == 3
+    assert level == 0
 
 
 def test_zarr_to_numpy_anatomical(monkeypatch):
-    fake_node = make_fake_image_node()
-    fake_reader = lambda: [fake_node]
     monkeypatch.setattr(zarr_mod, "Reader", lambda url: fake_reader)
     monkeypatch.setattr(zarr_mod, "parse_url", lambda uri: uri)
     nd_metadata = {
@@ -132,16 +130,14 @@ def test_zarr_to_numpy_anatomical(monkeypatch):
         }
     }
     arr, dirs, spacing = zarr_mod._zarr_to_numpy_anatomical(
-        "fake_uri", nd_metadata, level=3
+        "fake_uri", nd_metadata, level=0
     )
     assert arr.shape == (3, 4, 5)
-    assert set(dirs) == {"I", "P", "L"}
+    assert set(dirs) == {"S", "A", "R"}
     assert len(spacing) == 3
 
 
 def test_zarr_to_ants_and_sitk(monkeypatch):
-    fake_node = make_fake_image_node()
-    fake_reader = lambda: [fake_node]
     monkeypatch.setattr(zarr_mod, "Reader", lambda url: fake_reader)
     monkeypatch.setattr(zarr_mod, "parse_url", lambda uri: uri)
     nd_metadata = {
@@ -193,17 +189,15 @@ def test_zarr_to_ants_and_sitk(monkeypatch):
     monkeypatch.setattr(
         zarr_mod.sitk, "DICOMOrientImageFilter", DummyDICOMOrient
     )
-    ants_img = zarr_mod.zarr_to_ants("fake_uri", nd_metadata, level=3)
+    ants_img = zarr_mod.zarr_to_ants("fake_uri", nd_metadata, level=0)
     assert isinstance(ants_img, DummyAntsImage)
-    sitk_img = zarr_mod.zarr_to_sitk("fake_uri", nd_metadata, level=3)
+    sitk_img = zarr_mod.zarr_to_sitk("fake_uri", nd_metadata, level=0)
     assert hasattr(sitk_img, "spacing")
     assert hasattr(sitk_img, "origin")
     assert hasattr(sitk_img, "direction")
 
 
 def test_zarr_to_sitk_stub(monkeypatch):
-    fake_node = make_fake_image_node()
-    fake_reader = lambda: [fake_node]
     monkeypatch.setattr(zarr_mod, "Reader", lambda url: fake_reader)
     monkeypatch.setattr(zarr_mod, "parse_url", lambda uri: uri)
     nd_metadata = {
@@ -246,7 +240,7 @@ def test_zarr_to_sitk_stub(monkeypatch):
     monkeypatch.setattr(
         zarr_mod.sitk, "DICOMOrientImageFilter", DummyDICOMOrient
     )
-    stub_img = zarr_mod.zarr_to_sitk_stub("fake_uri", nd_metadata, level=3)
+    stub_img = zarr_mod.zarr_to_sitk_stub("fake_uri", nd_metadata, level=0)
     assert hasattr(stub_img, "spacing")
     assert hasattr(stub_img, "origin")
     assert hasattr(stub_img, "direction")
