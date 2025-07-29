@@ -2,6 +2,8 @@
 Module for turning ZARRs into ants images and vice versa.
 """
 
+from typing import Optional, Tuple, TypeVar
+
 import ants
 import numpy as np
 import SimpleITK
@@ -9,6 +11,8 @@ import SimpleITK as sitk
 from numpy.typing import NDArray
 from ome_zarr.io import parse_url
 from ome_zarr.reader import Node, Reader
+
+T = TypeVar("T", int, float)
 
 
 def direction_from_acquisition_metadata(
@@ -233,7 +237,7 @@ def _zarr_to_numpy_anatomical(
     nd_metadata: dict,
     level: int = 3,
     scale_unit: str = "millimeter",
-    set_origin=None,
+    set_origin: Optional[Tuple[T, T, T]] = None,
 ) -> tuple[NDArray, list[str], list[float]]:
     """
     Converts a ZARR file to a NumPy array with anatomical information.
@@ -271,8 +275,8 @@ def zarr_to_ants(
     nd_metadata: dict,
     level: int = 3,
     scale_unit: str = "millimeter",
-    set_origin=None,
-):
+    set_origin: Optional[Tuple[T, T, T]] = None,
+) -> ants.ANTsImage:
     """
     Converts a ZARR file to an ANTs image.
 
@@ -323,7 +327,7 @@ def zarr_to_sitk(
     nd_metadata: dict,
     level: int = 3,
     scale_unit: str = "millimeter",
-    set_origin=None,
+    set_origin: Optional[Tuple[T, T, T]] = None,
 ) -> SimpleITK.Image:
     """
     Converts a ZARR file to a SimpleITK image.
@@ -376,7 +380,7 @@ def zarr_to_sitk_stub(
     nd_metadata: dict,
     level: int = 0,
     scale_unit: str = "millimeter",
-    set_origin=None,
+    set_origin: Optional[Tuple[T, T, T]] = None,
 ) -> SimpleITK.Image:
     """
     Creates a stub SimpleITK image with the same metadata as the ZARR file.

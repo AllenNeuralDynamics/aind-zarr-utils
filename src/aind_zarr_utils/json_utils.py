@@ -2,15 +2,16 @@
 
 import json
 from typing import Optional
-from urllib.parse import urlparse
+from urllib.parse import ParseResult, urlparse
 
 import boto3
 import requests
 from botocore import UNSIGNED
 from botocore.config import Config
+from mypy_boto3_s3.client import S3Client
 
 
-def _is_url_parsed(parsed: urlparse) -> bool:
+def _is_url_parsed(parsed: ParseResult) -> bool:
     """
     Check if a parsed URL is an HTTP, HTTPS, or S3 URL.
 
@@ -27,7 +28,7 @@ def _is_url_parsed(parsed: urlparse) -> bool:
     return parsed.scheme in ("http", "https", "s3")
 
 
-def _is_file_parsed(parsed: urlparse) -> bool:
+def _is_file_parsed(parsed: ParseResult) -> bool:
     """
     Check if a parsed URL represents a file path.
 
@@ -41,8 +42,9 @@ def _is_file_parsed(parsed: urlparse) -> bool:
     bool
         True if the URL represents a file path, False otherwise.
     """
-    is_file = not _is_url_parsed(parsed) and (
-        parsed.scheme == "file" or (not parsed.scheme and parsed.path)
+    is_file = bool(
+        not _is_url_parsed(parsed)
+        and (parsed.scheme == "file" or (not parsed.scheme and parsed.path))
     )
     return is_file
 
@@ -111,7 +113,7 @@ def parse_s3_uri(s3_uri: str) -> tuple[str, str]:
 def get_json_s3(
     bucket: str,
     key: str,
-    s3_client: Optional[boto3.client] = None,
+    s3_client: Optional[S3Client] = None,
     anon: bool = False,
 ) -> dict:
     """
@@ -141,12 +143,13 @@ def get_json_s3(
         else:
             s3_client = boto3.client("s3")
     resp = s3_client.get_object(Bucket=bucket, Key=key)
-    return json.load(resp["Body"])
+    json_data: dict = json.load(resp["Body"])
+    return json_data
 
 
 def get_json_s3_uri(
     uri: str,
-    s3_client: Optional[boto3.client] = None,
+    s3_client: Optional[S3Client] = None,
 ) -> dict:
     """
     Retrieve a JSON object from an S3 URI.
@@ -188,7 +191,8 @@ def get_json_url(url: str) -> dict:
     """
     response = requests.get(url)
     response.raise_for_status()  # Raises an error if the download failed
-    return response.json()
+    json_data: dict = response.json()
+    return json_data
 
 
 def get_json(
