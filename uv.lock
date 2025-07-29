@@ -10,20 +10,21 @@ resolution-markers = [
 
 [[package]]
 name = "aind-anatomical-utils"
-version = "0.0.3"
+version = "0.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.3.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "simpleitk" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/97/a2/98011efb00a90b55745db61c84aff91c9c42a59a959ff80f0d41b66e5e32/aind_anatomical_utils-0.0.3.tar.gz", hash = "sha256:34f75f59f3c8304fb4a744f104a222dc3fbc60d8e4f16907103d89e59dfabf88", size = 96198, upload-time = "2025-06-27T18:27:31.773Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/91/d0/e82350214d5902803313752e497a0d85f67cfee8d7a8300528df1695a638/aind_anatomical_utils-0.1.1.tar.gz", hash = "sha256:d47deef0c3937353daf147f03cdeaf393873dc53b2b65447d7efa3682105a54b", size = 140536, upload-time = "2025-07-28T19:10:53.578Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ae/af/88ab75321e9592b2213ce062c0349b5232176d31777902df2dcf7a12c3d8/aind_anatomical_utils-0.0.3-py3-none-any.whl", hash = "sha256:b7c61129d959002a04cd7a9a094635e535f6d91e0f71a53cfbb85ba979903e0a", size = 8095, upload-time = "2025-06-27T18:27:30.615Z" },
+    { url = "https://files.pythonhosted.org/packages/14/2b/e498ff777ffa1a3ef9450ccf85f174b9441c35334593c31102f4d28975ba/aind_anatomical_utils-0.1.1-py3-none-any.whl", hash = "sha256:07fc3cbabc242230e6b53a9a57487dc7bc7980c6f25a125224fcd4cf2ebc702b", size = 12454, upload-time = "2025-07-28T19:10:52.578Z" },
 ]
 
 [[package]]
 name = "aind-zarr-utils"
+version = "0.1.2"
 source = { editable = "." }
 dependencies = [
     { name = "aind-anatomical-utils" },
@@ -68,7 +69,7 @@ vscode = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aind-anatomical-utils", specifier = ">=0.0.1,<0.1" },
+    { name = "aind-anatomical-utils", specifier = ">=0.0.1,<0.2" },
     { name = "antspyx", specifier = ">=0.2,<0.7" },
     { name = "numpy", specifier = ">=2,<3" },
     { name = "ome-zarr", specifier = ">=0.7,<0.12" },
