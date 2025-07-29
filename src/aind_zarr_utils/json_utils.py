@@ -1,14 +1,16 @@
 """S3 utilities for reading and writing JSON files."""
 
 import json
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from urllib.parse import ParseResult, urlparse
 
 import boto3
 import requests
 from botocore import UNSIGNED
 from botocore.config import Config
-from mypy_boto3_s3.client import S3Client
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
 
 
 def _is_url_parsed(parsed: ParseResult) -> bool:
@@ -113,7 +115,7 @@ def parse_s3_uri(s3_uri: str) -> tuple[str, str]:
 def get_json_s3(
     bucket: str,
     key: str,
-    s3_client: Optional[S3Client] = None,
+    s3_client: Optional["S3Client"] = None,
     anon: bool = False,
 ) -> dict:
     """
@@ -149,7 +151,7 @@ def get_json_s3(
 
 def get_json_s3_uri(
     uri: str,
-    s3_client: Optional[S3Client] = None,
+    s3_client: Optional["S3Client"] = None,
 ) -> dict:
     """
     Retrieve a JSON object from an S3 URI.
