@@ -8,27 +8,27 @@ description = "Utilities for working with ZARR data and AIND metadata"
 license = "MIT"
 requires-python = ">=3.10, <3.14"
 authors = [
-    { name = "Galen Lynch", email = "galen@galenlynch.com" },
-    { name = "Allen Institute for Neural Dynamics" },
+  { name = "Galen Lynch", email = "galen@galenlynch.com" },
+  { name = "Allen Institute for Neural Dynamics" },
 ]
 classifiers = ["Programming Language :: Python :: 3"]
 readme = "README.md"
 version = "v0.1.2"
 
 dependencies = [
-    "aind-anatomical-utils>=0.0.1, <0.2",
-    "antspyx>=0.2,<0.7",
-    # boto3
-    # Package depends on boto3, but ome-zarr requires s3fs and this causes
-    # pip dependency resolution issues if specified here.
-    "numpy>=2,<3",
-    "ome-zarr>=0.7,<0.12",
-    "requests>=2,<3",
-    # This is a workaround for pip dependency problems with ome-zarr: s3fs is
-    # NOT a direct dependency of this package, but ome-zarr requires it.
-    # boto3 option required to help pip resolve dependencies
-    "s3fs[boto3]>=2021",
-    "SimpleITK>=2,<3",
+  "aind-anatomical-utils>=0.0.1, <0.2",
+  "antspyx>=0.2,<0.7",
+  # boto3
+  # Package depends on boto3, but ome-zarr requires s3fs and this causes
+  # pip dependency resolution issues if specified here.
+  "numpy>=2,<3",
+  "ome-zarr>=0.7,<0.12",
+  "requests>=2,<3",
+  # This is a workaround for pip dependency problems with ome-zarr: s3fs is
+  # NOT a direct dependency of this package, but ome-zarr requires it.
+  # boto3 option required to help pip resolve dependencies
+  "s3fs[boto3]>=2021",
+  "SimpleITK>=2,<3",
 ]
 
 [project.urls]
@@ -37,15 +37,23 @@ Issues = "https://github.com/AllenNeuralDynamics/aind-zarr-utils/issues"
 Changelog = "https://github.com/AllenNeuralDynamics/aind-zarr-utils/blob/main/CHANGELOG.md"
 
 [dependency-groups]
-dev = ['codespell', 'pytest', 'pytest-cov', 'ruff', 'interrogate']
-vscode = [{include-group = 'dev'}, 'ipykernel', 'pip']
+types = ["mypy", "types-requests", "boto3-stubs[s3]"]
+dev = [
+  { include-group = "types" },
+  "codespell",
+  "pytest",
+  "pytest-cov",
+  "ruff",
+  "interrogate",
+]
+vscode = [{ include-group = "dev" }, "ipykernel", "pip"]
 docs = [
-  {include-group = 'dev'},
-  'mkdocs',
-  'mkdocs-material',
-  'mkdocstrings[python]',
-  'pymdown-extensions',
-  'ruff',
+  { include-group = "dev" },
+  "mkdocs",
+  "mkdocs-material",
+  "mkdocstrings[python]",
+  "pymdown-extensions",
+  "ruff",
 ]
 
 [tool.setuptools.packages.find]
@@ -56,11 +64,11 @@ readme = { file = "README.md", content-type = "text/markdown" }
 
 [tool.ruff]
 line-length = 79
-target-version = 'py313'
+target-version = "py313"
 
 [tool.black]
 line-length = 79
-target-version = ['py313']
+target-version = ["py313"]
 exclude = '''
 
 (
@@ -80,14 +88,14 @@ exclude = '''
 '''
 
 [tool.ruff.lint]
-extend-select = ['Q', 'RUF100', 'C90', 'I', 'F', 'E', 'W']
+extend-select = ["Q", "RUF100", "C90", "I", "F", "E", "W"]
 extend-ignore = []
 mccabe = { max-complexity = 14 }
-pydocstyle = { convention = 'numpy' }
+pydocstyle = { convention = "numpy" }
 
 [tool.codespell]
 skip = '.git,*.pdf,*.svg,./bonsai,*.bonsai,./docs/_build,uv.lock,./doc_template'
-ignore-words-list = 'nd'
+ignore-words-list = "nd"
 
 [tool.pytest.ini_options]
 addopts = "--strict-markers --tb=short --cov=src --cov-report=term-missing --cov-fail-under=0"
@@ -125,7 +133,21 @@ exclude = [
 
 [tool.commitizen]
 version_provider = "pep621"
-version_files = ["pyproject.toml", "src/aind_zarr_utils/__init__.py:__version__"]
+version_files = [
+  "pyproject.toml",
+  "src/aind_zarr_utils/__init__.py:__version__",
+]
 update_changelog_on_bump = true
 tag_format = "v$version"
 major_version_zero = true
+
+[tool.mypy]
+files = ["src/aind_zarr_utils"]
+warn_return_any = true
+warn_unused_configs = true
+strict_optional = true
+ignore_missing_imports = true
+check_untyped_defs = true
+no_implicit_optional = true
+show_error_codes = true
+warn_unused_ignores = true

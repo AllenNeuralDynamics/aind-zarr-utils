@@ -2,17 +2,22 @@
 Module for reading Neuroglancer annotation layers.
 """
 
+from typing import Optional, Tuple, TypeVar, Union
+
 import numpy as np
+from numpy.typing import NDArray
 
 from aind_zarr_utils.annotations import annotation_indices_to_anatomical
 from aind_zarr_utils.zarr import zarr_to_sitk_stub
 
+T = TypeVar("T", int, float)
+
 
 def neuroglancer_annotations_to_indices(
-    data,
-    layer_names=None,
-    return_description=True,
-):
+    data: dict,
+    layer_names: Optional[Union[str, list[str]]] = None,
+    return_description: bool = True,
+) -> tuple[dict[str, NDArray], Optional[dict[str, NDArray]]]:
     """
     Reads annotation layers from a Neuroglancer JSON file and returns points in
     voxel indices.
@@ -60,14 +65,14 @@ def neuroglancer_annotations_to_indices(
 
 
 def neuroglancer_annotations_to_anatomical(
-    neuroglancer_data,
-    zarr_uri,
-    metadata,
-    layer_names=None,
-    return_description=True,
-    scale_unit="millimeter",
-    set_origin=None,
-):
+    neuroglancer_data: dict,
+    zarr_uri: str,
+    metadata: dict,
+    layer_names: Optional[Union[str, list[str]]] = None,
+    return_description: bool = True,
+    scale_unit: str = "millimeter",
+    set_origin: Optional[Tuple[T, T, T]] = None,
+) -> tuple[dict[str, NDArray], Optional[dict[str, NDArray]]]:
     """
     Transforms Neuroglancer annotations to physical points in the image space.
 
@@ -126,10 +131,10 @@ def neuroglancer_annotations_to_anatomical(
 
 
 def neuroglancer_annotations_to_global(
-    data,
-    layer_names=None,
-    return_description=True,
-):
+    data: dict,
+    layer_names: Optional[Union[str, list[str]]] = None,
+    return_description: bool = True,
+) -> tuple[dict[str, NDArray], list[str], Optional[dict[str, NDArray]]]:
     """
     Reads annotation layers from a Neuroglancer JSON file and returns points in
     neuroglancer global coordinates.
@@ -197,7 +202,7 @@ def neuroglancer_annotations_to_global(
     return annotations, units, descriptions
 
 
-def _extract_spacing(dimension_data):
+def _extract_spacing(dimension_data: dict) -> tuple[NDArray, list[str]]:
     """
     Extracts voxel spacing from the Neuroglancer file.
 
@@ -235,7 +240,11 @@ def _extract_spacing(dimension_data):
     return np.array(spacing, dtype=float), units
 
 
-def _resolve_layer_names(layers, layer_names, layer_type):
+def _resolve_layer_names(
+    layers: list[dict],
+    layer_names: Optional[Union[str, list[str]]],
+    layer_type: str,
+) -> list[str]:
     """
     Resolves layer names based on user input or auto-detects layers of the
     given type.
@@ -274,11 +283,11 @@ def _resolve_layer_names(layers, layer_names, layer_type):
 
 
 def _process_annotation_layers(
-    layers,
-    layer_names,
-    spacing=None,
-    return_description=True,
-):
+    layers: list[dict],
+    layer_names: list[str],
+    spacing: Optional[NDArray] = None,
+    return_description: bool = True,
+) -> tuple[dict[str, NDArray], Optional[dict[str, NDArray]]]:
     """
     Processes annotation layers to extract points and descriptions.
 
@@ -302,7 +311,9 @@ def _process_annotation_layers(
         Annotation descriptions for each layer, or None if not requested.
     """
     annotations = {}
-    descriptions = {} if return_description else None
+    descriptions: Optional[dict[str, NDArray]] = (
+        {} if return_description else None
+    )
     for layer_name in layer_names:
         layer = _get_layer_by_name(layers, layer_name)
         points, layer_descriptions = _process_layer_and_descriptions(
@@ -311,13 +322,13 @@ def _process_annotation_layers(
             return_description=return_description,
         )
         annotations[layer_name] = points
-        if return_description:
+        if descriptions is not None and layer_descriptions is not None:
             descriptions[layer_name] = layer_descriptions
 
     return annotations, descriptions
 
 
-def _get_layer_by_name(layers, name):
+def _get_layer_by_name(layers: list[dict], name: str) -> dict:
     """
     Retrieves a layer by its name.
 
@@ -345,10 +356,10 @@ def _get_layer_by_name(layers, name):
 
 
 def _process_layer_and_descriptions(
-    layer,
-    spacing=None,
-    return_description=True,
-):
+    layer: dict,
+    spacing: Optional[NDArray] = None,
+    return_description: bool = True,
+) -> tuple[NDArray, Optional[NDArray]]:
     """
     Processes layer points and descriptions.
 
@@ -384,19 +395,19 @@ def _process_layer_and_descriptions(
                 f"(z, y, x, t), but {point_arr.shape[0]} found."
             )
         points.append(point_arr[:3])  # Keep only the first three dimensions
-    points = np.stack(points) if points else np.empty((0, 3), dtype=float)
+    points_arr = np.stack(points) if points else np.empty((0, 3), dtype=float)
     if spacing is not None:
-        points = points * spacing
+        points_arr = points_arr * spacing
 
     if return_description:
         descriptions = [
             annotation.get("description", None) for annotation in annotations
         ]
-        return points, np.array(descriptions, dtype=object)
-    return points, None
+        return points_arr, np.array(descriptions, dtype=object)
+    return points_arr, None
 
 
-def get_image_sources(data):
+def get_image_sources(data: dict) -> dict[str, Optional[str]]:
     """
     Reads image source URL(s) from a Neuroglancer JSON file.
 
