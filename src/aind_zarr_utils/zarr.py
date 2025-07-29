@@ -6,7 +6,6 @@ from typing import Optional, Tuple, TypeVar
 
 import ants
 import numpy as np
-import SimpleITK
 import SimpleITK as sitk
 from numpy.typing import NDArray
 from ome_zarr.io import parse_url
@@ -328,7 +327,7 @@ def zarr_to_sitk(
     level: int = 3,
     scale_unit: str = "millimeter",
     set_origin: Optional[Tuple[T, T, T]] = None,
-) -> SimpleITK.Image:
+) -> sitk.Image:
     """
     Converts a ZARR file to a SimpleITK image.
 
@@ -381,7 +380,7 @@ def zarr_to_sitk_stub(
     level: int = 0,
     scale_unit: str = "millimeter",
     set_origin: Optional[Tuple[T, T, T]] = None,
-) -> SimpleITK.Image:
+) -> sitk.Image:
     """
     Creates a stub SimpleITK image with the same metadata as the ZARR file.
 

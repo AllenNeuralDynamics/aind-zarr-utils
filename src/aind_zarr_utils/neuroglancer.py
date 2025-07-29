@@ -2,13 +2,15 @@
 Module for reading Neuroglancer annotation layers.
 """
 
-from typing import Optional, Union
+from typing import Optional, Tuple, TypeVar, Union
 
 import numpy as np
 from numpy.typing import NDArray
 
 from aind_zarr_utils.annotations import annotation_indices_to_anatomical
 from aind_zarr_utils.zarr import zarr_to_sitk_stub
+
+T = TypeVar("T", int, float)
 
 
 def neuroglancer_annotations_to_indices(
@@ -69,7 +71,7 @@ def neuroglancer_annotations_to_anatomical(
     layer_names: Optional[Union[str, list[str]]] = None,
     return_description: bool = True,
     scale_unit: str = "millimeter",
-    set_origin: Optional[tuple] = None,
+    set_origin: Optional[Tuple[T, T, T]] = None,
 ) -> tuple[dict[str, NDArray], Optional[dict[str, NDArray]]]:
     """
     Transforms Neuroglancer annotations to physical points in the image space.

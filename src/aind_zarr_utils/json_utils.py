@@ -44,9 +44,9 @@ def _is_file_parsed(parsed: ParseResult) -> bool:
     bool
         True if the URL represents a file path, False otherwise.
     """
-    is_file = bool(
-        not _is_url_parsed(parsed)
-        and (parsed.scheme == "file" or (not parsed.scheme and parsed.path))
+    is_file = not _is_url_parsed(parsed) and (
+        parsed.scheme == "file"
+        or (not parsed.scheme and parsed.path is not None)
     )
     return is_file
 
