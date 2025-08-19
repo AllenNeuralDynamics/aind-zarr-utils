@@ -22,7 +22,7 @@ dependencies = [
   # Package depends on boto3, but ome-zarr requires s3fs and this causes
   # pip dependency resolution issues if specified here.
   "numpy>=2,<3",
-  "ome-zarr>=0.7,<0.12",
+  "ome-zarr>=0.7,<0.13",
   "requests>=2,<3",
   # This is a workaround for pip dependency problems with ome-zarr: s3fs is
   # NOT a direct dependency of this package, but ome-zarr requires it.
