@@ -16,7 +16,7 @@ readme = "README.md"
 version = "0.1.4"
 
 dependencies = [
-  "aind-anatomical-utils>=0.0.1, <0.2",
+  "aind-anatomical-utils>=0.0.1, <0.3",
   "antspyx>=0.2,<0.7",
   # boto3
   # Package depends on boto3, but ome-zarr requires s3fs and this causes
