@@ -10,16 +10,16 @@ resolution-markers = [
 
 [[package]]
 name = "aind-anatomical-utils"
-version = "0.1.1"
+version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.3.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "simpleitk" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/91/d0/e82350214d5902803313752e497a0d85f67cfee8d7a8300528df1695a638/aind_anatomical_utils-0.1.1.tar.gz", hash = "sha256:d47deef0c3937353daf147f03cdeaf393873dc53b2b65447d7efa3682105a54b", size = 140536, upload-time = "2025-07-28T19:10:53.578Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a9/d3/d9617e170f24e01ec543e1c1be7182fd31a2d07c56f2e0425f1f7e26efac/aind_anatomical_utils-0.2.0.tar.gz", hash = "sha256:6f1a4e37b5544bbaad938a40542ae3ad38f1eb6dd12dc25f075af3d39fc7a018", size = 143372, upload-time = "2025-08-13T20:55:19.54Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/14/2b/e498ff777ffa1a3ef9450ccf85f174b9441c35334593c31102f4d28975ba/aind_anatomical_utils-0.1.1-py3-none-any.whl", hash = "sha256:07fc3cbabc242230e6b53a9a57487dc7bc7980c6f25a125224fcd4cf2ebc702b", size = 12454, upload-time = "2025-07-28T19:10:52.578Z" },
+    { url = "https://files.pythonhosted.org/packages/b4/3d/0ea4e15981a0d7e72b6415efb37041303f6c56f4f39ebe13d253b951a112/aind_anatomical_utils-0.2.0-py3-none-any.whl", hash = "sha256:8a0890b3419fc4e5450216e373988737663b52fa71be4b61ddcdb64f844d02d6", size = 13302, upload-time = "2025-08-13T20:55:18.402Z" },
 ]
 
 [[package]]
@@ -83,10 +83,10 @@ vscode = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aind-anatomical-utils", specifier = ">=0.0.1,<0.2" },
+    { name = "aind-anatomical-utils", specifier = ">=0.0.1,<0.3" },
     { name = "antspyx", specifier = ">=0.2,<0.7" },
     { name = "numpy", specifier = ">=2,<3" },
-    { name = "ome-zarr", specifier = ">=0.7,<0.12" },
+    { name = "ome-zarr", specifier = ">=0.7,<0.13" },
     { name = "requests", specifier = ">=2,<3" },
     { name = "s3fs", extras = ["boto3"], specifier = ">=2021" },
     { name = "simpleitk", specifier = ">=2,<3" },
