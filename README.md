@@ -12,6 +12,39 @@ can be used to generate SimpleITK or ANTS images from a ZARR dataset, or
 generate a stub image to do index conversion.
 
 ## Usage
+aind_zarr_utils provides an anatomically aware platform for interacting with AIND Zarr images and their corresponding metadata.
+
+To load an image, first read the metadata:
+```
+from aind_zarr_utils.json_utils import get_json
+metadata_path = 'path_to_metadata'
+metadata = {'acquisition':get_json(metadata_path)}
+```
+you can then use the "zarr_to_ants" or "zarr_to_sitk" to load the zarr as an ANTs image or SITK image, respectively. i.e.:
+```
+from aind_zarr_utils.zarr import zarr_to_ants,zarr_to_sitk
+channel_path = 'path_to_image'
+level = 3 # Zarr level to read
+ants_image = zarr_to_ants(channel_path, metadata, level=level)
+sitk_image = zarr_to_sitk(channel_path, metadata, level=level)
+```
+
+In some cases, it is useful to interact with point data in image space, without explicitly loading the underlying image. In this case, aind_zarr_utils allows for the use of a "stub" image. Here, an empty sitk image will be loaded. This image will have origin, direction, and spacing that match the full image, but takes up minimal space in memory. Once a stub image is loaded, regular SITK functions for moving from, for example, indices to physical space can be used.
+
+```
+from aind_zarr_utils.zarr import zarr_to_sitk_stub
+sitk_stub = zarr_to_sitk_stub(channel_path,metadata,level
+```
+
+Stub images are particularly useful when dealing with points annotated in image space. aind_zarr_utils includes functionality for reading neuroglancer annotations. Since neuroglancer itself is not anatomically aware, this operation also depends on knowledge of the metadata. i.e.:
+```
+neuroglancer_json = get_json('path_to_neuroglancer.json')
+points_neuroglancer_indicies,_ = neuroglancer_annotations_to_indices(neuroglancer_json)
+points_image_anatomical = annotation_indices_to_anatomical(stub,points_neuroglancer_indicies)
+```
+
+
+
 
 ## Installation
 To use the software, in the root directory, run
