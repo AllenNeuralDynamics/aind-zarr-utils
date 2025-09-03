@@ -1,122 +1,33 @@
 """S3 utilities for reading and writing JSON files."""
 
+from __future__ import annotations
+
 import json
 from typing import TYPE_CHECKING, Optional
-from urllib.parse import ParseResult, urlparse
+from urllib.parse import urlparse
+from warnings import warn
 
 import boto3
 import requests
 from botocore import UNSIGNED
 from botocore.config import Config
 
+from aind_zarr_utils.uri_utils import (
+    _is_file_parsed,
+    _is_url_parsed,
+    parse_s3_uri,
+)
+
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
-
-
-def _is_url_parsed(parsed: ParseResult) -> bool:
-    """
-    Check if a parsed URL is an HTTP, HTTPS, or S3 URL.
-
-    Parameters
-    ----------
-    parsed : ParseResult
-        The parsed URL object.
-
-    Returns
-    -------
-    bool
-        True if the URL is HTTP, HTTPS, or S3, False otherwise.
-    """
-    return parsed.scheme in ("http", "https", "s3")
-
-
-def _is_file_parsed(parsed: ParseResult) -> bool:
-    """
-    Check if a parsed URL represents a file path.
-
-    Parameters
-    ----------
-    parsed : ParseResult
-        The parsed URL object.
-
-    Returns
-    -------
-    bool
-        True if the URL represents a file path, False otherwise.
-    """
-    is_file = not _is_url_parsed(parsed) and (
-        parsed.scheme == "file"
-        or (not parsed.scheme and parsed.path is not None)
-    )
-    return is_file
-
-
-def is_url(path_or_url: str) -> bool:
-    """
-    Determine if a given string is a URL.
-
-    Parameters
-    ----------
-    path_or_url : str
-        The string to check.
-
-    Returns
-    -------
-    bool
-        True if the string is a URL, False otherwise.
-    """
-    parsed = urlparse(path_or_url)
-    return _is_url_parsed(parsed)
-
-
-def is_file_path(path_or_url: str) -> bool:
-    """
-    Determine if a given string is a file path.
-
-    Parameters
-    ----------
-    path_or_url : str
-        The string to check.
-
-    Returns
-    -------
-    bool
-        True if the string is a file path, False otherwise.
-    """
-    parsed = urlparse(path_or_url)
-    return _is_file_parsed(parsed)
-
-
-def parse_s3_uri(s3_uri: str) -> tuple[str, str]:
-    """
-    Parse an S3 URI into bucket and key components.
-
-    Parameters
-    ----------
-    s3_uri : str
-        The S3 URI to parse.
-
-    Returns
-    -------
-    tuple
-        A tuple containing the bucket name and the key.
-
-    Raises
-    ------
-    ValueError
-        If the URI is not a valid S3 URI.
-    """
-    parsed = urlparse(s3_uri)
-    if parsed.scheme != "s3":
-        raise ValueError("Not a valid S3 URI")
-    return parsed.netloc, parsed.path.lstrip("/")
 
 
 def get_json_s3(
     bucket: str,
     key: str,
     s3_client: Optional["S3Client"] = None,
-    anon: bool = False,
+    anonymous: bool = False,
+    anon: bool | None = None,
 ) -> dict:
     """
     Retrieve a JSON object from an S3 bucket.
@@ -129,6 +40,11 @@ def get_json_s3(
         The key of the JSON object in the bucket.
     s3_client : boto3.client, optional
         An existing S3 client. If None, a new client is created.
+    anonymous : bool, optional
+        If True, the S3 client will be created in anonymous mode.
+
+    deprecated parameters
+    ---------------------
     anon : bool, optional
         If True, the S3 client will be created in anonymous mode.
 
@@ -138,7 +54,16 @@ def get_json_s3(
         The JSON object.
     """
     if s3_client is None:
-        if anon:
+        if anon is not None:
+            # Deprecated parameter 'anon' is now 'anonymous'
+            anonymous = anon
+            warn(
+                DeprecationWarning(
+                    "The 'anon' parameter is deprecated, use "
+                    "'anonymous' instead."
+                )
+            )
+        if anonymous:
             s3_client = boto3.client(
                 "s3", config=Config(signature_version=UNSIGNED)
             )
@@ -152,6 +77,7 @@ def get_json_s3(
 def get_json_s3_uri(
     uri: str,
     s3_client: Optional["S3Client"] = None,
+    anonymous: bool = False,
 ) -> dict:
     """
     Retrieve a JSON object from an S3 URI.
@@ -162,6 +88,8 @@ def get_json_s3_uri(
         The S3 URI of the JSON object.
     s3_client : boto3.client, optional
         An existing S3 client. If None, a new client is created.
+    anonymous : bool, optional
+        If True, the S3 client will be created in anonymous mode.
 
     Returns
     -------
@@ -169,7 +97,7 @@ def get_json_s3_uri(
         The JSON object.
     """
     bucket, key = parse_s3_uri(uri)
-    return get_json_s3(bucket, key, s3_client=s3_client)
+    return get_json_s3(bucket, key, s3_client=s3_client, anonymous=anonymous)
 
 
 def get_json_url(url: str) -> dict:

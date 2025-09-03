@@ -2,6 +2,8 @@
 Module for working with points in ZARR files
 """
 
+from __future__ import annotations
+
 import re
 from typing import Dict, List, Optional
 

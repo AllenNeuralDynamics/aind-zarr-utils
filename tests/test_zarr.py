@@ -1,4 +1,3 @@
-import numpy as np
 import pytest
 
 from aind_zarr_utils import zarr as zarr_mod
@@ -61,186 +60,51 @@ def test_unit_conversion():
     assert zarr_mod._unit_conversion("centimeter", "millimeter") == 10.0
 
 
-def make_fake_image_node(shape=(1, 1, 3, 4, 5), level=0):
-    class FakeData:
-        def __init__(self, shape):
-            self.shape = shape
-
-        def compute(self):
-            return np.ones(self.shape)
-
-    class FakeNode:
-        def __init__(self, shape):
-            self.data = {level: FakeData(shape)}
-            self.metadata = {
-                "coordinateTransformations": [
-                    [{"scale": [1.0, 2.0, 3.0, 4.0, 5.0]}] * (level + 1)
-                ],
-                "axes": [
-                    {"name": "t", "unit": "second"},
-                    {"name": "c", "unit": ""},
-                    {"name": "z", "unit": "millimeter"},
-                    {"name": "y", "unit": "millimeter"},
-                    {"name": "x", "unit": "millimeter"},
-                ],
-            }
-
-    return FakeNode(shape)
+# Use shared zarr infrastructure from conftest.py
 
 
-def fake_reader(*args, **kwargs):
-    return [make_fake_image_node(*args, **kwargs)]
-
-
-def test_open_zarr(monkeypatch):
-    monkeypatch.setattr(zarr_mod, "Reader", lambda url: fake_reader)
-    monkeypatch.setattr(zarr_mod, "parse_url", lambda uri: uri)
+def test_open_zarr(mock_zarr_operations):
     image_node, zarr_meta = zarr_mod._open_zarr("fake_uri")
     assert hasattr(image_node, "data")
     assert "axes" in zarr_meta
 
 
-def test_zarr_to_numpy(monkeypatch):
-    monkeypatch.setattr(zarr_mod, "Reader", lambda url: fake_reader)
-    monkeypatch.setattr(zarr_mod, "parse_url", lambda uri: uri)
+def test_zarr_to_numpy(mock_zarr_operations):
     arr, meta, level = zarr_mod.zarr_to_numpy("fake_uri", level=0)
-    assert arr.shape == (1, 1, 3, 4, 5)
+    assert arr.shape == (1, 1, 10, 10, 10)
     assert "axes" in meta
     assert level == 0
 
 
-def test_zarr_to_numpy_anatomical(monkeypatch):
-    monkeypatch.setattr(zarr_mod, "Reader", lambda url: fake_reader)
-    monkeypatch.setattr(zarr_mod, "parse_url", lambda uri: uri)
-    nd_metadata = {
-        "acquisition": {
-            "axes": [
-                {
-                    "dimension": "2",
-                    "name": "Z",
-                    "direction": "INFERIOR_SUPERIOR",
-                },
-                {
-                    "dimension": "3",
-                    "name": "Y",
-                    "direction": "POSTERIOR_ANTERIOR",
-                },
-                {"dimension": "4", "name": "X", "direction": "LEFT_RIGHT"},
-            ]
-        }
-    }
-    arr, dirs, spacing = zarr_mod._zarr_to_numpy_anatomical(
-        "fake_uri", nd_metadata, level=0
+def test_zarr_to_numpy_anatomical(mock_zarr_operations, mock_nd_metadata):
+    arr, dirs, spacing, size = zarr_mod._zarr_to_numpy_anatomical(
+        "fake_uri", mock_nd_metadata, level=0
     )
-    assert arr.shape == (3, 4, 5)
+    assert arr.shape == (10, 10, 10)
     assert set(dirs) == {"S", "A", "R"}
     assert len(spacing) == 3
+    assert len(size) == 3
 
 
-def test_zarr_to_ants_and_sitk(monkeypatch):
-    monkeypatch.setattr(zarr_mod, "Reader", lambda url: fake_reader)
-    monkeypatch.setattr(zarr_mod, "parse_url", lambda uri: uri)
-    nd_metadata = {
-        "acquisition": {
-            "axes": [
-                {
-                    "dimension": "2",
-                    "name": "Z",
-                    "direction": "INFERIOR_SUPERIOR",
-                },
-                {
-                    "dimension": "3",
-                    "name": "Y",
-                    "direction": "POSTERIOR_ANTERIOR",
-                },
-                {"dimension": "4", "name": "X", "direction": "LEFT_RIGHT"},
-            ]
-        }
-    }
+def test_zarr_to_ants_and_sitk(
+    mock_zarr_operations, mock_nd_metadata, mock_sitk_module, mock_ants_module
+):
+    ants_img = zarr_mod.zarr_to_ants("fake_uri", mock_nd_metadata, level=0)
+    assert hasattr(ants_img, "spacing")
 
-    # Patch ants and sitk
-    class DummyAntsImage:
-        pass
+    sitk_img = zarr_mod.zarr_to_sitk("fake_uri", mock_nd_metadata, level=0)
+    assert hasattr(sitk_img, "_spacing")
+    assert hasattr(sitk_img, "_origin")
+    assert hasattr(sitk_img, "_direction")
 
-    class DummySitkImage:
-        def SetSpacing(self, spacing):
-            self.spacing = spacing
 
-        def SetOrigin(self, origin):
-            self.origin = origin
-
-        def SetDirection(self, direction):
-            self.direction = direction
-
-    monkeypatch.setattr(
-        zarr_mod.ants,
-        "from_numpy",
-        lambda arr, spacing, direction, origin: DummyAntsImage(),
+def test_zarr_to_sitk_stub(
+    mock_zarr_operations, mock_nd_metadata, mock_sitk_module
+):
+    stub_img, size_ijk = zarr_mod.zarr_to_sitk_stub(
+        "fake_uri", mock_nd_metadata, level=0
     )
-    monkeypatch.setattr(
-        zarr_mod.sitk, "GetImageFromArray", lambda arr: DummySitkImage()
-    )
-
-    class DummyDICOMOrient:
-        @staticmethod
-        def GetDirectionCosinesFromOrientation(dir_str):
-            return tuple(range(9))
-
-    monkeypatch.setattr(
-        zarr_mod.sitk, "DICOMOrientImageFilter", DummyDICOMOrient
-    )
-    ants_img = zarr_mod.zarr_to_ants("fake_uri", nd_metadata, level=0)
-    assert isinstance(ants_img, DummyAntsImage)
-    sitk_img = zarr_mod.zarr_to_sitk("fake_uri", nd_metadata, level=0)
-    assert hasattr(sitk_img, "spacing")
-    assert hasattr(sitk_img, "origin")
-    assert hasattr(sitk_img, "direction")
-
-
-def test_zarr_to_sitk_stub(monkeypatch):
-    monkeypatch.setattr(zarr_mod, "Reader", lambda url: fake_reader)
-    monkeypatch.setattr(zarr_mod, "parse_url", lambda uri: uri)
-    nd_metadata = {
-        "acquisition": {
-            "axes": [
-                {
-                    "dimension": "2",
-                    "name": "Z",
-                    "direction": "INFERIOR_SUPERIOR",
-                },
-                {
-                    "dimension": "3",
-                    "name": "Y",
-                    "direction": "POSTERIOR_ANTERIOR",
-                },
-                {"dimension": "4", "name": "X", "direction": "LEFT_RIGHT"},
-            ]
-        }
-    }
-
-    class DummySitkImage:
-        def SetSpacing(self, spacing):
-            self.spacing = spacing
-
-        def SetOrigin(self, origin):
-            self.origin = origin
-
-        def SetDirection(self, direction):
-            self.direction = direction
-
-    monkeypatch.setattr(
-        zarr_mod.sitk, "Image", lambda shape, dtype: DummySitkImage()
-    )
-
-    class DummyDICOMOrient:
-        @staticmethod
-        def GetDirectionCosinesFromOrientation(dir_str):
-            return tuple(range(9))
-
-    monkeypatch.setattr(
-        zarr_mod.sitk, "DICOMOrientImageFilter", DummyDICOMOrient
-    )
-    stub_img = zarr_mod.zarr_to_sitk_stub("fake_uri", nd_metadata, level=0)
-    assert hasattr(stub_img, "spacing")
-    assert hasattr(stub_img, "origin")
-    assert hasattr(stub_img, "direction")
+    assert hasattr(stub_img, "_spacing")
+    assert hasattr(stub_img, "_origin")
+    assert hasattr(stub_img, "_direction")
+    assert len(size_ijk) == 3
