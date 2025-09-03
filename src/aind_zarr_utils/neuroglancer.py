@@ -2,9 +2,12 @@
 Module for reading Neuroglancer annotation layers.
 """
 
+from __future__ import annotations
+
 from typing import Optional, Tuple, TypeVar, Union
 
 import numpy as np
+import SimpleITK as sitk
 from numpy.typing import NDArray
 
 from aind_zarr_utils.annotations import annotation_indices_to_anatomical
@@ -72,6 +75,9 @@ def neuroglancer_annotations_to_anatomical(
     return_description: bool = True,
     scale_unit: str = "millimeter",
     set_origin: Optional[Tuple[T, T, T]] = None,
+    set_corner: Optional[str] = None,
+    set_corner_lps: Optional[Tuple[float, float, float]] = None,
+    stub_image: Optional[sitk.Image] = None,
 ) -> tuple[dict[str, NDArray], Optional[dict[str, NDArray]]]:
     """
     Transforms Neuroglancer annotations to physical points in the image space.
@@ -101,9 +107,19 @@ def neuroglancer_annotations_to_anatomical(
         True.
     scale_unit : str, optional
         Unit to scale the physical points. Default is "millimeter".
-    set_origin : tuple or None, optional
-        If provided, sets the origin of the image to this value. Default is
-        None.
+    set_origin : tuple, optional
+        Origin of the image, by default None. Exclusive of set_corner and
+        set_corner_lps.
+    set_corner : str, optional
+        Which corner to use, by default None. If set, must specify both
+        set_corner and set_corner_lps, exclusive of set_origin.
+    set_corner_lps: tuple, optional
+        Coordinates of the corner in LPS. If set, must specify both set_corner
+        and set_corner_lps, exclusive of set_origin.
+    stub_image : sitk.Image, optional
+        Pre-created SimpleITK stub image to use for coordinate transformations.
+        If provided, zarr_uri, metadata, scale_unit, set_origin, set_corner,
+        and set_corner_lps parameters are ignored for stub creation.
 
     Returns
     -------
@@ -115,9 +131,17 @@ def neuroglancer_annotations_to_anatomical(
         Dictionary where keys are annotation names and values are lists of
         descriptions.
     """
-    stub_img = zarr_to_sitk_stub(
-        zarr_uri, metadata, scale_unit=scale_unit, set_origin=set_origin
-    )
+    if stub_image is None:
+        stub_img, _ = zarr_to_sitk_stub(
+            zarr_uri,
+            metadata,
+            scale_unit=scale_unit,
+            set_origin=set_origin,
+            set_corner=set_corner,
+            set_corner_lps=set_corner_lps,
+        )
+    else:
+        stub_img = stub_image
     annotations, descriptions = neuroglancer_annotations_to_indices(
         neuroglancer_data,
         layer_names=layer_names,

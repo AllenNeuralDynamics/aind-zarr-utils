@@ -4,12 +4,20 @@
 ![Code Style](https://img.shields.io/badge/code%20style-black-black)
 [![semantic-release: angular](https://img.shields.io/badge/semantic--release-angular-e10079?logo=semantic-release)](https://github.com/semantic-release/semantic-release)
 ![Interrogate](https://img.shields.io/badge/interrogate-100.0%25-brightgreen)
-![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen?logo=codecov)
+![Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen?logo=codecov)
 ![Python](https://img.shields.io/badge/python->=3.10-blue?logo=python)
 
-A collection of utilities for working with ZARR files and AIND metadata. This
-can be used to generate SimpleITK or ANTS images from a ZARR dataset, or
-generate a stub image to do index conversion.
+A Python utility library developed by Allen Institute for Neural Dynamics for working with ZARR files and AIND metadata. This package enables converting ZARR datasets to SimpleITK and ANTs images, processing neuroimaging annotation data from Neuroglancer, handling anatomical coordinate transformations, and reading JSON metadata from various sources including S3.
+
+## Key Features
+
+- **ZARR ↔ Image Conversion**: Convert ZARR datasets to SimpleITK and ANTs images with proper coordinate system handling
+- **Neuroglancer Integration**: Process annotation layers and coordinate transforms from Neuroglancer
+- **Coordinate Transformations**: Handle point transformations from image space to anatomical space (LPS coordinates)
+- **Multi-source JSON Reading**: Unified JSON loading from local files, HTTP URLs, and S3 URIs
+- **Pipeline-specific Corrections**: Version-based spatial domain corrections for pipeline compatibility
+- **S3 Integration**: Built-in support for AWS S3 with caching and anonymous access
+- **CCF Registration**: Pipeline-specific coordinate transformations and CCF registration utilities
 
 ## Usage
 aind_zarr_utils provides an anatomically aware platform for interacting with AIND Zarr images and their corresponding metadata.
@@ -46,36 +54,130 @@ points_image_anatomical = annotation_indices_to_anatomical(stub,points_neuroglan
 
 
 
+### Basic ZARR to Image Conversion
+
+```python
+from aind_zarr_utils import zarr_to_ants, zarr_to_sitk, zarr_to_sitk_stub
+
+# Convert ZARR to ANTs image with anatomical coordinates
+ants_img = zarr_to_ants(zarr_uri, metadata, level=3, scale_unit="millimeter")
+
+# Convert ZARR to SimpleITK image  
+sitk_img = zarr_to_sitk(zarr_uri, metadata, level=3, scale_unit="millimeter")
+
+# Create stub image for coordinate transformations only
+stub_img = zarr_to_sitk_stub(zarr_uri, metadata, level=0)
+```
+
+### Processing Neuroglancer Annotations
+
+```python
+from aind_zarr_utils import neuroglancer_annotations_to_indices, neuroglancer_annotations_to_anatomical
+
+# Get points in voxel indices
+annotations, descriptions = neuroglancer_annotations_to_indices(neuroglancer_data)
+
+# Transform to anatomical coordinates (LPS)
+physical_points, descriptions = neuroglancer_annotations_to_anatomical(
+    neuroglancer_data, zarr_uri, metadata, scale_unit="millimeter"
+)
+```
+
+### Multi-source JSON Loading
+
+```python
+from aind_zarr_utils import get_json
+
+# Automatically handles local files, URLs, and S3 URIs
+data = get_json("s3://aind-open-data/path/to/file.json")
+data = get_json("https://example.com/data.json") 
+data = get_json("/local/path/data.json")
+```
+
+### Pipeline-specific Domain Corrections
+
+```python
+from aind_zarr_utils import mimic_pipeline_zarr_to_anatomical_stub, neuroglancer_to_ccf
+
+# Create stub with pipeline version-specific corrections
+pipeline_stub = mimic_pipeline_zarr_to_anatomical_stub(
+    zarr_uri, metadata, processing_data
+)
+
+# Transform neuroglancer annotations with pipeline-corrected spatial properties
+points_ccf, descriptions = neuroglancer_to_ccf(
+    neuroglancer_data, zarr_uri, metadata, processing_data,
+    template_used="SmartSPIM-template_2024-05-16_11-26-14"
+)
+```
+
 ## Installation
-To use the software, in the root directory, run
+
+### From PyPI (when available)
 ```bash
+pip install aind-zarr-utils
+```
+
+### From Source
+For development or latest features:
+```bash
+git clone https://github.com/AllenNeuralDynamics/aind-zarr-utils.git
+cd aind-zarr-utils
 pip install -e .
 ```
 
-To develop the code, run
+### Development Installation
+For contributing to the project:
 ```bash
+git clone https://github.com/AllenNeuralDynamics/aind-zarr-utils.git
+cd aind-zarr-utils
 pip install -e .[dev]
+# or with uv:
+uv sync
 ```
+
+## Requirements
+
+- Python ≥3.10
+- Core dependencies: NumPy, ome-zarr, SimpleITK, antspyx, requests
+- AIND ecosystem: aind-anatomical-utils, aind-registration-utils
+- Cloud: boto3, s3fs for AWS S3 integration
+
+## Key Concepts
+
+### Coordinate Systems
+- **LPS (Left-Posterior-Superior)**: Standard output coordinate system for all functions
+- **Coordinate transformations**: Explicit handling between neuroimaging orientations (RAS/LPS)
+- **Neuroglancer points**: Assumed to be in order z, y, x, t (only z, y, x returned)
+
+### Data Sources
+- **S3 Integration**: Primary bucket `aind-open-data` with anonymous access support
+- **ZARR Data**: Multi-resolution support with automatic unit conversions
+- **Pipeline Compatibility**: Version-specific spatial domain corrections
+
+### Architecture
+- **Modular Design**: Separate modules for ZARR conversion, neuroglancer processing, annotations, JSON utilities
+- **Caching**: S3 resource caching with ETag-based validation
+- **Error Handling**: Comprehensive validation and meaningful error messages
 
 ## Contributing
 
-### Linters and testing
+### Development Workflow
 
-There are several libraries used to run linters, check documentation, and run tests.
-
-- Please test your changes using the **coverage** library, which will run the tests and log a coverage report:
+Please test your changes using the full linting and testing suite:
 
 ```bash
 ./scripts/run_linters_and_checks.sh -c
 ```
 
-which is equivalent to:
+Or run individual commands:
 ```bash
-uv run --frozen ruff format
-uv run --frozen ruff check
-uv run --frozen interrogate -v
-uv run --frozen codespell --check-filenames
-uv run --frozen pytest --cov aind_zarr_utils
+uv run --frozen ruff format          # Code formatting
+uv run --frozen ruff check           # Linting
+uv run --frozen mypy                 # Type checking
+uv run --frozen interrogate -v       # Documentation coverage
+uv run --frozen codespell --check-filenames  # Spell checking
+uv run --frozen pytest --cov aind_zarr_utils # Tests with coverage
 ```
 
 ### Pull requests

@@ -3,21 +3,7 @@ import pytest
 
 from aind_zarr_utils import neuroglancer as ng
 
-
-# Dummy annotation_indices_to_anatomical for anatomical tests
-class DummyStubImg:
-    pass
-
-
-def dummy_annotation_indices_to_anatomical(stub_img, annotations):
-    # Just return the input for test purposes
-    return {k: v + 1 for k, v in annotations.items()}
-
-
-def dummy_zarr_to_sitk_stub(
-    zarr_uri, metadata, scale_unit="millimeter", set_origin=None
-):
-    return DummyStubImg()
+# Use shared infrastructure from conftest.py
 
 
 def test_resolve_layer_names():
@@ -126,9 +112,10 @@ def test_neuroglancer_annotations_to_indices(monkeypatch):
     assert "a" in desc
 
 
-def test_neuroglancer_annotations_to_anatomical(monkeypatch):
+def test_neuroglancer_annotations_to_anatomical(
+    mock_annotation_functions, monkeypatch
+):
     data = {"layers": []}
-    monkeypatch.setattr(ng, "zarr_to_sitk_stub", dummy_zarr_to_sitk_stub)
     monkeypatch.setattr(
         ng,
         "neuroglancer_annotations_to_indices",
@@ -136,11 +123,6 @@ def test_neuroglancer_annotations_to_anatomical(monkeypatch):
             {"a": np.array([[1, 2, 3]])},
             {"a": np.array(["desc"])},
         ),
-    )
-    monkeypatch.setattr(
-        ng,
-        "annotation_indices_to_anatomical",
-        dummy_annotation_indices_to_anatomical,
     )
     points, desc = ng.neuroglancer_annotations_to_anatomical(
         data, "uri", {}, layer_names=None
