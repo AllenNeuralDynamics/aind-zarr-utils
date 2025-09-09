@@ -51,10 +51,12 @@ dev = [
 vscode = [{ include-group = "dev" }, "ipykernel", "pip"]
 docs = [
   { include-group = "dev" },
-  "mkdocs",
-  "mkdocs-material",
-  "mkdocstrings[python]",
-  "pymdown-extensions",
+  "sphinx>=5.0",
+  "sphinx-autodoc-typehints",
+  "sphinx-copybutton", 
+  "myst-parser",
+  "nbsphinx",
+  "furo",
   "ruff",
 ]
 
