@@ -1,3 +1,9 @@
+## v0.2.0 (2025-09-09)
+
+### Feat
+
+- **domain**: add pipeline domain/transform utils; S3 caching; docs
+
 ## v0.1.4 (2025-08-07)
 
 ## v0.1.3 (2025-07-29)
