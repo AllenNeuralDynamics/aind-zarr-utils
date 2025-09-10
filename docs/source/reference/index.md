@@ -6,6 +6,5 @@ Technical reference materials and additional resources.
 :maxdepth: 2
 
 changelog
-coordinate-systems
 troubleshooting
 ```
