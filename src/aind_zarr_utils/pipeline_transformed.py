@@ -637,7 +637,7 @@ def neuroglancer_to_ccf(
     anonymous: bool = False,
     cache_dir: Optional[Union[str, os.PathLike]] = None,
     template_used: str = "SmartSPIM-template_2024-05-16_11-26-14",
-):
+) -> tuple[dict[str, NDArray], dict[str, NDArray] | None]:
     """
     Convert Neuroglancer annotation JSON into CCF coordinates.
 
@@ -693,7 +693,7 @@ def neuroglancer_to_ccf_pipeline_files(
     neuroglancer_data: dict,
     asset_uri: Optional[str] = None,
     **kwargs: Any,
-) -> tuple[dict[str, NDArray], Optional[dict[str, list[str]]]]:
+) -> tuple[dict[str, NDArray], dict[str, NDArray] | None]:
     """Resolve pipeline metadata files then convert annotations to CCF.
 
     This is a convenience wrapper that infers the acquisition (LS) Zarr URI
@@ -737,17 +737,32 @@ def neuroglancer_to_ccf_pipeline_files(
     if asset_uri is None:
         image_sources = get_image_sources(neuroglancer_data)
         # Get first image source in dict
-        zarr_uri = next(iter(image_sources.values()), None)
-        if zarr_uri is None:
+        a_zarr_uri = next(iter(image_sources.values()), None)
+        if a_zarr_uri is None:
             raise ValueError("No image sources found in neuroglancer data")
-        uri_type, bucket, zarr_pathlike = as_pathlike(zarr_uri)
-        asset_pathlike = _asset_from_zarr_pathlike(zarr_pathlike)
+        uri_type, bucket, a_zarr_pathlike = as_pathlike(a_zarr_uri)
+        asset_pathlike = _asset_from_zarr_pathlike(a_zarr_pathlike)
+    else:
+        uri_type, bucket, asset_pathlike = as_pathlike(asset_uri)
     metadata_pathlike = asset_pathlike / "metadata.nd.json"
     processing_pathlike = asset_pathlike / "processing.json"
     metadata_uri = as_string(uri_type, bucket, metadata_pathlike)
     processing_uri = as_string(uri_type, bucket, processing_pathlike)
     metadata = get_json(metadata_uri)
     processing_data = get_json(processing_uri)
+    alignment_rel_path = image_atlas_alignment_path_relative_from_processing(
+        processing_data
+    )
+    if alignment_rel_path is None:
+        raise ValueError(
+            "Could not determine image atlas alignment path from "
+            "processing data"
+        )
+    channel = PurePosixPath(alignment_rel_path).stem
+    zarr_pathlike = (
+        asset_pathlike / f"image_tile_fusing/OMEZarr/{channel}.zarr"
+    )
+    zarr_uri = as_string(uri_type, bucket, zarr_pathlike)
     return neuroglancer_to_ccf(
         neuroglancer_data,
         zarr_uri=zarr_uri,
