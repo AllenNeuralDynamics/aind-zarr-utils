@@ -1,3 +1,9 @@
+## v0.3.0 (2025-09-10)
+
+### Feat
+
+- add convenience function to load all files from neuroglancer
+
 ## v0.2.0 (2025-09-09)
 
 ### Feat
