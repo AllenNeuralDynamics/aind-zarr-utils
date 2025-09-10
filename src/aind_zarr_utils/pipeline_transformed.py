@@ -28,7 +28,9 @@ from numpy.typing import NDArray
 from packaging.version import Version
 
 from aind_zarr_utils.annotations import annotation_indices_to_anatomical
+from aind_zarr_utils.json_utils import get_json
 from aind_zarr_utils.neuroglancer import (
+    get_image_sources,
     neuroglancer_annotations_to_indices,
 )
 from aind_zarr_utils.pipeline_domain_selector import (
@@ -685,3 +687,71 @@ def neuroglancer_to_ccf(
         template_used=template_used,
     )
     return annotation_points_ccf, descriptions
+
+
+def neuroglancer_to_ccf_pipeline_files(
+    neuroglancer_data: dict,
+    asset_uri: Optional[str] = None,
+    **kwargs: Any,
+) -> tuple[dict[str, NDArray], Optional[dict[str, list[str]]]]:
+    """Resolve pipeline metadata files then convert annotations to CCF.
+
+    This is a convenience wrapper that infers the acquisition (LS) Zarr URI
+    from a Neuroglancer state (``image_sources``), loads the accompanying
+    ``metadata.nd.json`` and ``processing.json`` files located at the asset
+    root, and then delegates to :func:`neuroglancer_to_ccf`.
+
+    Parameters
+    ----------
+    neuroglancer_data : dict
+        Parsed Neuroglancer state JSON containing an ``image_sources``
+        section referencing at least one LS Zarr.
+    asset_uri : str, optional
+        Base URI for the asset containing the Zarr and metadata files. If
+        ``None``, the asset root is inferred from the Zarr URI in
+        ``neuroglancer_data``.
+    **kwargs : Any
+        Forwarded keyword arguments accepted by :func:`neuroglancer_to_ccf`.
+        Common keys include:
+
+        - ``layer_names`` : str | list[str] | None
+        - ``return_description`` : bool
+        - ``s3_client`` : S3Client | None
+        - ``anonymous`` : bool
+        - ``cache_dir`` : str | os.PathLike | None
+        - ``template_used`` : str
+
+    Returns
+    -------
+    tuple
+        ``(annotation_points_ccf, descriptions)`` where
+        ``annotation_points_ccf`` is a mapping ``layer -> (N,3) NDArray`` of
+        CCF coordinates and ``descriptions`` is a mapping ``layer -> list`` of
+        point descriptions or ``None`` if descriptions were not requested.
+
+    Raises
+    ------
+    ValueError
+        If no image sources can be found in ``neuroglancer_data``.
+    """
+    if asset_uri is None:
+        image_sources = get_image_sources(neuroglancer_data)
+        # Get first image source in dict
+        zarr_uri = next(iter(image_sources.values()), None)
+        if zarr_uri is None:
+            raise ValueError("No image sources found in neuroglancer data")
+        uri_type, bucket, zarr_pathlike = as_pathlike(zarr_uri)
+        asset_pathlike = _asset_from_zarr_pathlike(zarr_pathlike)
+    metadata_pathlike = asset_pathlike / "metadata.nd.json"
+    processing_pathlike = asset_pathlike / "processing.json"
+    metadata_uri = as_string(uri_type, bucket, metadata_pathlike)
+    processing_uri = as_string(uri_type, bucket, processing_pathlike)
+    metadata = get_json(metadata_uri)
+    processing_data = get_json(processing_uri)
+    return neuroglancer_to_ccf(
+        neuroglancer_data,
+        zarr_uri=zarr_uri,
+        metadata=metadata,
+        processing_data=processing_data,
+        **kwargs,
+    )
