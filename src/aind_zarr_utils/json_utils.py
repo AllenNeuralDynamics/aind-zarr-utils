@@ -126,46 +126,60 @@ def get_json_url(url: str) -> dict:
 
 
 def get_json(
-    file_url_or_bucket: str, key: Optional[str] = None, *args, **kwargs
+    file_url_or_bucket: str, key: str | None = None, *args, **kwargs
 ) -> dict:
     """
-    Read a JSON file from a local path, URL, or S3.
+    Read a JSON file from local path, file:// URI, HTTP(S), or S3.
 
     Parameters
     ----------
     file_url_or_bucket : str
-        The file path, URL, or S3 bucket name.
-    key : str, optional
-        The key for the S3 object. Required if reading from S3.
-    *args : tuple
-        Additional arguments for S3 client or HTTP requests.
-    **kwargs : dict
-        Additional keyword arguments for S3 client or HTTP requests.
+        Local path, ``file://`` URI, ``http(s)://`` URL, ``s3://`` URI, or
+        S3 bucket name (when `key` is provided).
+    key : str or None
+        S3 key when `file_url_or_bucket` is a bucket name. Ignored when an
+        ``s3://`` URI is provided.
+    *args
+        Extra args forwarded to S3/HTTP helpers.
+    **kwargs
+        Extra kwargs forwarded to S3/HTTP helpers.
 
     Returns
     -------
     dict
-        The JSON object.
+        Parsed JSON object.
 
     Raises
     ------
     ValueError
-        If the input is not a valid file path, URL, or S3 URI.
+        If the input is not a supported path/URL or fetch fails.
     """
-    if key is None:
-        parsed = urlparse(file_url_or_bucket)
-        if _is_url_parsed(parsed):
-            if parsed.scheme == "s3":
-                data = get_json_s3_uri(file_url_or_bucket, *args, **kwargs)
-            else:
-                data = get_json_url(file_url_or_bucket)
-        elif _is_file_parsed(parsed):
-            with open(file_url_or_bucket, "r") as f:
-                data = json.load(f)
-        else:
-            raise ValueError(
-                f"Unsupported URL or file path: {file_url_or_bucket}"
-            )
-    else:
-        data = get_json_s3(file_url_or_bucket, key, *args)
-    return data
+    # Case 1: explicit bucket + key form for S3
+    if key is not None:
+        return get_json_s3(file_url_or_bucket, key, *args, **kwargs)
+
+    s = file_url_or_bucket
+    parsed = urlparse(s)
+
+    # Case 2: network URLs we recognize (http/https/s3)
+    if _is_url_parsed(parsed):
+        if parsed.scheme == "s3":
+            return get_json_s3_uri(s, *args, **kwargs)
+        return get_json_url(s)
+
+    # Case 3: file:// URIs and all local paths (POSIX/Windows/UNC)
+    if parsed.scheme == "file":
+        # Convert file:// to a local path string (handles UNC too).
+        p = parsed.path or ""
+        if parsed.netloc:
+            p = f"//{parsed.netloc}{p}"
+        local = Path(url2pathname(p))
+        with open(local, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    # Fallback: treat as local/Windows path (works cross-platform).
+    if _is_file_parsed(parsed) or _looks_like_windows_path(s):
+        with open(s, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    raise ValueError(f"Unsupported URL or file path: {s!r}")
