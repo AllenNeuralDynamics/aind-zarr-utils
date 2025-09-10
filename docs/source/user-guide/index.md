@@ -6,8 +6,7 @@ Comprehensive guides for using aind-zarr-utils effectively.
 :maxdepth: 2
 
 zarr-conversion
-neuroglancer
-coordinate-systems
 s3-integration
+coordinate-systems
 pipeline-corrections
 ```

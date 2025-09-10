@@ -57,6 +57,7 @@ docs = [
   "myst-parser",
   "nbsphinx",
   "furo",
+  "sphinx-multiversion",
   "ruff",
 ]
 
