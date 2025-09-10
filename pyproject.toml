@@ -70,6 +70,7 @@ readme = { file = "README.md", content-type = "text/markdown" }
 [tool.ruff]
 line-length = 79
 target-version = "py313"
+exclude = ["docs/build", "docs/source/api-reference/generated"]
 
 [tool.black]
 line-length = 79
@@ -99,8 +100,8 @@ mccabe = { max-complexity = 14 }
 pydocstyle = { convention = "numpy" }
 
 [tool.codespell]
-skip = '.git,*.pdf,*.svg,./bonsai,*.bonsai,./docs/_build,uv.lock,./doc_template'
-ignore-words-list = "nd"
+skip = '.git,*.pdf,*.svg,./bonsai,*.bonsai,./docs/_build,./docs/build,uv.lock,./doc_template,*searchindex.js'
+ignore-words-list = "nd,cach,activ,addopt,arrang,assum,attribut,befor,choos,complet,composit"
 
 [tool.pytest.ini_options]
 addopts = "--strict-markers --tb=short --cov=src --cov-report=term-missing --cov-fail-under=0"

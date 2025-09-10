@@ -3,10 +3,9 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-from datetime import date
-
 # -- Path Setup --------------------------------------------------------------
 import sys
+from datetime import date
 from os.path import abspath, dirname
 from pathlib import Path
 
@@ -50,11 +49,11 @@ exclude_patterns = []
 
 # -- MyST configuration -----------------------------------------------------
 myst_enable_extensions = [
-    "colon_fence",      # ::: code blocks
-    "deflist",          # Definition lists
+    "colon_fence",  # ::: code blocks
+    "deflist",  # Definition lists
     "html_admonition",  # Callout boxes
-    "substitution",     # Variable substitution
-    "tasklist",         # Task lists
+    "substitution",  # Variable substitution
+    "tasklist",  # Task lists
 ]
 
 # -- Intersphinx configuration ----------------------------------------------
@@ -111,7 +110,7 @@ html_show_copyright = False
 # Whitelist pattern for branches (regex)
 smv_branch_whitelist = r"^(main|stable).*$"
 
-# Whitelist pattern for tags (regex) 
+# Whitelist pattern for tags (regex)
 smv_tag_whitelist = r"^v\d+\.\d+.*$"
 
 # Whitelist pattern for remotes (regex)
