@@ -54,7 +54,7 @@ Examples
 
 from __future__ import annotations
 
-from pathlib import Path, PurePosixPath, PureWindowsPath
+from pathlib import Path, PurePath, PurePosixPath, PureWindowsPath
 from urllib.parse import ParseResult, urlparse
 from urllib.request import url2pathname
 
@@ -265,7 +265,9 @@ def as_pathlike(
 
 
 def as_string(
-    kind: str, bucket: str | None, path: Path | PurePosixPath | PureWindowsPath
+    kind: str,
+    bucket: str | None,
+    path: PurePath,
 ) -> str:
     """
     Convert a normalized triplet back to a string.

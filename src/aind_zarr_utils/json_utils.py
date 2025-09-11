@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Optional
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Optional, cast
 from urllib.parse import urlparse
+from urllib.request import url2pathname
 from warnings import warn
 
 import boto3
@@ -15,6 +17,7 @@ from botocore.config import Config
 from aind_zarr_utils.uri_utils import (
     _is_file_parsed,
     _is_url_parsed,
+    _looks_like_windows_path,
     parse_s3_uri,
 )
 
@@ -28,7 +31,7 @@ def get_json_s3(
     s3_client: Optional["S3Client"] = None,
     anonymous: bool = False,
     anon: bool | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """
     Retrieve a JSON object from an S3 bucket.
 
@@ -70,15 +73,17 @@ def get_json_s3(
         else:
             s3_client = boto3.client("s3")
     resp = s3_client.get_object(Bucket=bucket, Key=key)
-    json_data: dict = json.load(resp["Body"])
-    return json_data
+    raw = json.load(resp["Body"])
+    if not isinstance(raw, dict):
+        raise TypeError("Expected top-level JSON object")
+    return cast(dict[str, Any], raw)
 
 
 def get_json_s3_uri(
     uri: str,
     s3_client: Optional["S3Client"] = None,
     anonymous: bool = False,
-) -> dict:
+) -> dict[str, Any]:
     """
     Retrieve a JSON object from an S3 URI.
 
@@ -100,7 +105,7 @@ def get_json_s3_uri(
     return get_json_s3(bucket, key, s3_client=s3_client, anonymous=anonymous)
 
 
-def get_json_url(url: str) -> dict:
+def get_json_url(url: str) -> dict[str, Any]:
     """
     Retrieve a JSON object from a URL.
 
@@ -121,13 +126,15 @@ def get_json_url(url: str) -> dict:
     """
     response = requests.get(url)
     response.raise_for_status()  # Raises an error if the download failed
-    json_data: dict = response.json()
-    return json_data
+    raw = response.json()
+    if not isinstance(raw, dict):
+        raise TypeError("Expected top-level JSON object")
+    return cast(dict[str, Any], raw)
 
 
 def get_json(
     file_url_or_bucket: str, key: str | None = None, *args, **kwargs
-) -> dict:
+) -> dict[str, Any]:
     """
     Read a JSON file from local path, file:// URI, HTTP(S), or S3.
 
@@ -175,11 +182,17 @@ def get_json(
             p = f"//{parsed.netloc}{p}"
         local = Path(url2pathname(p))
         with open(local, "r", encoding="utf-8") as f:
-            return json.load(f)
+            raw = json.load(f)
+        if not isinstance(raw, dict):
+            raise TypeError("Expected top-level JSON object")
+        return cast(dict[str, Any], raw)
 
     # Fallback: treat as local/Windows path (works cross-platform).
     if _is_file_parsed(parsed) or _looks_like_windows_path(s):
         with open(s, "r", encoding="utf-8") as f:
-            return json.load(f)
+            raw = json.load(f)
+        if not isinstance(raw, dict):
+            raise TypeError("Expected top-level JSON object")
+        return cast(dict[str, Any], raw)
 
     raise ValueError(f"Unsupported URL or file path: {s!r}")

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from pathlib import Path, PurePath, PurePosixPath
+from pathlib import PurePath, PurePosixPath
 from typing import TYPE_CHECKING, Any, Optional, Tuple, TypeVar, Union
 
 import SimpleITK as sitk
@@ -103,7 +103,7 @@ class TemplatePaths:
     chain: TransformChain
 
 
-def _asset_from_zarr_pathlike(zarr_path: Path) -> Path:
+def _asset_from_zarr_pathlike(zarr_path: PurePath) -> PurePath:
     """
     Return the asset (dataset) root directory for a given Zarr path.
 
