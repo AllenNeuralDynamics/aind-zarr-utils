@@ -1,3 +1,9 @@
+## v0.3.1 (2025-09-11)
+
+### Fix
+
+- Attempt to fix file parsing on windows (#21)
+
 ## v0.3.0 (2025-09-10)
 
 ### Feat
