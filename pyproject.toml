@@ -52,12 +52,11 @@ docs = [
   { include-group = "dev" },
   "sphinx>=5.0",
   "sphinx-autodoc-typehints",
-  "sphinx-copybutton", 
+  "sphinx-copybutton",
   "myst-parser",
   "nbsphinx",
   "furo",
   "sphinx-multiversion",
-  "ruff",
 ]
 
 [tool.setuptools.packages.find]
