@@ -24,11 +24,15 @@ from typing import TYPE_CHECKING, Any, Optional, Tuple, TypeVar, Union
 
 import SimpleITK as sitk
 from aind_registration_utils.ants import apply_ants_transforms_to_point_dict
+from aind_s3_cache.json_utils import get_json
+from aind_s3_cache.s3_cache import (
+    get_local_path_for_resource,
+)
+from aind_s3_cache.uri_utils import as_pathlike, as_string, join_any
 from numpy.typing import NDArray
 from packaging.version import Version
 
 from aind_zarr_utils.annotations import annotation_indices_to_anatomical
-from aind_zarr_utils.json_utils import get_json
 from aind_zarr_utils.neuroglancer import (
     get_image_sources,
     neuroglancer_annotations_to_indices,
@@ -40,10 +44,6 @@ from aind_zarr_utils.pipeline_domain_selector import (
     estimate_pipeline_multiscale,
     get_selector,
 )
-from aind_zarr_utils.s3_cache import (
-    get_local_path_for_resource,
-)
-from aind_zarr_utils.uri_utils import as_pathlike, as_string, join_any
 from aind_zarr_utils.zarr import _open_zarr, zarr_to_sitk_stub
 
 if TYPE_CHECKING:
