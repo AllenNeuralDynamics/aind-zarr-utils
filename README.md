@@ -7,7 +7,10 @@
 ![Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen?logo=codecov)
 ![Python](https://img.shields.io/badge/python->=3.10-blue?logo=python)
 
-A Python utility library developed by Allen Institute for Neural Dynamics for working with ZARR files and AIND metadata. This package enables converting ZARR datasets to SimpleITK and ANTs images, processing neuroimaging annotation data from Neuroglancer, handling anatomical coordinate transformations, and reading JSON metadata from various sources including S3.
+A Python utility library developed by Allen Institute for Neural Dynamics for
+working with ZARR files and AIND metadata. This package enables converting ZARR
+datasets to SimpleITK and ANTs images, processing neuroimaging annotation data
+from Neuroglancer, and handling anatomical coordinate transformations.
 
 ## Key Features
 
@@ -24,7 +27,7 @@ aind_zarr_utils provides an anatomically aware platform for interacting with AIN
 
 To load an image, first read the metadata:
 ```
-from aind_zarr_utils.json_utils import get_json
+from aind_s3_cache.json_utils import get_json
 metadata_path = 'path_to_metadata'
 metadata = {'acquisition':get_json(metadata_path)}
 ```
@@ -62,7 +65,7 @@ from aind_zarr_utils import zarr_to_ants, zarr_to_sitk, zarr_to_sitk_stub
 # Convert ZARR to ANTs image with anatomical coordinates
 ants_img = zarr_to_ants(zarr_uri, metadata, level=3, scale_unit="millimeter")
 
-# Convert ZARR to SimpleITK image  
+# Convert ZARR to SimpleITK image
 sitk_img = zarr_to_sitk(zarr_uri, metadata, level=3, scale_unit="millimeter")
 
 # Create stub image for coordinate transformations only
@@ -90,7 +93,7 @@ from aind_zarr_utils import get_json
 
 # Automatically handles local files, URLs, and S3 URIs
 data = get_json("s3://aind-open-data/path/to/file.json")
-data = get_json("https://example.com/data.json") 
+data = get_json("https://example.com/data.json")
 data = get_json("/local/path/data.json")
 ```
 
@@ -224,7 +227,7 @@ Note: Private repositories require **Read the Docs for Business** account. The f
 
 The following are required to import and build documentations on *Read the Docs*:
 - A *Read the Docs* user account connected to Github. See [here](https://docs.readthedocs.com/platform/stable/guides/connecting-git-account.html) for more details.
-- *Read the Docs* needs elevated permissions to perform certain operations that ensure that the workflow is as smooth as possible, like installing webhooks. If you are not the owner of the repo, you may have to request elevated permissions from the owner/admin. 
+- *Read the Docs* needs elevated permissions to perform certain operations that ensure that the workflow is as smooth as possible, like installing webhooks. If you are not the owner of the repo, you may have to request elevated permissions from the owner/admin.
 - A **.readthedocs.yaml** file in the root directory of the repo. Here is a basic template:
 ```yaml
 # Read the Docs configuration file
@@ -254,7 +257,7 @@ python:
 
 Here are the steps for building docs in *Read the Docs*. See [here](https://docs.readthedocs.com/platform/stable/intro/add-project.html) for detailed instructions:
 - From *Read the Docs* dashboard, click on **Add project**.
-- For automatic configuration, select **Configure automatically** and type the name of the repo. A repo with public visibility should appear as you type. 
+- For automatic configuration, select **Configure automatically** and type the name of the repo. A repo with public visibility should appear as you type.
 - Follow the subsequent steps.
 - For manual configuration, select **Configure manually** and follow the subsequent steps
 
