@@ -18,7 +18,7 @@ aind-zarr-utils provides seamless integration with AWS S3 for:
 Most AIND data is publicly accessible without credentials:
 
 ```python
-from aind_zarr_utils.json_utils import get_json
+from aind_s3_cache import get_json
 
 # Access public AIND data (no credentials needed)
 metadata = get_json("s3://aind-open-data/exaspim_708373_2024-02-02_11-26-44/metadata.json")
@@ -46,7 +46,7 @@ print(f"Bucket: {bucket}, Key: {key}")
 The `get_json` function automatically detects and handles S3 URIs:
 
 ```python
-from aind_zarr_utils.json_utils import get_json
+from aind_s3_cache import get_json
 
 # Automatically uses anonymous S3 access for public buckets
 data = get_json("s3://aind-open-data/path/to/metadata.json")
@@ -61,7 +61,7 @@ data = get_json("/local/path/data.json")
 For more control over S3 access:
 
 ```python
-from aind_zarr_utils.json_utils import get_json_s3, get_json_s3_uri
+from aind_s3_cache import get_json_s3, get_json_s3_uri
 
 # Direct bucket/key access
 data = get_json_s3(
@@ -165,7 +165,7 @@ print(f"From cache: {result.from_cache}")  # True
 For public buckets, no credentials are needed:
 
 ```python
-from aind_zarr_utils.json_utils import get_json
+from aind_s3_cache import get_json
 
 # Automatic anonymous access for public buckets
 data = get_json("s3://aind-open-data/public/data.json")
@@ -177,7 +177,7 @@ For private buckets or custom configurations:
 
 ```python
 import boto3
-from aind_zarr_utils.json_utils import get_json_s3
+from aind_s3_cache import get_json_s3
 
 # Create custom S3 client with credentials
 s3_client = boto3.client(
@@ -332,7 +332,7 @@ for uri, result in zip(s3_uris, results):
 
 ```python
 from botocore.exceptions import ClientError, NoCredentialsError
-from aind_zarr_utils.json_utils import get_json
+from aind_s3_cache import get_json
 
 try:
     data = get_json("s3://private-bucket/file.json")
@@ -354,7 +354,7 @@ except NoCredentialsError:
 
 ```python
 from aind_zarr_utils.uri_utils import is_url
-from aind_zarr_utils.json_utils import get_json
+from aind_s3_cache import get_json
 
 def safe_load_json(uri_or_path):
     """Safely load JSON with fallback handling."""
