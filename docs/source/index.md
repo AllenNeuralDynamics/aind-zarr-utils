@@ -1,15 +1,17 @@
 # aind-zarr-utils
 
-A Python utility library developed by Allen Institute for Neural Dynamics for working with ZARR files and AIND metadata. This package enables converting ZARR datasets to SimpleITK and ANTs images, processing neuroimaging annotation data from Neuroglancer, handling anatomical coordinate transformations, and reading JSON metadata from various sources including S3.
+A Python utility library developed by Allen Institute for Neural Dynamics for
+working with ZARR files and AIND metadata. This package enables converting ZARR
+datasets to SimpleITK and ANTs images, processing neuroimaging annotation data
+from Neuroglancer, and handling anatomical coordinate transformations.
 
 ## Key Features
 
 - **ZARR ↔ Image Conversion**: Convert ZARR datasets to SimpleITK and ANTs images with proper coordinate system handling
-- **Neuroglancer Integration**: Process annotation layers and coordinate transforms from Neuroglancer  
+- **Neuroglancer Integration**: Process annotation layers and coordinate transforms from Neuroglancer
 - **Coordinate Transformations**: Handle point transformations from image space to anatomical space (LPS coordinates)
 - **Multi-source JSON Reading**: Unified JSON loading from local files, HTTP URLs, and S3 URIs
 - **Pipeline-specific Corrections**: Version-based spatial domain corrections for pipeline compatibility
-- **S3 Integration**: Built-in support for AWS S3 with caching and anonymous access
 - **CCF Registration**: Pipeline-specific coordinate transformations and CCF registration utilities
 
 ## Quick Start

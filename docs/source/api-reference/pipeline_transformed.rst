@@ -106,31 +106,3 @@ Manual transform chain application::
         template_used="SmartSPIM-template_2024-05-16_11-26-14"
     )
 
-Pipeline version compatibility::
-
-    # The module automatically handles different pipeline versions
-    # and applies appropriate domain corrections
-    
-    # For pipeline v0.0.25 (has spacing bugs)
-    stub_v25 = mimic_pipeline_zarr_to_anatomical_stub(
-        zarr_uri, metadata, processing_data_v25
-    )
-    
-    # For pipeline v0.1.0 (fixed spacing)
-    stub_v10 = mimic_pipeline_zarr_to_anatomical_stub(
-        zarr_uri, metadata, processing_data_v10
-    )
-    
-    # Stubs will have different spacing to match what each version produced
-
-Error Handling
---------------
-
-The module provides detailed error messages for common issues:
-
-- Missing pipeline version information
-- Unsupported pipeline versions  
-- Missing transform files
-- Invalid processing metadata structure
-
-See the processing metadata requirements in the module documentation for proper data structure.
