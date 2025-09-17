@@ -1,3 +1,13 @@
+## v0.4.0 (2025-09-17)
+
+### BREAKING CHANGE
+
+- s3_cache, json_utils, and uri_utils have been removed
+
+### Feat
+
+- Remove s3_cache, json_utils, and uri_utils
+
 ## v0.3.1 (2025-09-11)
 
 ### Fix
