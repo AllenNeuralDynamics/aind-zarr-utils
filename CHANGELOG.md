@@ -1,3 +1,9 @@
+## v0.5.0 (2025-09-17)
+
+### Feat
+
+- define a public-facing API
+
 ## v0.4.0 (2025-09-17)
 
 ### BREAKING CHANGE
