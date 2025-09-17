@@ -11,26 +11,6 @@ Overview
 
 The ``zarr`` module provides the core functionality for converting ZARR datasets to ANTs and SimpleITK images. It handles multi-resolution data, coordinate system transformations, and metadata extraction while maintaining anatomical accuracy.
 
-Main Functions
---------------
-
-.. autosummary::
-   :toctree: generated/
-   
-   zarr_to_ants
-   zarr_to_sitk
-   zarr_to_sitk_stub
-
-Utility Functions
------------------
-
-.. autosummary::
-   :toctree: generated/
-   
-   zarr_to_numpy
-   direction_from_acquisition_metadata
-   direction_from_nd_metadata
-   compute_origin_for_corner
 
 Key Concepts
 ------------

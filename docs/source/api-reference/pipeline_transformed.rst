@@ -1,5 +1,5 @@
 pipeline_transformed module
-==========================
+============================
 
 .. automodule:: aind_zarr_utils.pipeline_transformed
    :members:
@@ -11,34 +11,6 @@ Overview
 
 The ``pipeline_transformed`` module provides utilities to reconstruct a SmartSPIM pipeline's spatial domain and apply ANTs transform chains for mapping coordinates from light sheet space to CCF (Common Coordinate Framework). It handles the complete workflow from ZARR indices to anatomically registered coordinates.
 
-Core Classes
-------------
-
-.. autosummary::
-   :toctree: generated/
-   
-   TransformChain
-   TemplatePaths
-
-Main Functions
---------------
-
-.. autosummary::
-   :toctree: generated/
-   
-   mimic_pipeline_zarr_to_anatomical_stub
-   pipeline_transforms
-   pipeline_point_transforms_local_paths
-   indices_to_ccf
-   neuroglancer_to_ccf
-
-Utility Functions
------------------
-
-.. autosummary::
-   :toctree: generated/
-   
-   image_atlas_alignment_path_relative_from_processing
 
 Workflow Overview
 -----------------

@@ -7,6 +7,5 @@ Guide for developers contributing to aind-zarr-utils.
 
 development
 testing
-versioned-docs
 bug-discovery
 ```

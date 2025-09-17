@@ -11,14 +11,6 @@ Overview
 
 The ``neuroglancer`` module processes annotation data from Neuroglancer, converting point annotations from Neuroglancer's coordinate system to anatomically-aware coordinates. It handles layer detection, coordinate transformations, and integration with ZARR metadata.
 
-Functions
----------
-
-.. autosummary::
-   :toctree: generated/
-   
-   neuroglancer_annotations_to_indices
-   neuroglancer_annotations_to_anatomical
 
 Coordinate System Notes
 -----------------------

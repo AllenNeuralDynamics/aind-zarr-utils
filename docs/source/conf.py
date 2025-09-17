@@ -74,7 +74,7 @@ autodoc_default_options = {
 }
 
 # -- Autosummary configuration ----------------------------------------------
-autosummary_generate = True
+autosummary_generate = False  # Don't generate individual pages, just tables
 
 # -- Napoleon configuration -------------------------------------------------
 napoleon_google_docstring = False

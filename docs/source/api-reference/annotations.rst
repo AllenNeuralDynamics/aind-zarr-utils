@@ -11,13 +11,6 @@ Overview
 
 The ``annotations`` module provides utilities for transforming point annotations from image space to anatomical space. It works with SimpleITK images to handle coordinate transformations while maintaining proper LPS (Left-Posterior-Superior) coordinate conventions.
 
-Functions
----------
-
-.. autosummary::
-   :toctree: generated/
-   
-   annotation_indices_to_anatomical
 
 Coordinate Systems
 ------------------
