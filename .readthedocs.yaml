@@ -1,0 +1,26 @@
+# .readthedocs.yaml
+version: 2
+
+# RTD will run `sphinx-build` for you using this conf.py
+sphinx:
+  configuration: docs/source/conf.py
+
+build:
+  os: ubuntu-24.04
+  tools:
+    python: "3.13"
+
+  jobs:
+    # Install uv once at the OS level, before creating the venv
+    pre_create_environment:
+      - asdf plugin add uv
+      - asdf install uv latest
+      - asdf global uv latest
+
+    # Create the RTD virtualenv using uv so RTD will use it for the build
+    create_environment:
+      - uv venv "$READTHEDOCS_VIRTUALENV_PATH"
+
+    # Install your docs deps from pyproject (respects uv.lock if present)
+    install:
+      - UV_PROJECT_ENVIRONMENT="$READTHEDOCS_VIRTUALENV_PATH" uv sync --frozen --group docs
