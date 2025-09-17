@@ -119,7 +119,7 @@ The simplest approach - let aind-zarr-utils handle everything:
 
 ```python
 from aind_zarr_utils.pipeline_transformed import mimic_pipeline_zarr_to_anatomical_stub
-from aind_zarr_utils.json_utils import get_json
+from aind_s3_cache.json_utils import get_json
 
 # Load your data
 zarr_metadata = get_json("s3://bucket/zarr_metadata.json")

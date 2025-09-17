@@ -96,7 +96,7 @@ Test your installation:
 
 ```python
 import aind_zarr_utils
-from aind_zarr_utils.json_utils import get_json
+from aind_s3_cache.json_utils import get_json
 from aind_zarr_utils.zarr import zarr_to_sitk
 
 # Test basic functionality

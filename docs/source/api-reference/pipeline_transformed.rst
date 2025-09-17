@@ -71,7 +71,7 @@ Examples
 Create pipeline-compatible stub image::
 
     from aind_zarr_utils.pipeline_transformed import mimic_pipeline_zarr_to_anatomical_stub
-    from aind_zarr_utils.json_utils import get_json
+    from aind_s3_cache.json_utils import get_json
 
     # Load processing metadata
     processing_data = get_json("s3://bucket/processing.json")

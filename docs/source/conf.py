@@ -42,7 +42,6 @@ extensions = [
     "sphinx_autodoc_typehints",
     "sphinx_copybutton",
     "nbsphinx",
-    "sphinx_multiversion",
 ]
 templates_path = ["_templates"]
 exclude_patterns = []
@@ -105,25 +104,3 @@ html_show_sphinx = False
 
 # If true, "(C) Copyright ..." is shown in the HTML footer. Default is True.
 html_show_copyright = False
-
-# -- Sphinx Multiversion configuration --------------------------------------
-# Whitelist pattern for branches (regex)
-smv_branch_whitelist = r"^(main|stable).*$"
-
-# Whitelist pattern for tags (regex)
-smv_tag_whitelist = r"^v\d+\.\d+.*$"
-
-# Whitelist pattern for remotes (regex)
-smv_remote_whitelist = r"^(origin|upstream).*$"
-
-# Pattern for released versions (appears in sidebar)
-smv_released_pattern = r"^tags/.*$"
-
-# Pattern for in-development versions
-smv_outputdir_format = "{ref.name}"
-
-# Latest version shown first in version selector
-smv_prefer_remote_refs = False
-
-# Default branch to show when visiting docs without version
-smv_latest_version = "main"

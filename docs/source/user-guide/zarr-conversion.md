@@ -17,7 +17,7 @@ ZARR files store multi-resolution image data with metadata. aind-zarr-utils prov
 First, load your metadata:
 
 ```python
-from aind_zarr_utils.json_utils import get_json
+from aind_s3_cache.json_utils import get_json
 
 # Load ZARR metadata (required for coordinate system information)
 metadata = get_json("s3://aind-open-data/path/to/metadata.json")

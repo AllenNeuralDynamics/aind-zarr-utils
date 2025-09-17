@@ -93,7 +93,7 @@ config = Config(
 )
 
 # Use with S3 operations
-from aind_zarr_utils.json_utils import get_json_s3
+from aind_s3_cache.json_utils import get_json_s3
 data = get_json_s3("bucket", "key", s3_client=boto3.client('s3', config=config))
 ```
 
@@ -107,7 +107,7 @@ ClientError: An error occurred (403) when calling the GetObject operation: Forbi
 **Solutions**:
 ```python
 # For public buckets, ensure anonymous access
-from aind_zarr_utils.json_utils import get_json_s3_uri
+from aind_s3_cache.json_utils import get_json_s3_uri
 data = get_json_s3_uri("s3://aind-open-data/file.json", anonymous=True)
 
 # For private buckets, check credentials
@@ -169,7 +169,7 @@ if memory_gb > 8:  # Adjust based on available RAM
 **Solutions**:
 ```python
 # Check metadata structure
-from aind_zarr_utils.json_utils import get_json
+from aind_s3_cache.json_utils import get_json
 metadata = get_json("s3://bucket/metadata.json")
 
 # Verify acquisition metadata
@@ -232,7 +232,7 @@ for level in range(10):
         break
 
 # Check if file exists
-from aind_zarr_utils.json_utils import get_json
+from aind_s3_cache.json_utils import get_json
 try:
     # Try to access the ZARR metadata first
     metadata_uri = zarr_uri.replace("/0", "") + "/.zmetadata"
@@ -319,7 +319,7 @@ KeyError: 'pipeline_version'
 **Solution**:
 ```python
 # Check processing metadata structure
-from aind_zarr_utils.json_utils import get_json
+from aind_s3_cache.json_utils import get_json
 processing_data = get_json("s3://bucket/processing.json")
 
 # Required structure:
@@ -383,7 +383,7 @@ try:
     # Check if files exist
     for path in individual_paths + template_paths:
         try:
-            from aind_zarr_utils.json_utils import get_json
+            from aind_s3_cache.json_utils import get_json
             # Try to access the file
             result = get_json(path)
             print(f"✓ {path}")
@@ -403,16 +403,16 @@ except Exception as e:
 **Solutions**:
 ```python
 # Enable persistent caching
-from aind_zarr_utils.s3_cache import CacheManager
+from aind_s3_cache.s3_cache import CacheManager
 
 with CacheManager(persistent=True, cache_dir="~/.aind_cache") as cm:
     # All S3 operations will be cached
-    from aind_zarr_utils.json_utils import get_json
+    from aind_s3_cache.json_utils import get_json
     data = get_json("s3://bucket/file.json", cache_dir=cm.dir)
 
 # Use parallel downloads for multiple files
 import concurrent.futures
-from aind_zarr_utils.s3_cache import get_local_path_for_resource
+from aind_s3_cache.s3_cache import get_local_path_for_resource
 
 def download_file(uri):
     return get_local_path_for_resource(uri, cache_dir="~/.cache")
@@ -515,7 +515,7 @@ for dep in dependencies:
 
 # Check S3 connectivity
 try:
-    from aind_zarr_utils.json_utils import get_json
+    from aind_s3_cache.json_utils import get_json
     test_data = get_json("s3://aind-open-data/exaspim_708373_2024-02-02_11-26-44/metadata.json")
     print("S3 connectivity: ✓ Working")
 except Exception as e:

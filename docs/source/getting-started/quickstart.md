@@ -14,7 +14,7 @@ pip install aind-zarr-utils
 
 ```python
 from aind_zarr_utils.zarr import zarr_to_ants
-from aind_zarr_utils.json_utils import get_json
+from aind_s3_cache.json_utils import get_json
 
 # Load metadata and convert ZARR to ANTs image
 metadata = get_json("s3://aind-open-data/exaspim_708373_2024-02-02_11-26-44/metadata.json")
@@ -59,7 +59,7 @@ print(f"Region1 points: {physical_points['region1']} mm (LPS coordinates)")
 
 ```python
 from aind_zarr_utils.zarr import zarr_to_sitk, zarr_to_sitk_stub
-from aind_zarr_utils.json_utils import get_json
+from aind_s3_cache.json_utils import get_json
 import numpy as np
 
 # Step 1: Load metadata
@@ -114,8 +114,8 @@ for region, coords in physical_coords.items():
 ### Workflow 3: S3 Data Processing
 
 ```python
-from aind_zarr_utils.s3_cache import CacheManager, get_local_path_for_resource
-from aind_zarr_utils.json_utils import get_json
+from aind_s3_cache.s3_cache import CacheManager, get_local_path_for_resource
+from aind_s3_cache.json_utils import get_json
 import json
 
 # Process multiple datasets efficiently with caching
@@ -151,7 +151,7 @@ print(f"Processed {len(results)} datasets")
 
 ```python
 from aind_zarr_utils.pipeline_transformed import neuroglancer_to_ccf
-from aind_zarr_utils.json_utils import get_json
+from aind_s3_cache.json_utils import get_json
 
 # Load pipeline-processed data
 zarr_metadata = get_json("s3://bucket/zarr_metadata.json")
@@ -269,7 +269,7 @@ s3_client = boto3.client(
     aws_secret_access_key='your_secret'
 )
 
-from aind_zarr_utils.json_utils import get_json_s3
+from aind_s3_cache.json_utils import get_json_s3
 data = get_json_s3("private-bucket", "data.json", s3_client=s3_client)
 
 # Option 2: Environment variables (AWS_ACCESS_KEY_ID, etc.)
@@ -294,7 +294,7 @@ stub, size = zarr_to_sitk_stub(zarr_uri, metadata, level=0)
 ### 2. Enable Caching
 
 ```python
-from aind_zarr_utils.s3_cache import CacheManager
+from aind_s3_cache.s3_cache import CacheManager
 
 # Use persistent cache for repeated access
 with CacheManager(cache_dir="~/.aind_cache") as cm:
@@ -328,7 +328,7 @@ Now that you're up and running:
 
 2. **Check API Reference**: Complete function documentation
    - [zarr module](../api-reference/zarr.rst)
-   - [json_utils module](../api-reference/json_utils.rst)
+   - [neuroglancer module](../api-reference/neuroglancer.rst)
 
 3. **See Examples**: Real-world usage scenarios
    - [Examples Overview](examples.md)

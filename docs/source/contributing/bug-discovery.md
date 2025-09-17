@@ -25,7 +25,7 @@ python -c "import aind_zarr_utils; print(aind_zarr_utils.__version__)"
 
 # Test basic functionality
 python -c "
-from aind_zarr_utils.json_utils import get_json
+from aind_s3_cache.json_utils import get_json
 try:
     data = get_json('s3://aind-open-data/exaspim_708373_2024-02-02_11-26-44/metadata.json')
     print('✓ Basic functionality working')
@@ -152,7 +152,7 @@ zarr_to_ants returns incorrect spacing values
 ## Minimal Example
 ```python
 from aind_zarr_utils.zarr import zarr_to_ants
-from aind_zarr_utils.json_utils import get_json
+from aind_s3_cache.json_utils import get_json
 
 metadata = get_json("s3://bucket/metadata.json")
 zarr_uri = "s3://bucket/data.ome.zarr/0"
@@ -188,7 +188,7 @@ S3 access fails with SSL error
 
 ## Minimal Example
 ```python
-from aind_zarr_utils.json_utils import get_json
+from aind_s3_cache.json_utils import get_json
 data = get_json("s3://aind-open-data/dataset/metadata.json")
 ```
 
@@ -338,7 +338,7 @@ except ImportError:
 # Use public data when possible
 
 from aind_zarr_utils.zarr import zarr_to_ants
-from aind_zarr_utils.json_utils import get_json
+from aind_s3_cache.json_utils import get_json
 
 # Use public dataset
 metadata = get_json("s3://aind-open-data/exaspim_708373_2024-02-02_11-26-44/metadata.json")

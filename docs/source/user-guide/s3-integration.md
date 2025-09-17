@@ -34,7 +34,7 @@ print(f"Session ID: {metadata['session_id']}")
 s3_uri = "s3://aind-open-data/dataset_name/file.json"
 
 # Parse S3 URIs
-from aind_zarr_utils.uri_utils import parse_s3_uri
+from aind_s3_cache.uri_utils import parse_s3_uri
 bucket, key = parse_s3_uri(s3_uri)
 print(f"Bucket: {bucket}, Key: {key}")
 ```
@@ -84,7 +84,7 @@ data = get_json_s3_uri(
 aind-zarr-utils provides intelligent caching to avoid repeated downloads:
 
 ```python
-from aind_zarr_utils.s3_cache import get_local_path_for_resource
+from aind_s3_cache.s3_cache import get_local_path_for_resource
 
 # First call downloads file
 result = get_local_path_for_resource("s3://aind-open-data/large-file.json")
@@ -101,7 +101,7 @@ print(f"From cache: {result.from_cache}")  # True on subsequent calls
 #### Temporary Cache (Auto-cleanup)
 
 ```python
-from aind_zarr_utils.s3_cache import CacheManager
+from aind_s3_cache.s3_cache import CacheManager
 
 # Temporary cache - automatically cleaned up
 with CacheManager(persistent=False) as cm:
@@ -220,7 +220,7 @@ data = get_json_s3(
 Efficiently process multiple S3 files:
 
 ```python
-from aind_zarr_utils.s3_cache import CacheManager, get_local_path_for_resource
+from aind_s3_cache.s3_cache import CacheManager, get_local_path_for_resource
 
 s3_files = [
     "s3://aind-open-data/dataset1/metadata.json",
@@ -263,7 +263,7 @@ result = get_local_path_for_resource(
 ### URI Manipulation
 
 ```python
-from aind_zarr_utils.uri_utils import join_any, as_pathlike, as_string
+from aind_s3_cache.uri_utils import join_any, as_pathlike, as_string
 
 # Build S3 paths programmatically
 base_uri = "s3://aind-open-data/experiment_123"
@@ -307,7 +307,7 @@ For multiple files, consider concurrent downloads:
 
 ```python
 import concurrent.futures
-from aind_zarr_utils.s3_cache import get_local_path_for_resource
+from aind_s3_cache.s3_cache import get_local_path_for_resource
 
 def download_file(s3_uri):
     return get_local_path_for_resource(s3_uri, cache_dir="~/.cache")
@@ -353,7 +353,7 @@ except NoCredentialsError:
 ### Validation and Fallbacks
 
 ```python
-from aind_zarr_utils.uri_utils import is_url
+from aind_s3_cache.uri_utils import is_url
 from aind_s3_cache import get_json
 
 def safe_load_json(uri_or_path):

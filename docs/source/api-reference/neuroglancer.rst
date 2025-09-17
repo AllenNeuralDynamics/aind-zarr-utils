@@ -45,7 +45,7 @@ Examples
 Extract annotation points from Neuroglancer JSON::
 
     from aind_zarr_utils.neuroglancer import neuroglancer_annotations_to_indices
-    from aind_zarr_utils.json_utils import get_json
+    from aind_s3_cache.json_utils import get_json
 
     # Load Neuroglancer state
     ng_data = get_json("path/to/neuroglancer_state.json")

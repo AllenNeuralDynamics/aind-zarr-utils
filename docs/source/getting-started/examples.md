@@ -8,7 +8,7 @@ Real-world examples demonstrating common aind-zarr-utils workflows.
 
 ```python
 from aind_zarr_utils.zarr import zarr_to_ants, zarr_to_sitk_stub
-from aind_zarr_utils.json_utils import get_json
+from aind_s3_cache.json_utils import get_json
 import numpy as np
 
 # Public AIND dataset
@@ -111,8 +111,8 @@ print(f"\nMean inter-soma distance: {np.mean(distances):.2f} mm")
 ### Example 3: S3 Data Processing with Caching
 
 ```python
-from aind_zarr_utils.s3_cache import CacheManager, get_local_path_for_resource
-from aind_zarr_utils.json_utils import get_json
+from aind_s3_cache.s3_cache import CacheManager, get_local_path_for_resource
+from aind_s3_cache.json_utils import get_json
 import json
 import time
 
@@ -295,7 +295,7 @@ from aind_zarr_utils.pipeline_transformed import (
     mimic_pipeline_zarr_to_anatomical_stub, 
     neuroglancer_to_ccf
 )
-from aind_zarr_utils.json_utils import get_json
+from aind_s3_cache.json_utils import get_json
 
 # Example with pipeline-processed data
 def process_pipeline_dataset(base_uri):
@@ -354,8 +354,8 @@ def process_pipeline_dataset(base_uri):
 ### Example 7: Efficient Batch Processing
 
 ```python
-from aind_zarr_utils.s3_cache import CacheManager
-from aind_zarr_utils.json_utils import get_json
+from aind_s3_cache.s3_cache import CacheManager
+from aind_s3_cache.json_utils import get_json
 from aind_zarr_utils.zarr import zarr_to_ants
 import concurrent.futures
 import time

@@ -221,7 +221,7 @@ Test individual functions in isolation:
 ```python
 def test_parse_s3_uri():
     """Test S3 URI parsing."""
-    from aind_zarr_utils.uri_utils import parse_s3_uri
+    from aind_s3_cache.uri_utils import parse_s3_uri
     
     # Test valid URI
     bucket, key = parse_s3_uri("s3://my-bucket/path/to/file.json")
@@ -285,7 +285,7 @@ def test_complete_pipeline_workflow():
     dataset_uri = "s3://aind-open-data/exaspim_708373_2024-02-02_11-26-44"
     
     # Load metadata
-    from aind_zarr_utils.json_utils import get_json
+    from aind_s3_cache.json_utils import get_json
     metadata = get_json(f"{dataset_uri}/metadata.json")
     
     # Convert ZARR to image
@@ -424,7 +424,7 @@ def mock_s3_responses():
 
 def test_json_loading_with_mock(mock_s3_responses):
     """Test JSON loading with mocked S3."""
-    from aind_zarr_utils.json_utils import get_json
+    from aind_s3_cache.json_utils import get_json
     
     data = get_json("s3://aind-open-data/test/metadata.json")
     assert data["session_id"] == "test"

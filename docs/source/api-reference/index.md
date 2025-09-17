@@ -13,7 +13,6 @@ Complete API documentation for all modules in aind-zarr-utils.
    aind_zarr_utils.zarr.zarr_to_ants
    aind_zarr_utils.zarr.zarr_to_sitk
    aind_zarr_utils.zarr.zarr_to_sitk_stub
-   aind_zarr_utils.json_utils.get_json
    aind_zarr_utils.neuroglancer.neuroglancer_annotations_to_anatomical
 ```
 
@@ -34,9 +33,6 @@ Complete API documentation for all modules in aind-zarr-utils.
 .. autosummary::
    :nosignatures:
 
-   aind_zarr_utils.uri_utils.parse_s3_uri
-   aind_zarr_utils.uri_utils.join_any
-   aind_zarr_utils.s3_cache.get_local_path_for_resource
    aind_zarr_utils.annotations.annotation_indices_to_anatomical
 ```
 
@@ -46,11 +42,8 @@ Complete API documentation for all modules in aind-zarr-utils.
 :maxdepth: 2
 
 zarr
-json_utils
-uri_utils
 neuroglancer
 annotations
-s3_cache
 pipeline_domain_selector
 pipeline_transformed
 ```
@@ -60,10 +53,7 @@ pipeline_transformed
 | Module | Purpose | Key Functions |
 |--------|---------|---------------|
 | **zarr** | ZARR ↔ image conversion | `zarr_to_ants`, `zarr_to_sitk`, `zarr_to_sitk_stub` |
-| **json_utils** | Multi-source JSON loading | `get_json`, `get_json_s3_uri` |
-| **uri_utils** | Path/URI manipulation | `parse_s3_uri`, `join_any`, `as_pathlike` |
 | **neuroglancer** | Neuroglancer annotation processing | `neuroglancer_annotations_to_anatomical` |
 | **annotations** | Point coordinate transformation | `annotation_indices_to_anatomical` |
-| **s3_cache** | S3 resource caching | `get_local_path_for_resource`, `CacheManager` |
 | **pipeline_domain_selector** | Version-specific domain corrections | `estimate_pipeline_multiscale`, `apply_overlays` |
 | **pipeline_transformed** | Pipeline coordinate transformations | `neuroglancer_to_ccf`, `indices_to_ccf` |

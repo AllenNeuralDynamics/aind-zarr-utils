@@ -60,7 +60,7 @@ Examples
 Basic ZARR to image conversion::
 
     from aind_zarr_utils.zarr import zarr_to_ants, zarr_to_sitk
-    from aind_zarr_utils.json_utils import get_json
+    from aind_s3_cache.json_utils import get_json
 
     # Load metadata
     metadata = get_json("s3://bucket/metadata.json")

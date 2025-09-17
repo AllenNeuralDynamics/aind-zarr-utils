@@ -436,7 +436,7 @@ uv run pytest --cov=aind_zarr_utils --cov-report=term-missing
 ```bash
 # Test S3 connectivity
 python -c "
-from aind_zarr_utils.json_utils import get_json
+from aind_s3_cache.json_utils import get_json
 try:
     data = get_json('s3://aind-open-data/exaspim_708373_2024-02-02_11-26-44/metadata.json')
     print('✓ S3 access working')
