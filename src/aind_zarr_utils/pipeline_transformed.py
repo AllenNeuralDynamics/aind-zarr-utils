@@ -23,7 +23,7 @@ from pathlib import PurePath, PurePosixPath
 from typing import TYPE_CHECKING, Any, Optional, Tuple, TypeVar, Union
 
 import SimpleITK as sitk
-from aind_registration_utils.ants import apply_ants_transforms_to_point_dict
+from aind_registration_utils.ants import apply_ants_transforms_to_point_arr
 from aind_s3_cache.json_utils import get_json
 from aind_s3_cache.s3_cache import (
     get_local_path_for_resource,
@@ -616,9 +616,8 @@ def indices_to_ccf(
     )
     annotation_points_ccf: dict[str, NDArray] = {}
     for layer, pts in annotation_points.items():
-        pts_dict = {i: pts[i] for i in range(pts.shape[0])}
-        annotation_points_ccf[layer] = apply_ants_transforms_to_point_dict(
-            pts_dict=pts_dict,
+        annotation_points_ccf[layer] = apply_ants_transforms_to_point_arr(
+            pts,
             transform_list=pt_transform_paths_str,
             whichtoinvert=pt_transform_is_inverted,
         )
