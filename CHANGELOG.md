@@ -1,3 +1,9 @@
+## v0.5.1 (2025-09-18)
+
+### Fix
+
+- Return arrays not dicts for ccf points
+
 ## v0.5.0 (2025-09-17)
 
 ### Feat
