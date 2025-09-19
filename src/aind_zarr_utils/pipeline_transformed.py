@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from pathlib import PurePath, PurePosixPath
 from typing import TYPE_CHECKING, Any, Optional, Tuple, TypeVar, Union
 
+import numpy as np
 import SimpleITK as sitk
 from aind_registration_utils.ants import apply_ants_transforms_to_point_dict
 from aind_s3_cache.json_utils import get_json
@@ -44,10 +45,16 @@ from aind_zarr_utils.pipeline_domain_selector import (
     estimate_pipeline_multiscale,
     get_selector,
 )
-from aind_zarr_utils.zarr import _open_zarr, zarr_to_sitk_stub
+from aind_zarr_utils.zarr import (
+    _open_zarr,
+    _unit_conversion,
+    _zarr_to_global,
+    zarr_to_sitk_stub,
+)
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
+    from ome_zarr.reader import Node
 
 T = TypeVar("T", int, float)
 
@@ -363,6 +370,7 @@ def mimic_pipeline_zarr_to_anatomical_stub(
     processing_data: dict,
     *,
     overlay_selector: OverlaySelector = get_selector(),
+    opened_zarr: Optional[tuple[Node, dict]] = None,
 ) -> sitk.Image:
     """
     Construct a SimpleITK stub matching pipeline spatial corrections.
@@ -383,6 +391,9 @@ def mimic_pipeline_zarr_to_anatomical_stub(
     overlay_selector : OverlaySelector, optional
         Selector used to obtain overlay sequence; defaults to the global
         selector.
+    opened_zarr : tuple, optional
+        Pre-opened ZARR file (image_node, zarr_meta), by default None. If
+        provided, this will be used instead of opening the ZARR file again.
 
     Returns
     -------
@@ -403,8 +414,10 @@ def mimic_pipeline_zarr_to_anatomical_stub(
     pipeline_version = proc.get("code_version")
     if not pipeline_version:
         raise ValueError("Pipeline version not found in zarr import process")
-
-    image_node, zarr_meta = _open_zarr(zarr_uri)
+    if opened_zarr is None:
+        image_node, zarr_meta = _open_zarr(zarr_uri)
+    else:
+        image_node, zarr_meta = opened_zarr
     multiscale_no = estimate_pipeline_multiscale(
         zarr_meta, Version(pipeline_version)
     )
@@ -560,14 +573,15 @@ def pipeline_point_transforms_local_paths(
 
 def indices_to_ccf(
     annotation_indices: dict[str, NDArray],
-    metadata: dict[str, Any],
     zarr_uri: str,
+    metadata: dict[str, Any],
     processing_data: dict,
     *,
     s3_client: Optional[S3Client] = None,
     anonymous: bool = False,
     cache_dir: Optional[Union[str, os.PathLike]] = None,
     template_used: str = "SmartSPIM-template_2024-05-16_11-26-14",
+    opened_zarr: Optional[tuple[Node, dict]] = None,
 ) -> dict[str, NDArray]:
     """
     Convert voxel indices (LS space) directly into CCF coordinates.
@@ -577,10 +591,10 @@ def indices_to_ccf(
     annotation_indices : dict[str, NDArray]
         Mapping layer name → (N, 3) index array (z, y, x order expected by
         downstream conversion routine).
-    metadata : dict
-        ND metadata needed for spatial corrections.
     zarr_uri : str
         LS acquisition Zarr.
+    metadata : dict
+        ND metadata needed for spatial corrections.
     processing_data : dict
         Processing metadata.
     s3_client : S3Client, optional
@@ -591,6 +605,9 @@ def indices_to_ccf(
         Resource cache directory.
     template_used : str, optional
         Template transform key.
+    opened_zarr : tuple, optional
+        Pre-opened ZARR file (image_node, zarr_meta), by default None. If
+        provided, this will be used instead of opening the ZARR file again.
 
     Returns
     -------
@@ -598,7 +615,7 @@ def indices_to_ccf(
         Mapping layer → (N, 3) array of physical CCF coordinates.
     """
     pipeline_stub = mimic_pipeline_zarr_to_anatomical_stub(
-        zarr_uri, metadata, processing_data
+        zarr_uri, metadata, processing_data, opened_zarr=opened_zarr
     )
     annotation_points = annotation_indices_to_anatomical(
         pipeline_stub,
@@ -637,6 +654,7 @@ def neuroglancer_to_ccf(
     anonymous: bool = False,
     cache_dir: Optional[Union[str, os.PathLike]] = None,
     template_used: str = "SmartSPIM-template_2024-05-16_11-26-14",
+    opened_zarr: Optional[tuple[Node, dict]] = None,
 ) -> tuple[dict[str, NDArray], dict[str, NDArray] | None]:
     """
     Convert Neuroglancer annotation JSON into CCF coordinates.
@@ -663,6 +681,9 @@ def neuroglancer_to_ccf(
         Cache directory for transform downloads.
     template_used : str, optional
         Template transform key.
+    opened_zarr : tuple, optional
+        Pre-opened ZARR file (image_node, zarr_meta), by default None. If
+        provided, this will be used instead of opening the ZARR file again.
 
     Returns
     -------
@@ -678,18 +699,55 @@ def neuroglancer_to_ccf(
     )
     annotation_points_ccf = indices_to_ccf(
         annotation_indices,
-        metadata,
         zarr_uri,
+        metadata,
         processing_data,
         s3_client=s3_client,
         anonymous=anonymous,
         cache_dir=cache_dir,
         template_used=template_used,
+        opened_zarr=opened_zarr,
     )
     return annotation_points_ccf, descriptions
 
 
-def neuroglancer_to_ccf_pipeline_files(
+def alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
+    asset_uri: Optional[str] = None, a_zarr_uri: Optional[str] = None
+):
+    """
+    Return the alignment uris for a given Zarr path.
+
+    """
+    if asset_uri is None:
+        if a_zarr_uri is None:
+            raise ValueError("Must provide either a_zarr_uri or asset_uri")
+        uri_type, bucket, a_zarr_pathlike = as_pathlike(a_zarr_uri)
+        asset_pathlike = _asset_from_zarr_pathlike(a_zarr_pathlike)
+    else:
+        uri_type, bucket, asset_pathlike = as_pathlike(asset_uri)
+    metadata_pathlike = asset_pathlike / "metadata.nd.json"
+    processing_pathlike = asset_pathlike / "processing.json"
+    metadata_uri = as_string(uri_type, bucket, metadata_pathlike)
+    processing_uri = as_string(uri_type, bucket, processing_pathlike)
+    metadata = get_json(metadata_uri)
+    processing_data = get_json(processing_uri)
+    alignment_rel_path = image_atlas_alignment_path_relative_from_processing(
+        processing_data
+    )
+    if alignment_rel_path is None:
+        raise ValueError(
+            "Could not determine image atlas alignment path from "
+            "processing data"
+        )
+    channel = PurePosixPath(alignment_rel_path).stem
+    zarr_pathlike = (
+        asset_pathlike / f"image_tile_fusing/OMEZarr/{channel}.zarr"
+    )
+    zarr_uri = as_string(uri_type, bucket, zarr_pathlike)
+    return zarr_uri, metadata, processing_data
+
+
+def neuroglancer_to_ccf_auto_metadata(
     neuroglancer_data: dict,
     asset_uri: Optional[str] = None,
     **kwargs: Any,
@@ -740,33 +798,186 @@ def neuroglancer_to_ccf_pipeline_files(
         a_zarr_uri = next(iter(image_sources.values()), None)
         if a_zarr_uri is None:
             raise ValueError("No image sources found in neuroglancer data")
-        uri_type, bucket, a_zarr_pathlike = as_pathlike(a_zarr_uri)
-        asset_pathlike = _asset_from_zarr_pathlike(a_zarr_pathlike)
-    else:
-        uri_type, bucket, asset_pathlike = as_pathlike(asset_uri)
-    metadata_pathlike = asset_pathlike / "metadata.nd.json"
-    processing_pathlike = asset_pathlike / "processing.json"
-    metadata_uri = as_string(uri_type, bucket, metadata_pathlike)
-    processing_uri = as_string(uri_type, bucket, processing_pathlike)
-    metadata = get_json(metadata_uri)
-    processing_data = get_json(processing_uri)
-    alignment_rel_path = image_atlas_alignment_path_relative_from_processing(
-        processing_data
-    )
-    if alignment_rel_path is None:
-        raise ValueError(
-            "Could not determine image atlas alignment path from "
-            "processing data"
+        zarr_uri, metadata, processing_data = (
+            alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
+                a_zarr_uri=a_zarr_uri
+            )
         )
-    channel = PurePosixPath(alignment_rel_path).stem
-    zarr_pathlike = (
-        asset_pathlike / f"image_tile_fusing/OMEZarr/{channel}.zarr"
-    )
-    zarr_uri = as_string(uri_type, bucket, zarr_pathlike)
+    else:
+        zarr_uri, metadata, processing_data = (
+            alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
+                asset_uri=asset_uri
+            )
+        )
     return neuroglancer_to_ccf(
         neuroglancer_data,
         zarr_uri=zarr_uri,
         metadata=metadata,
         processing_data=processing_data,
+        **kwargs,
+    )
+
+
+def swc_data_to_zarr_indices(
+    swc_point_dict: dict[str, NDArray],
+    zarr_uri: str,
+    swc_point_order: str = "zyx",
+    swc_point_units: str = "micrometer",
+    opened_zarr: Optional[tuple[Node, dict]] = None,
+):
+    """Convert SWC coordinates to zarr indices.
+
+    Parameters
+    ----------
+    swc_point_dict : dict[str, NDArray]
+        Dictionary containing SWC points for a set of neurons. Keys are
+        neuron IDs and values are (N, 3) arrays of SWC point coordinates.
+    zarr_uri : str
+        URI of the LS acquisition Zarr.
+    processing_data : dict
+        Processing metadata with pipeline version and process list.
+    swc_point_order : str, optional
+        Order of the zarr coordinates in the input arrays. Default is 'zyx'.
+    swc_point_units : str, optional
+        Units of the input coordinates. Default is 'microns'.
+    opened_zarr : tuple, optional
+        Pre-opened ZARR file (image_node, zarr_meta), by default None. If
+        provided, this will be used instead of opening the ZARR file again.
+
+    Returns
+    -------
+    dict[str, NDArray]
+        Mapping neuron ID → (N, 3) array of zarr indices.
+    """
+    unit_scale = _unit_conversion(swc_point_units, "millimeter")
+    swc_point_order_lower = swc_point_order.lower()
+    swc_to_zarr_axis_order = [swc_point_order_lower.index(ax) for ax in "zyx"]
+    _, _, _, spacing_raw, _ = _zarr_to_global(
+        zarr_uri, level=0, opened_zarr=opened_zarr
+    )
+
+    spacing = np.array(spacing_raw)
+    swc_zarr_indices = {}
+    for k, pts in swc_point_dict.items():
+        pts_arr = np.asarray(pts)
+        if pts_arr.ndim != 2 or pts_arr.shape[1] != 3:
+            raise ValueError(
+                f"Expected (N, 3) array for key {k}, got shape {pts_arr.shape}"
+            )
+        swc_zarr_indices[k] = np.round(
+            (unit_scale * pts_arr[:, swc_to_zarr_axis_order]) / spacing
+        ).astype(int)
+    return swc_zarr_indices
+
+
+def swc_data_to_ccf(
+    swc_point_dict: dict[str, NDArray],
+    alignment_zarr_uri: str,
+    metadata: dict[str, Any],
+    processing_data: dict[str, Any],
+    swc_point_order: str = "zyx",
+    swc_point_units: str = "micrometer",
+    opened_zarr: Optional[tuple[Node, dict]] = None,
+    **kwargs: Any,
+) -> dict[str, NDArray]:
+    """Convert SWC annotations to CCF coordinates.
+
+    Converts SWC coordinates to zarr indices and then converts these indices to
+    CCF coordinates. This function requires the Zarr URI and metadata to be
+    provided explicitly.
+
+    Parameters
+    ----------
+    swc_point_dict : dict[str, NDArray]
+        Dictionary containing SWC points for a set of neurons. Keys are
+        neuron IDs and values are (N, 3) arrays of SWC point coordinates.
+    alignment_zarr_uri : str
+        URI of the LS acquisition Zarr.
+    metadata : dict
+        ND metadata with acquisition information.
+    processing_data : dict
+        Processing metadata with pipeline version and process list.
+    swc_point_order : str, optional
+        Order of the zarr coordinates in the input arrays. Default is 'zyx'.
+    swc_point_units : str, optional
+        Units of the input coordinates. Default is 'microns'.
+    opened_zarr : tuple, optional
+        Pre-opened ZARR file (image_node, zarr_meta), by default None. If
+        provided, this will be used instead of opening the ZARR file again.
+    **kwargs : Any
+        Forwarded keyword arguments accepted by :func:`indices_to_ccf`.
+
+    Returns
+    -------
+    dict[str, NDArray]
+        Mapping neuron ID → (N, 3) array of physical CCF coordinates in LPS.
+    """
+    if opened_zarr is None:
+        an_open_zarr = _open_zarr(alignment_zarr_uri)
+    else:
+        an_open_zarr = opened_zarr
+
+    swc_zarr_indices = swc_data_to_zarr_indices(
+        swc_point_dict,
+        alignment_zarr_uri,
+        swc_point_order=swc_point_order,
+        swc_point_units=swc_point_units,
+        opened_zarr=an_open_zarr,
+    )
+    swc_pts_ccf = indices_to_ccf(
+        swc_zarr_indices,
+        alignment_zarr_uri,
+        metadata,
+        processing_data,
+        opened_zarr=an_open_zarr,
+        **kwargs,
+    )
+    return swc_pts_ccf
+
+
+def swc_data_to_ccf_auto_metadata(
+    swc_point_dict: dict[str, NDArray],
+    asset_uri: str,
+    swc_point_order: str = "zyx",
+    swc_point_units: str = "micrometer",
+    **kwargs: Any,
+) -> dict[str, NDArray]:
+    """Resolve pipeline metadata files then convert SWC annotations to CCF.
+
+    This is a convenience wrapper that infers the location of and loads the
+    accompanying ``metadata.nd.json`` and ``processing.json`` files located at
+    the asset root, and then delegates to :func:`swc_data_to_ccf`.
+
+    Parameters
+    ----------
+    swc_point_dict : dict[str, NDArray]
+        Dictionary containing SWC points for a set of neurons. Keys are
+        neuron IDs and values are (N, 3) arrays of SWC point coordinates.
+    asset_uri : str
+        Base URI for the asset containing the Zarr and metadata files.
+    swc_point_order : str, optional
+        Order of the zarr coordinates in the input arrays. Default is 'zyx'.
+    swc_point_units : str, optional
+        Units of the input coordinates. Default is 'microns'.
+    **kwargs : Any
+        Forwarded keyword arguments accepted by :func:`indices_to_ccf`.
+
+    Returns
+    -------
+    dict[str, NDArray]
+        Mapping neuron ID → (N, 3) array of physical CCF coordinates in LPS.
+    """
+    zarr_uri, metadata, processing_data = (
+        alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
+            asset_uri=asset_uri
+        )
+    )
+    return swc_data_to_ccf(
+        swc_point_dict,
+        zarr_uri,
+        metadata,
+        processing_data,
+        swc_point_order=swc_point_order,
+        swc_point_units=swc_point_units,
         **kwargs,
     )

@@ -356,8 +356,8 @@ class TestIndicesTransformations:
         ):
             pt.indices_to_ccf(
                 annotation_indices,
-                {},
                 "s3://bucket/session.ome.zarr",
+                {},
                 invalid_processing_data,
             )
 
