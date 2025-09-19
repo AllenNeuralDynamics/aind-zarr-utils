@@ -1,3 +1,14 @@
+## v0.6.0 (2025-09-19)
+
+### BREAKING CHANGE
+
+- Rename `neuroglancer_to_ccf_pipeline_files` to
+`neuroglancer_to_ccf_auto_metadata`, as the old name was nearly uninterpretable.
+
+### Feat
+
+- Add support for SWCs (#26)
+
 ## v0.5.1 (2025-09-18)
 
 ### Fix
