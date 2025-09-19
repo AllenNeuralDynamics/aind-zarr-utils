@@ -675,6 +675,35 @@ def mock_nd_metadata():
 
 
 # ============================================================================
+# SWC Testing Infrastructure
+# ============================================================================
+
+
+@pytest.fixture
+def sample_swc_data():
+    """Realistic SWC coordinate data for testing."""
+    return {
+        "neuron_001": np.array([[100.0, 200.0, 300.0], [110.0, 210.0, 310.0]]),
+        "neuron_002": np.array([[50.0, 150.0, 250.0]]),
+        "neuron_003": np.array(
+            [[10.5, 20.5, 30.5], [15.5, 25.5, 35.5], [20.5, 30.5, 40.5]]
+        ),
+    }
+
+
+@pytest.fixture
+def invalid_swc_data():
+    """Invalid SWC data for error testing."""
+    return {
+        "bad_shape_1d": np.array([1, 2, 3]),  # 1D instead of 2D
+        "wrong_cols": np.array([[1, 2]]),  # 2 cols instead of 3
+        "wrong_cols_4": np.array([[1, 2, 3, 4]]),  # 4 cols instead of 3
+        "empty": np.array([]).reshape(0, 3),  # Empty array with correct shape
+        "non_numeric": "not_an_array",  # Wrong type
+    }
+
+
+# ============================================================================
 # Annotation Testing Infrastructure
 # ============================================================================
 

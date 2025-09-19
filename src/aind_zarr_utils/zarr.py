@@ -176,9 +176,77 @@ def zarr_to_numpy(uri: str, level: int = 3) -> tuple[NDArray, dict, int]:
     return arr_data, zarr_meta, level
 
 
+def _zarr_to_global(
+    uri: str,
+    *,
+    level: int = 3,
+    scale_unit: str = "millimeter",
+    opened_zarr: Optional[tuple[Node, dict]] = None,
+) -> tuple[Node, set[int], list[str], list[float], list[int]]:
+    """
+    Extracts global information from a ZARR file.
+
+    Parameters
+    ----------
+    uri : str
+        URI of the ZARR file.
+    level : int, optional
+        Resolution level to read, by default 3.
+    scale_unit : str, optional
+        Unit for scaling, by default "millimeter".
+    opened_zarr : tuple, optional
+        Pre-opened ZARR file (image_node, zarr_meta), by default None. If
+        provided, this will be used instead of opening the ZARR file again.
+
+    Returns
+    -------
+    image_node : ome_zarr.reader.Node
+        The image node of the ZARR file.
+    rej_axes : set
+        Rejected axes indices.
+    spacing : list
+        List of spacing values.
+    size : list
+        List of size values.
+    original_to_subset_axes_map : dict
+        Mapping from original axes to subset axes.
+    """
+    # Create the zarr reader
+    if opened_zarr is None:
+        image_node, zarr_meta = _open_zarr(uri)
+    else:
+        image_node, zarr_meta = opened_zarr
+    scale = np.array(zarr_meta["coordinateTransformations"][level][0]["scale"])
+    original_zarr_axes = zarr_meta["axes"]
+    spatial_dims = set(["x", "y", "z"])
+    original_to_subset_axes_map = {}  # sorted
+    i = 0
+    for j, ax in enumerate(original_zarr_axes):
+        ax_name = ax["name"]
+        if ax_name in spatial_dims:
+            original_to_subset_axes_map[j] = i
+            i += 1
+    rej_axes = set(range(len(original_zarr_axes))) - set(
+        original_to_subset_axes_map.keys()
+    )
+    spacing = []
+    size = []
+    kept_zarr_axes = []
+    dask_shape = image_node.data[level].shape
+    for i in original_to_subset_axes_map.keys():
+        kept_zarr_axes.append(original_zarr_axes[i]["name"])
+        scale_factor = _unit_conversion(
+            original_zarr_axes[i]["unit"], scale_unit
+        )
+        spacing.append(scale_factor * scale[i])
+        size.append(dask_shape[i])
+    return image_node, rej_axes, kept_zarr_axes, spacing, size
+
+
 def _zarr_to_anatomical(
     uri: str,
     nd_metadata: dict,
+    *,
     level: int = 3,
     scale_unit: str = "millimeter",
     opened_zarr: Optional[tuple[Node, dict]] = None,
@@ -216,34 +284,10 @@ def _zarr_to_anatomical(
     # Get direction metadata
     _, axes, directions = direction_from_nd_metadata(nd_metadata)
     metadata_axes_to_dir = {a: d for a, d in zip(axes, directions)}
-    # Create the zarr reader
-    if opened_zarr is None:
-        image_node, zarr_meta = _open_zarr(uri)
-    else:
-        image_node, zarr_meta = opened_zarr
-    scale = np.array(zarr_meta["coordinateTransformations"][level][0]["scale"])
-    zarr_axes = zarr_meta["axes"]
-    spatial_dims = set(["x", "y", "z"])
-    original_to_subset_axes_map = {}  # sorted
-    i = 0
-    for j, ax in enumerate(zarr_axes):
-        ax_name = ax["name"]
-        if ax_name in spatial_dims:
-            original_to_subset_axes_map[j] = i
-            i += 1
-    rej_axes = set(range(len(zarr_axes))) - set(
-        original_to_subset_axes_map.keys()
+    image_node, rej_axes, zarr_axes, spacing, size = _zarr_to_global(
+        uri, level=level, scale_unit=scale_unit, opened_zarr=opened_zarr
     )
-    dirs = []
-    spacing = []
-    size = []
-    dask_shape = image_node.data[level].shape
-    for i in original_to_subset_axes_map.keys():
-        zarr_axis = zarr_axes[i]["name"]
-        dirs.append(metadata_axes_to_dir[zarr_axis])
-        scale_factor = _unit_conversion(zarr_axes[i]["unit"], scale_unit)
-        spacing.append(scale_factor * scale[i])
-        size.append(dask_shape[i])
+    dirs = [metadata_axes_to_dir[a] for a in zarr_axes]
     return image_node, rej_axes, dirs, spacing, size
 
 
