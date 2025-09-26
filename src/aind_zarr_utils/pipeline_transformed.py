@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import PurePath, PurePosixPath
-from typing import TYPE_CHECKING, Any, Optional, Tuple, TypeVar, Union
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
 import SimpleITK as sitk
@@ -196,27 +196,33 @@ def _zarr_base_name_any(base: str) -> str | None:
     return _zarr_base_name_pathlike(p)
 
 
-_PIPELINE_TEMPLATE_TRANSFORMS: dict[str, TemplatePaths] = {
-    "SmartSPIM-template_2024-05-16_11-26-14": TemplatePaths(
-        base="s3://aind-open-data/SmartSPIM-template_2024-05-16_11-26-14/",
-        chain=TransformChain(
-            fixed="ccf",
-            moving="template",
-            forward_chain=[
-                "spim_template_to_ccf_syn_1Warp_25.nii.gz",
-                "spim_template_to_ccf_syn_0GenericAffine_25.mat",
-            ],
-            forward_chain_invert=[False, False],
-            reverse_chain=[
-                "spim_template_to_ccf_syn_0GenericAffine_25.mat",
-                "spim_template_to_ccf_syn_1InverseWarp_25.nii.gz",
-            ],
-            reverse_chain_invert=[True, False],
-        ),
+_PIPELINE_TEMPLATE_TRANSFORM_CHAINS: dict[str, TransformChain] = {
+    "SmartSPIM-template_2024-05-16_11-26-14": TransformChain(
+        fixed="ccf",
+        moving="template",
+        forward_chain=[
+            "spim_template_to_ccf_syn_1Warp_25.nii.gz",
+            "spim_template_to_ccf_syn_0GenericAffine_25.mat",
+        ],
+        forward_chain_invert=[False, False],
+        reverse_chain=[
+            "spim_template_to_ccf_syn_0GenericAffine_25.mat",
+            "spim_template_to_ccf_syn_1InverseWarp_25.nii.gz",
+        ],
+        reverse_chain_invert=[True, False],
     )
 }
 
-_PIPELINE_INDIVIDUAL_TRANSFORMS: dict[int, TransformChain] = {
+_PIPELINE_TEMPLATE_TRANSFORMS: dict[str, TemplatePaths] = {
+    "SmartSPIM-template_2024-05-16_11-26-14": TemplatePaths(
+        base="s3://aind-open-data/SmartSPIM-template_2024-05-16_11-26-14/",
+        chain=_PIPELINE_TEMPLATE_TRANSFORM_CHAINS[
+            "SmartSPIM-template_2024-05-16_11-26-14"
+        ],
+    )
+}
+
+_PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS: dict[int, TransformChain] = {
     3: TransformChain(
         fixed="template",
         moving="individual",
@@ -370,7 +376,7 @@ def mimic_pipeline_zarr_to_anatomical_stub(
     processing_data: dict,
     *,
     overlay_selector: OverlaySelector = get_selector(),
-    opened_zarr: Optional[tuple[Node, dict]] = None,
+    opened_zarr: tuple[Node, dict] | None = None,
 ) -> sitk.Image:
     """
     Construct a SimpleITK stub matching pipeline spatial corrections.
@@ -444,8 +450,10 @@ def mimic_pipeline_zarr_to_anatomical_stub(
 def pipeline_transforms(
     zarr_uri: str,
     processing_data: dict[str, Any],
+    *,
     template_used: str = "SmartSPIM-template_2024-05-16_11-26-14",
-) -> Tuple[TemplatePaths, TemplatePaths]:
+    template_base: str | None = None,
+) -> tuple[TemplatePaths, TemplatePaths]:
     """
     Return individual→template and template→CCF transform path data.
 
@@ -457,6 +465,9 @@ def pipeline_transforms(
         Processing metadata.
     template_used : str, optional
         Key identifying which template transform set to apply.
+    template_base : str, optional
+        Base path for the template transforms. If ``None``, the default from
+        :data:`_PIPELINE_TEMPLATE_TRANSFORMS` is used. Defaults to ``None``.
 
     Returns
     -------
@@ -486,26 +497,77 @@ def pipeline_transforms(
     )
     individual_ants_paths = TemplatePaths(
         alignment_path,
-        _PIPELINE_INDIVIDUAL_TRANSFORMS[3],
+        _PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS[3],
     )
-    template_ants_paths = _PIPELINE_TEMPLATE_TRANSFORMS[template_used]
+    if template_base:
+        template_ants_paths = TemplatePaths(
+            template_base, _PIPELINE_TEMPLATE_TRANSFORM_CHAINS[template_used]
+        )
+    else:
+        template_ants_paths = _PIPELINE_TEMPLATE_TRANSFORMS[template_used]
     return individual_ants_paths, template_ants_paths
 
 
-def pipeline_point_transforms_local_paths(
+def _pipeline_image_transforms_local_paths(
+    individual_ants_paths: TemplatePaths,
+    template_ants_paths: TemplatePaths,
+    *,
+    s3_client: S3Client | None = None,
+    anonymous: bool = False,
+    cache_dir: str | os.PathLike | None = None,
+) -> tuple[list[str], list[bool]]:
+    img_transforms_individual_is_inverted = (
+        individual_ants_paths.chain.forward_chain_invert
+    )
+    img_transforms_template_is_inverted = (
+        template_ants_paths.chain.forward_chain_invert
+    )
+
+    img_transforms_individual_paths = [
+        get_local_path_for_resource(
+            join_any(individual_ants_paths.base, p),
+            s3_client=s3_client,
+            anonymous=anonymous,
+            cache_dir=cache_dir,
+        ).path
+        for p in individual_ants_paths.chain.forward_chain
+    ]
+    img_transforms_template_paths = [
+        get_local_path_for_resource(
+            join_any(template_ants_paths.base, p),
+            s3_client=s3_client,
+            anonymous=anonymous,
+            cache_dir=cache_dir,
+        ).path
+        for p in template_ants_paths.chain.forward_chain
+    ]
+
+    img_transform_paths = (
+        img_transforms_template_paths + img_transforms_individual_paths
+    )
+    img_transform_paths_str = [str(p) for p in img_transform_paths]
+    img_transform_is_inverted = (
+        img_transforms_template_is_inverted
+        + img_transforms_individual_is_inverted
+    )
+    return img_transform_paths_str, img_transform_is_inverted
+
+
+def pipeline_image_transforms_local_paths(
     zarr_uri: str,
     processing_data: dict[str, Any],
     *,
-    s3_client: Optional[S3Client] = None,
+    s3_client: S3Client | None = None,
     anonymous: bool = False,
-    cache_dir: Optional[Union[str, os.PathLike]] = None,
+    cache_dir: str | os.PathLike | None = None,
     template_used: str = "SmartSPIM-template_2024-05-16_11-26-14",
-) -> Tuple[list[str], list[bool]]:
+    template_base: str | None = None,
+) -> tuple[list[str], list[bool]]:
     """
-    Resolve local filesystem paths to the point transform chain files.
+    Resolve local filesystem paths to the image transform chain files.
 
     Download (or locate in cache) all ANTs transform components needed to
-    map individual LS acquisition points into CCF space.
+    map individual LS acquisition images into CCF space.
 
     Parameters
     ----------
@@ -522,18 +584,42 @@ def pipeline_point_transforms_local_paths(
     template_used : str, optional
         Template transform key (see
         :data:`_PIPELINE_TEMPLATE_TRANSFORMS`).
+    template_base : str, optional
+        Base path for the template transforms. If ``None``, the default from
+        :data:`_PIPELINE_TEMPLATE_TRANSFORMS` will be used. Defaults to
+        ``None``.
 
     Returns
     -------
     list[str]
-        Paths to transform files in the application order (reverse chains).
+        Paths to image transform files in the application order (forward
+        chains).
     list[bool]
         Flags indicating whether each transform should be inverted.
     """
     individual_ants_paths, template_ants_paths = pipeline_transforms(
-        zarr_uri, processing_data, template_used=template_used
+        zarr_uri,
+        processing_data,
+        template_used=template_used,
+        template_base=template_base,
+    )
+    return _pipeline_image_transforms_local_paths(
+        individual_ants_paths,
+        template_ants_paths,
+        s3_client=s3_client,
+        anonymous=anonymous,
+        cache_dir=cache_dir,
     )
 
+
+def _pipeline_point_transforms_local_paths(
+    individual_ants_paths: TemplatePaths,
+    template_ants_paths: TemplatePaths,
+    *,
+    s3_client: S3Client | None = None,
+    anonymous: bool = False,
+    cache_dir: str | os.PathLike | None = None,
+) -> tuple[list[str], list[bool]]:
     pt_transforms_individual_is_inverted = (
         individual_ants_paths.chain.reverse_chain_invert
     )
@@ -571,17 +657,161 @@ def pipeline_point_transforms_local_paths(
     return pt_transform_paths_str, pt_transform_is_inverted
 
 
+def pipeline_point_transforms_local_paths(
+    zarr_uri: str,
+    processing_data: dict[str, Any],
+    *,
+    s3_client: S3Client | None = None,
+    anonymous: bool = False,
+    cache_dir: str | os.PathLike | None = None,
+    template_used: str = "SmartSPIM-template_2024-05-16_11-26-14",
+    template_base: str | None = None,
+) -> tuple[list[str], list[bool]]:
+    """
+    Resolve local filesystem paths to the point transform chain files.
+
+    Download (or locate in cache) all ANTs transform components needed to
+    map individual LS acquisition points into CCF space.
+
+    Parameters
+    ----------
+    zarr_uri : str
+        Acquisition Zarr URI.
+    processing_data : dict
+        Processing metadata.
+    s3_client : S3Client, optional
+        Boto3 S3 client (typed) for authenticated access.
+    anonymous : bool, optional
+        Use unsigned S3 access if ``True``.
+    cache_dir : str or PathLike, optional
+        Directory to cache downloaded resources.
+    template_used : str, optional
+        Template transform key (see
+        :data:`_PIPELINE_TEMPLATE_TRANSFORMS`).
+    template_base : str, optional
+        Base path for the template transforms. If ``None``, the default from
+        :data:`_PIPELINE_TEMPLATE_TRANSFORMS` will be used. Defaults to
+        ``None``.
+
+    Returns
+    -------
+    list[str]
+        Paths to transform files in the application order (reverse chains).
+    list[bool]
+        Flags indicating whether each transform should be inverted.
+    """
+    individual_ants_paths, template_ants_paths = pipeline_transforms(
+        zarr_uri,
+        processing_data,
+        template_used=template_used,
+        template_base=template_base,
+    )
+    return _pipeline_point_transforms_local_paths(
+        individual_ants_paths,
+        template_ants_paths,
+        s3_client=s3_client,
+        anonymous=anonymous,
+        cache_dir=cache_dir,
+    )
+
+
+def pipeline_transforms_local_paths(
+    zarr_uri: str,
+    processing_data: dict[str, Any],
+    *,
+    s3_client: S3Client | None = None,
+    anonymous: bool = False,
+    cache_dir: str | os.PathLike | None = None,
+    template_used: str = "SmartSPIM-template_2024-05-16_11-26-14",
+    template_base: str | None = None,
+) -> tuple[list[str], list[bool]]:
+    """
+    Resolve local filesystem paths to the transform chain files.
+
+    Download (or locate in cache) all ANTs transform components needed to
+    map individual LS acquisition images and points to CCF space.
+
+    The "image" and "points" transforms are inverses of each other, so if you
+    need to map points from ccf → individual LS space, use the "image"
+    transform.
+
+    Parameters
+    ----------
+    zarr_uri : str
+        Acquisition Zarr URI.
+    processing_data : dict
+        Processing metadata.
+    s3_client : S3Client, optional
+        Boto3 S3 client (typed) for authenticated access.
+    anonymous : bool, optional
+        Use unsigned S3 access if ``True``.
+    cache_dir : str or PathLike, optional
+        Directory to cache downloaded resources.
+    template_used : str, optional
+        Template transform key (see
+        :data:`_PIPELINE_TEMPLATE_TRANSFORMS`).
+    template_base : str, optional
+        Base path for the template transforms. If ``None``, the default from
+        :data:`_PIPELINE_TEMPLATE_TRANSFORMS` will be used. Defaults to
+        ``None``.
+
+    Returns
+    -------
+    list[str]
+        Paths to point transform files in the application order (reverse
+        chains).
+    list[bool]
+        Flags indicating whether each point transform should be inverted.
+    list[str]
+        Paths to image transform files in the application order (forward
+        chains).
+    list[bool]
+        Flags indicating whether each image transform should be inverted.
+    """
+    individual_ants_paths, template_ants_paths = pipeline_transforms(
+        zarr_uri,
+        processing_data,
+        template_used=template_used,
+        template_base=template_base,
+    )
+    pt_transform_paths_str, pt_transform_is_inverted = (
+        _pipeline_point_transforms_local_paths(
+            individual_ants_paths,
+            template_ants_paths,
+            s3_client=s3_client,
+            anonymous=anonymous,
+            cache_dir=cache_dir,
+        )
+    )
+    img_transform_paths_str, img_transform_is_inverted = (
+        _pipeline_image_transforms_local_paths(
+            individual_ants_paths,
+            template_ants_paths,
+            s3_client=s3_client,
+            anonymous=anonymous,
+            cache_dir=cache_dir,
+        )
+    )
+    return (
+        pt_transform_paths_str,
+        pt_transform_is_inverted,
+        img_transform_paths_str,
+        img_transform_is_inverted,
+    )
+
+
 def indices_to_ccf(
     annotation_indices: dict[str, NDArray],
     zarr_uri: str,
     metadata: dict[str, Any],
     processing_data: dict,
     *,
-    s3_client: Optional[S3Client] = None,
+    s3_client: S3Client | None = None,
     anonymous: bool = False,
-    cache_dir: Optional[Union[str, os.PathLike]] = None,
+    cache_dir: str | os.PathLike | None = None,
     template_used: str = "SmartSPIM-template_2024-05-16_11-26-14",
-    opened_zarr: Optional[tuple[Node, dict]] = None,
+    template_base: str | None = None,
+    opened_zarr: tuple[Node, dict] | None = None,
 ) -> dict[str, NDArray]:
     """
     Convert voxel indices (LS space) directly into CCF coordinates.
@@ -605,6 +835,10 @@ def indices_to_ccf(
         Resource cache directory.
     template_used : str, optional
         Template transform key.
+    template_base : str, optional
+        Base path for the template transforms. If ``None``, the default from
+        :data:`_PIPELINE_TEMPLATE_TRANSFORMS` will be used. Defaults to
+        ``None``.
     opened_zarr : tuple, optional
         Pre-opened ZARR file (image_node, zarr_meta), by default None. If
         provided, this will be used instead of opening the ZARR file again.
@@ -629,6 +863,7 @@ def indices_to_ccf(
             anonymous=anonymous,
             cache_dir=cache_dir,
             template_used=template_used,
+            template_base=template_base,
         )
     )
     annotation_points_ccf: dict[str, NDArray] = {}
@@ -647,13 +882,14 @@ def neuroglancer_to_ccf(
     metadata: dict,
     processing_data: dict,
     *,
-    layer_names: Optional[Union[str, list[str]]] = None,
+    layer_names: str | list[str] | None = None,
     return_description: bool = True,
-    s3_client: Optional[S3Client] = None,
+    s3_client: S3Client | None = None,
     anonymous: bool = False,
-    cache_dir: Optional[Union[str, os.PathLike]] = None,
+    cache_dir: str | os.PathLike | None = None,
     template_used: str = "SmartSPIM-template_2024-05-16_11-26-14",
-    opened_zarr: Optional[tuple[Node, dict]] = None,
+    template_base: str | None = None,
+    opened_zarr: tuple[Node, dict] | None = None,
 ) -> tuple[dict[str, NDArray], dict[str, NDArray] | None]:
     """
     Convert Neuroglancer annotation JSON into CCF coordinates.
@@ -680,6 +916,10 @@ def neuroglancer_to_ccf(
         Cache directory for transform downloads.
     template_used : str, optional
         Template transform key.
+    template_base : str, optional
+        Base path for the template transforms. If ``None``, the default from
+        :data:`_PIPELINE_TEMPLATE_TRANSFORMS` will be used. Defaults to
+        ``None``.
     opened_zarr : tuple, optional
         Pre-opened ZARR file (image_node, zarr_meta), by default None. If
         provided, this will be used instead of opening the ZARR file again.
@@ -705,14 +945,15 @@ def neuroglancer_to_ccf(
         anonymous=anonymous,
         cache_dir=cache_dir,
         template_used=template_used,
+        template_base=template_base,
         opened_zarr=opened_zarr,
     )
     return annotation_points_ccf, descriptions
 
 
 def alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
-    asset_uri: Optional[str] = None, a_zarr_uri: Optional[str] = None
-):
+    asset_uri: str | None = None, a_zarr_uri: str | None = None
+) -> tuple[str, dict, dict]:
     """
     Return the alignment uris for a given Zarr path.
 
@@ -748,7 +989,7 @@ def alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
 
 def neuroglancer_to_ccf_auto_metadata(
     neuroglancer_data: dict,
-    asset_uri: Optional[str] = None,
+    asset_uri: str | None = None,
     **kwargs: Any,
 ) -> tuple[dict[str, NDArray], dict[str, NDArray] | None]:
     """Resolve pipeline metadata files then convert annotations to CCF.
@@ -822,8 +1063,8 @@ def swc_data_to_zarr_indices(
     zarr_uri: str,
     swc_point_order: str = "zyx",
     swc_point_units: str = "micrometer",
-    opened_zarr: Optional[tuple[Node, dict]] = None,
-):
+    opened_zarr: tuple[Node, dict] | None = None,
+) -> dict[str, NDArray]:
     """Convert SWC coordinates to zarr indices.
 
     Parameters
@@ -874,9 +1115,10 @@ def swc_data_to_ccf(
     alignment_zarr_uri: str,
     metadata: dict[str, Any],
     processing_data: dict[str, Any],
+    *,
     swc_point_order: str = "zyx",
     swc_point_units: str = "micrometer",
-    opened_zarr: Optional[tuple[Node, dict]] = None,
+    opened_zarr: tuple[Node, dict] | None = None,
     **kwargs: Any,
 ) -> dict[str, NDArray]:
     """Convert SWC annotations to CCF coordinates.

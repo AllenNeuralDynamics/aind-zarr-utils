@@ -192,7 +192,7 @@ class TestPipelineTransformConstants:
         assert len(template.chain.reverse_chain) == 2
 
     def test_pipeline_individual_transforms_structure(self):
-        transforms = pt._PIPELINE_INDIVIDUAL_TRANSFORMS
+        transforms = pt._PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS
         assert 3 in transforms
 
         chain = transforms[3]
@@ -257,7 +257,7 @@ class TestPipelineTransforms:
         )
 
         assert individual.base.endswith("image_atlas_alignment/session")
-        assert individual.chain == pt._PIPELINE_INDIVIDUAL_TRANSFORMS[3]
+        assert individual.chain == pt._PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS[3]
 
         assert (
             template
