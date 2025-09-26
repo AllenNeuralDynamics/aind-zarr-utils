@@ -58,7 +58,7 @@ wheels = [
 
 [[package]]
 name = "aind-zarr-utils"
-version = "0.3.1"
+version = "0.6.0"
 source = { editable = "." }
 dependencies = [
     { name = "aind-anatomical-utils" },
@@ -100,12 +100,7 @@ docs = [
     { name = "ruff" },
     { name = "types-requests" },
 ]
-types = [
-    { name = "boto3-stubs", extra = ["s3"] },
-    { name = "mypy" },
-    { name = "types-requests" },
-]
-vscode = [
+jupyter = [
     { name = "boto3-stubs", extra = ["s3"] },
     { name = "codespell" },
     { name = "interrogate" },
@@ -115,6 +110,11 @@ vscode = [
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
+    { name = "types-requests" },
+]
+types = [
+    { name = "boto3-stubs", extra = ["s3"] },
+    { name = "mypy" },
     { name = "types-requests" },
 ]
 
@@ -156,12 +156,7 @@ docs = [
     { name = "ruff" },
     { name = "types-requests" },
 ]
-types = [
-    { name = "boto3-stubs", extras = ["s3"] },
-    { name = "mypy" },
-    { name = "types-requests" },
-]
-vscode = [
+jupyter = [
     { name = "boto3-stubs", extras = ["s3"] },
     { name = "codespell" },
     { name = "interrogate" },
@@ -171,6 +166,11 @@ vscode = [
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
+    { name = "types-requests" },
+]
+types = [
+    { name = "boto3-stubs", extras = ["s3"] },
+    { name = "mypy" },
     { name = "types-requests" },
 ]
 
