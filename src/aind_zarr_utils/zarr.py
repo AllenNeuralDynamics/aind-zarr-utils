@@ -4,15 +4,15 @@ Module for turning ZARRs into ants images and vice versa.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from itertools import product
-from typing import Optional, Sequence
 
-import ants
+import ants  # type: ignore[import-untyped]
 import numpy as np
 import SimpleITK as sitk
 from numpy.typing import NDArray
-from ome_zarr.io import parse_url
-from ome_zarr.reader import Node, Reader
+from ome_zarr.io import parse_url  # type: ignore[import-untyped]
+from ome_zarr.reader import Node, Reader  # type: ignore[import-untyped]
 
 
 def direction_from_acquisition_metadata(
@@ -181,7 +181,7 @@ def _zarr_to_global(
     *,
     level: int = 3,
     scale_unit: str = "millimeter",
-    opened_zarr: Optional[tuple[Node, dict]] = None,
+    opened_zarr: tuple[Node, dict] | None = None,
 ) -> tuple[Node, set[int], list[str], list[float], list[int]]:
     """
     Extracts global information from a ZARR file.
@@ -249,7 +249,7 @@ def _zarr_to_anatomical(
     *,
     level: int = 3,
     scale_unit: str = "millimeter",
-    opened_zarr: Optional[tuple[Node, dict]] = None,
+    opened_zarr: tuple[Node, dict] | None = None,
 ) -> tuple[Node, set[int], list[str], list[float], list[int]]:
     """
     Extracts anatomical information from a ZARR file.
@@ -335,9 +335,9 @@ def zarr_to_ants(
     nd_metadata: dict,
     level: int = 3,
     scale_unit: str = "millimeter",
-    set_origin: Optional[tuple[float, float, float]] = None,
-    set_corner: Optional[str] = None,
-    set_corner_lps: Optional[tuple[float, float, float]] = None,
+    set_origin: tuple[float, float, float] | None = None,
+    set_corner: str | None = None,
+    set_corner_lps: tuple[float, float, float] | None = None,
 ) -> ants.ANTsImage:
     """
     Converts a ZARR file to an ANTs image.
@@ -386,8 +386,10 @@ def zarr_to_ants(
         origin = compute_origin_for_corner(
             size, spacing, dir_tup, set_corner_lps, set_corner
         )[0]
-    else:
+    elif origin_type == "none":
         origin = (0.0, 0.0, 0.0)
+    else:
+        raise ValueError(f"Unknown origin_type: {origin_type}")
     ants_image = ants.from_numpy(
         arr_data_spatial, spacing=spacing, direction=dir_mat, origin=origin
     )
@@ -399,9 +401,9 @@ def zarr_to_sitk(
     nd_metadata: dict,
     level: int = 3,
     scale_unit: str = "millimeter",
-    set_origin: Optional[tuple[float, float, float]] = None,
-    set_corner: Optional[str] = None,
-    set_corner_lps: Optional[tuple[float, float, float]] = None,
+    set_origin: tuple[float, float, float] | None = None,
+    set_corner: str | None = None,
+    set_corner_lps: tuple[float, float, float] | None = None,
 ) -> sitk.Image:
     """
     Converts a ZARR file to a SimpleITK image.
@@ -455,14 +457,16 @@ def zarr_to_sitk(
     origin_type = _origin_args_check(set_origin, set_corner, set_corner_lps)
     if origin_type == "origin":
         assert set_origin is not None
-        origin = set_origin
+        origin = set_origin  # type: ignore[unreachable]
     elif origin_type == "corner":
         assert set_corner_lps is not None and set_corner is not None
         origin = compute_origin_for_corner(
             size_rev, spacing_rev, dir_tup, set_corner_lps, set_corner
         )[0]
-    else:
+    elif origin_type == "none":
         origin = (0.0, 0.0, 0.0)
+    else:
+        raise ValueError(f"Unknown origin_type: {origin_type}")
     sitk_image = sitk.GetImageFromArray(arr_data_spatial)
     sitk_image.SetSpacing(tuple(spacing_rev))
     sitk_image.SetOrigin(origin)
@@ -471,9 +475,9 @@ def zarr_to_sitk(
 
 
 def _origin_args_check(
-    set_origin: Optional[tuple[float, float, float]],
-    set_corner: Optional[str],
-    set_corner_lps: Optional[tuple[float, float, float]],
+    set_origin: tuple[float, float, float] | None,
+    set_corner: str | None,
+    set_corner_lps: tuple[float, float, float] | None,
 ) -> str:
     have_origin = set_origin is not None
     have_corner = set_corner is not None
@@ -494,10 +498,10 @@ def zarr_to_sitk_stub(
     nd_metadata: dict,
     level: int = 0,
     scale_unit: str = "millimeter",
-    set_origin: Optional[tuple[float, float, float]] = None,
-    set_corner: Optional[str] = None,
-    set_corner_lps: Optional[tuple[float, float, float]] = None,
-    opened_zarr: Optional[tuple[Node, dict]] = None,
+    set_origin: tuple[float, float, float] | None = None,
+    set_corner: str | None = None,
+    set_corner_lps: tuple[float, float, float] | None = None,
+    opened_zarr: tuple[Node, dict] | None = None,
 ) -> tuple[sitk.Image, tuple[int, int, int]]:
     """
     Creates a stub SimpleITK image with the same metadata as the ZARR file.
@@ -565,8 +569,10 @@ def zarr_to_sitk_stub(
         origin = compute_origin_for_corner(
             size_rev, spacing_rev, dir_tup, set_corner_lps, set_corner
         )[0]
-    else:
+    elif origin_type == "none":
         origin = (0.0, 0.0, 0.0)
+    else:
+        raise ValueError(f"Unknown origin_type: {origin_type}")
     stub_image = sitk.Image([1] * n_spatial, sitk.sitkUInt8)
     stub_image.SetSpacing(tuple(spacing_rev))
     stub_image.SetOrigin(origin)
@@ -593,7 +599,7 @@ def _code_signs(code: str) -> np.ndarray:
     return np.array([sx, sy, sz], float)
 
 
-def _corner_indices(size, outer=True):
+def _corner_indices(size: NDArray, outer: bool = True) -> NDArray:
     size = np.asarray(size, float)
     lo = -0.5 if outer else 0.0
     hi = (size - 0.5) if outer else (size - 1.0)
@@ -608,7 +614,7 @@ def compute_origin_for_corner(
     direction: NDArray,
     target_point: Sequence[float],
     corner_code: str = "RAS",
-    target_frame: str = "LPS",
+    target_frame: str | None = None,
     use_outer_box: bool = False,
 ) -> tuple[tuple[float, float, float], NDArray, int]:
     """

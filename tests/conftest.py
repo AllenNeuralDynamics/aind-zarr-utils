@@ -733,3 +733,153 @@ def mock_annotation_functions(monkeypatch):
         "indices_to_anatomical": mock_annotation_indices_to_anatomical,
         "zarr_to_sitk_stub": mock_zarr_to_sitk_stub,
     }
+
+
+# ============================================================================
+# Pipeline Transform Testing Infrastructure
+# ============================================================================
+
+
+@pytest.fixture
+def mock_template_base_paths(tmp_path):
+    """Provide mock local template paths for testing template_base
+    functionality."""
+    template_dir = tmp_path / "local_templates"
+    template_dir.mkdir()
+
+    # Create mock template transform files
+    template_files = [
+        "spim_template_to_ccf_syn_1Warp_25.nii.gz",
+        "spim_template_to_ccf_syn_0GenericAffine_25.mat",
+        "spim_template_to_ccf_syn_1InverseWarp_25.nii.gz",
+    ]
+
+    for filename in template_files:
+        (template_dir / filename).touch()
+
+    return {
+        "template_dir": str(template_dir),
+        "template_files": template_files,
+    }
+
+
+@pytest.fixture
+def mock_transform_path_resolution(monkeypatch):
+    """Mock get_local_path_for_resource for transform path testing."""
+    from pathlib import Path
+
+    def mock_get_local_path(
+        uri, s3_client=None, anonymous=False, cache_dir=None
+    ):
+        """Mock function that returns a predictable local path."""
+        # Extract filename from URI
+        filename = Path(uri).name
+
+        # Create a mock path in cache_dir if provided, otherwise use temp
+        if cache_dir:
+            mock_path = Path(cache_dir) / filename
+        else:
+            mock_path = Path("/tmp") / filename
+
+        # Ensure parent directory exists
+        mock_path.parent.mkdir(parents=True, exist_ok=True)
+        mock_path.touch()  # Create the file
+
+        class MockResult:
+            def __init__(self, path):
+                self.path = str(path)
+
+        return MockResult(mock_path)
+
+    monkeypatch.setattr(
+        "aind_zarr_utils.pipeline_transformed.get_local_path_for_resource",
+        mock_get_local_path,
+    )
+
+    return mock_get_local_path
+
+
+@pytest.fixture
+def mock_ants_transforms(monkeypatch):
+    """Mock ANTs transform application for pipeline testing."""
+
+    def mock_apply_ants_transforms(points, transform_list, whichtoinvert):
+        """Mock ANTs transform application - just add 100 to coordinates."""
+        return points + 100
+
+    monkeypatch.setattr(
+        "aind_zarr_utils.pipeline_transformed.apply_ants_transforms_to_point_arr",
+        mock_apply_ants_transforms,
+    )
+
+    return mock_apply_ants_transforms
+
+
+def create_comprehensive_processing_data(
+    version: str = "3.1.0",
+    include_image_importing: bool = True,
+    include_atlas_alignment: bool = True,
+    input_zarr_name: str = "session.ome.zarr",
+) -> dict[str, Any]:
+    """
+    Factory for comprehensive processing metadata with both importing and
+    alignment.
+
+    This extends the base create_processing_metadata to ensure both processes
+    are present for testing pipeline transform functionality.
+
+    Parameters
+    ----------
+    version : str
+        Pipeline version
+    include_image_importing : bool
+        Include Image importing process
+    include_atlas_alignment : bool
+        Include Image atlas alignment process
+    input_zarr_name : str
+        Name of the input zarr file (affects channel inference)
+
+    Returns
+    -------
+    dict
+        Complete processing metadata suitable for pipeline transform testing
+    """
+    processes = []
+
+    if include_image_importing:
+        processes.append(
+            {
+                "name": "Image importing",
+                "code_version": version,
+                "input_location": f"s3://bucket/data/{input_zarr_name}",
+                "parameters": {"import_type": "zarr"},
+            }
+        )
+
+    if include_atlas_alignment:
+        processes.append(
+            {
+                "name": "Image atlas alignment",
+                "notes": (
+                    "Template based registration: LS -> template -> Allen "
+                    "CCFv3 Atlas"
+                ),
+                "input_location": f"s3://bucket/data/{input_zarr_name}",
+                "parameters": {
+                    "template": "SmartSPIM-template_2024-05-16_11-26-14"
+                },
+            }
+        )
+
+    return create_processing_metadata(
+        version=version,
+        include_processes=processes,
+        include_zarr_import=False,  # We're providing our own
+        include_atlas_alignment=False,  # We're providing our own
+    )
+
+
+@pytest.fixture
+def comprehensive_processing_data():
+    """Processing data with both importing and alignment processes."""
+    return create_comprehensive_processing_data()

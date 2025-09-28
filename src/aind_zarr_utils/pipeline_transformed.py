@@ -24,7 +24,9 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
 import SimpleITK as sitk
-from aind_registration_utils.ants import apply_ants_transforms_to_point_arr
+from aind_registration_utils.ants import (  # type: ignore[import-untyped]
+    apply_ants_transforms_to_point_arr,
+)
 from aind_s3_cache.json_utils import get_json
 from aind_s3_cache.s3_cache import (
     get_local_path_for_resource,
@@ -54,7 +56,7 @@ from aind_zarr_utils.zarr import (
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
-    from ome_zarr.reader import Node
+    from ome_zarr.reader import Node  # type: ignore[import-untyped]
 
 T = TypeVar("T", int, float)
 
@@ -440,7 +442,7 @@ def mimic_pipeline_zarr_to_anatomical_stub(
     # Select and apply overlays based on pipeline version and metadata.
     overlays = overlay_selector.select(version=pipeline_version, meta=metadata)
     corrected_header, applied = apply_overlays(
-        base_header, overlays, metadata, multiscale_no
+        base_header, overlays, metadata, multiscale_no or 3
     )
 
     # Return corrected stub image.
@@ -724,7 +726,7 @@ def pipeline_transforms_local_paths(
     cache_dir: str | os.PathLike | None = None,
     template_used: str = "SmartSPIM-template_2024-05-16_11-26-14",
     template_base: str | None = None,
-) -> tuple[list[str], list[bool]]:
+) -> tuple[list[str], list[bool], list[str], list[bool]]:
     """
     Resolve local filesystem paths to the transform chain files.
 
