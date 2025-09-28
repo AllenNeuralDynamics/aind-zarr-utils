@@ -1,3 +1,9 @@
+## v0.7.0 (2025-09-28)
+
+### Feat
+
+- add image transform accessors (#27)
+
 ## v0.6.0 (2025-09-19)
 
 ### BREAKING CHANGE
