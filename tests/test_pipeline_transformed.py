@@ -192,7 +192,7 @@ class TestPipelineTransformConstants:
         assert len(template.chain.reverse_chain) == 2
 
     def test_pipeline_individual_transforms_structure(self):
-        transforms = pt._PIPELINE_INDIVIDUAL_TRANSFORMS
+        transforms = pt._PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS
         assert 3 in transforms
 
         chain = transforms[3]
@@ -200,6 +200,104 @@ class TestPipelineTransformConstants:
         assert chain.moving == "individual"
         assert len(chain.forward_chain) == 2
         assert len(chain.reverse_chain) == 2
+
+    def test_template_transform_chains_separation(self):
+        """Test that template transform chains are properly separated from
+        template paths."""
+        # Test that _PIPELINE_TEMPLATE_TRANSFORM_CHAINS exists and has expected
+        # structure
+        chains = pt._PIPELINE_TEMPLATE_TRANSFORM_CHAINS
+        assert "SmartSPIM-template_2024-05-16_11-26-14" in chains
+
+        chain = chains["SmartSPIM-template_2024-05-16_11-26-14"]
+        assert isinstance(chain, pt.TransformChain)
+        assert chain.fixed == "ccf"
+        assert chain.moving == "template"
+
+        # Test that _PIPELINE_TEMPLATE_TRANSFORMS references the chains
+        templates = pt._PIPELINE_TEMPLATE_TRANSFORMS
+        template = templates["SmartSPIM-template_2024-05-16_11-26-14"]
+        assert template.chain == chain
+        assert template.base.startswith("s3://")
+
+    def test_transform_chain_reusability(self):
+        """Test that transform chains can be reused with different bases."""
+        # Get the standard template chain
+        template_key = "SmartSPIM-template_2024-05-16_11-26-14"
+        original_template = pt._PIPELINE_TEMPLATE_TRANSFORMS[template_key]
+        original_chain = original_template.chain
+
+        # Create a new TemplatePaths with the same chain but different base
+        custom_base = "/local/templates/"
+        custom_template = pt.TemplatePaths(
+            base=custom_base, chain=original_chain
+        )
+
+        # Verify they share the same chain but have different bases
+        assert custom_template.chain == original_chain
+        assert custom_template.base == custom_base
+        assert custom_template.base != original_template.base
+
+        # Verify chain properties are the same
+        assert (
+            custom_template.chain.forward_chain == original_chain.forward_chain
+        )
+        assert (
+            custom_template.chain.reverse_chain == original_chain.reverse_chain
+        )
+
+    def test_forward_vs_reverse_chain_differences(self):
+        """Test that forward and reverse chains are different as expected."""
+        # Test template chains
+        template_chain = pt._PIPELINE_TEMPLATE_TRANSFORM_CHAINS[
+            "SmartSPIM-template_2024-05-16_11-26-14"
+        ]
+
+        # Forward and reverse should have same files but different
+        # order/inversion
+        assert len(template_chain.forward_chain) == len(
+            template_chain.reverse_chain
+        )
+        assert template_chain.forward_chain != template_chain.reverse_chain
+        assert (
+            template_chain.forward_chain_invert
+            != template_chain.reverse_chain_invert
+        )
+
+        # Test individual chains
+        individual_chain = pt._PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS[3]
+
+        assert len(individual_chain.forward_chain) == len(
+            individual_chain.reverse_chain
+        )
+        assert individual_chain.forward_chain != individual_chain.reverse_chain
+        assert (
+            individual_chain.forward_chain_invert
+            != individual_chain.reverse_chain_invert
+        )
+
+    def test_chain_mathematical_consistency(self):
+        """Test that chains have mathematically consistent inverse
+        relationships."""
+        # Test template chain inversion patterns
+        template_chain = pt._PIPELINE_TEMPLATE_TRANSFORM_CHAINS[
+            "SmartSPIM-template_2024-05-16_11-26-14"
+        ]
+
+        # Forward: [warp, affine] with [False, False] inversion
+        # Reverse: [affine, inverse_warp] with [True, False] inversion
+        assert "Warp" in template_chain.forward_chain[0]
+        assert "Affine" in template_chain.forward_chain[1]
+        assert "Affine" in template_chain.reverse_chain[0]
+        assert "InverseWarp" in template_chain.reverse_chain[1]
+
+        # Individual chain should follow same pattern
+        individual_chain = pt._PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS[3]
+
+        assert "Warp" in individual_chain.forward_chain[0]
+        assert "Affine" in individual_chain.forward_chain[1]
+        assert "Affine" in individual_chain.reverse_chain[0]
+        assert "InverseWarp" in individual_chain.reverse_chain[1]
 
 
 class TestMimicPipelineStub:
@@ -257,7 +355,7 @@ class TestPipelineTransforms:
         )
 
         assert individual.base.endswith("image_atlas_alignment/session")
-        assert individual.chain == pt._PIPELINE_INDIVIDUAL_TRANSFORMS[3]
+        assert individual.chain == pt._PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS[3]
 
         assert (
             template
@@ -279,6 +377,192 @@ class TestPipelineTransforms:
             ValueError, match="Could not determine image atlas alignment path"
         ):
             pt.pipeline_transforms(zarr_uri, processing_data)
+
+    def test_pipeline_transforms_with_template_base(
+        self, sample_processing_data
+    ):
+        """Test pipeline_transforms with template_base parameter."""
+        zarr_uri = "s3://bucket/data/acquisition/session.ome.zarr/0"
+        custom_template_base = "/local/templates/"
+
+        individual, template = pt.pipeline_transforms(
+            zarr_uri,
+            sample_processing_data,
+            template_base=custom_template_base,
+        )
+
+        # Individual should still use the asset-based path
+        assert individual.base.endswith("image_atlas_alignment/session")
+
+        # Template should use custom base
+        assert template.base == custom_template_base
+        assert (
+            template.chain
+            == pt._PIPELINE_TEMPLATE_TRANSFORM_CHAINS[
+                "SmartSPIM-template_2024-05-16_11-26-14"
+            ]
+        )
+
+    def test_pipeline_transforms_template_used_parameter(
+        self, sample_processing_data
+    ):
+        """Test pipeline_transforms with different template_used values."""
+        zarr_uri = "s3://bucket/data/acquisition/session.ome.zarr/0"
+
+        # Test with explicit template_used (should be same as default)
+        individual, template = pt.pipeline_transforms(
+            zarr_uri,
+            sample_processing_data,
+            template_used="SmartSPIM-template_2024-05-16_11-26-14",
+        )
+
+        assert (
+            template
+            == pt._PIPELINE_TEMPLATE_TRANSFORMS[
+                "SmartSPIM-template_2024-05-16_11-26-14"
+            ]
+        )
+
+
+class TestPipelineImageTransformsLocalPaths:
+    """Tests for pipeline_image_transforms_local_paths function."""
+
+    @pytest.fixture
+    def sample_processing_data(self):
+        return {
+            "processing_pipeline": {
+                "pipeline_version": "3.1.0",
+                "data_processes": [
+                    {
+                        "name": "Image atlas alignment",
+                        "notes": ATLAS_ALIGNMENT_NOTES,
+                        "input_location": "s3://bucket/data/session.ome.zarr",
+                    }
+                ],
+            }
+        }
+
+    def test_pipeline_image_transforms_local_paths(
+        self, sample_processing_data, mock_s3_client, tmp_path
+    ):
+        """Test image transform local path resolution."""
+
+        # Mock get_local_path_for_resource to return temporary paths
+        def mock_get_local_path(uri, **kwargs):
+            filename = Path(uri).name
+            mock_path = tmp_path / filename
+            mock_path.touch()
+
+            class MockResult:
+                def __init__(self, path):
+                    self.path = path
+
+            return MockResult(mock_path)
+
+        with patch(
+            "aind_zarr_utils.pipeline_transformed.get_local_path_for_resource",
+            side_effect=mock_get_local_path,
+        ):
+            paths, inverted = pt.pipeline_image_transforms_local_paths(
+                "s3://bucket/data/acquisition/session.ome.zarr/0",
+                sample_processing_data,
+                s3_client=mock_s3_client,
+                cache_dir=tmp_path,
+            )
+
+        # Should have 4 transforms total (2 template + 2 individual)
+        assert len(paths) == 4
+        assert len(inverted) == 4
+
+        # Check that all paths are strings
+        for path in paths:
+            assert isinstance(path, str)
+            assert Path(path).exists()
+
+        # Check inversion flags
+        assert isinstance(inverted[0], bool)
+
+    def test_pipeline_image_transforms_template_base_override(
+        self, sample_processing_data, mock_s3_client, tmp_path
+    ):
+        """Test custom template base path override."""
+        custom_template_base = "/local/templates/"
+
+        def mock_get_local_path(uri, **kwargs):
+            filename = Path(uri).name
+            mock_path = tmp_path / filename
+            mock_path.touch()
+
+            class MockResult:
+                def __init__(self, path):
+                    self.path = path
+
+            return MockResult(mock_path)
+
+        with patch(
+            "aind_zarr_utils.pipeline_transformed.get_local_path_for_resource",
+            side_effect=mock_get_local_path,
+        ):
+            paths, inverted = pt.pipeline_image_transforms_local_paths(
+                "s3://bucket/data/acquisition/session.ome.zarr/0",
+                sample_processing_data,
+                s3_client=mock_s3_client,
+                cache_dir=tmp_path,
+                template_base=custom_template_base,
+            )
+
+        # Should still have 4 transforms
+        assert len(paths) == 4
+        assert len(inverted) == 4
+
+    def test_pipeline_image_transforms_forward_chain_usage(
+        self, sample_processing_data, mock_s3_client, tmp_path
+    ):
+        """Test that image transforms use forward chains."""
+        paths_called = []
+
+        def mock_get_local_path(uri, **kwargs):
+            paths_called.append(uri)
+            filename = Path(uri).name
+            mock_path = tmp_path / filename
+            mock_path.touch()
+
+            class MockResult:
+                def __init__(self, path):
+                    self.path = path
+
+            return MockResult(mock_path)
+
+        with patch(
+            "aind_zarr_utils.pipeline_transformed.get_local_path_for_resource",
+            side_effect=mock_get_local_path,
+        ):
+            pt.pipeline_image_transforms_local_paths(
+                "s3://bucket/data/acquisition/session.ome.zarr/0",
+                sample_processing_data,
+                s3_client=mock_s3_client,
+                cache_dir=tmp_path,
+            )
+
+        # Verify forward chain files are requested
+        # Template forward chain files
+        assert any(
+            "spim_template_to_ccf_syn_1Warp_25.nii.gz" in path
+            for path in paths_called
+        )
+        assert any(
+            "spim_template_to_ccf_syn_0GenericAffine_25.mat" in path
+            for path in paths_called
+        )
+
+        # Individual forward chain files
+        assert any(
+            "ls_to_template_SyN_1Warp.nii.gz" in path for path in paths_called
+        )
+        assert any(
+            "ls_to_template_SyN_0GenericAffine.mat" in path
+            for path in paths_called
+        )
 
 
 class TestPipelinePointTransformsLocalPaths:
@@ -336,6 +620,367 @@ class TestPipelinePointTransformsLocalPaths:
 
         # Check inversion flags
         assert isinstance(inverted[0], bool)
+
+    def test_pipeline_point_transforms_template_base_parameter(
+        self, sample_processing_data, mock_s3_client, tmp_path
+    ):
+        """Test that pipeline_point_transforms_local_paths accepts
+        template_base."""
+        custom_template_base = "/local/templates/"
+
+        def mock_get_local_path(uri, **kwargs):
+            filename = Path(uri).name
+            mock_path = tmp_path / filename
+            mock_path.touch()
+
+            class MockResult:
+                def __init__(self, path):
+                    self.path = path
+
+            return MockResult(mock_path)
+
+        with patch(
+            "aind_zarr_utils.pipeline_transformed.get_local_path_for_resource",
+            side_effect=mock_get_local_path,
+        ):
+            paths, inverted = pt.pipeline_point_transforms_local_paths(
+                "s3://bucket/data/acquisition/session.ome.zarr/0",
+                sample_processing_data,
+                s3_client=mock_s3_client,
+                cache_dir=tmp_path,
+                template_base=custom_template_base,
+            )
+
+        # Should work without errors and return proper structure
+        assert len(paths) == 4
+        assert len(inverted) == 4
+
+
+class TestPipelineTransformsLocalPaths:
+    """Tests for pipeline_transforms_local_paths function (combined
+    transforms)."""
+
+    @pytest.fixture
+    def sample_processing_data(self):
+        return {
+            "processing_pipeline": {
+                "pipeline_version": "3.1.0",
+                "data_processes": [
+                    {
+                        "name": "Image atlas alignment",
+                        "notes": ATLAS_ALIGNMENT_NOTES,
+                        "input_location": "s3://bucket/data/session.ome.zarr",
+                    }
+                ],
+            }
+        }
+
+    def test_pipeline_transforms_local_paths_4tuple_return(
+        self, sample_processing_data, mock_s3_client, tmp_path
+    ):
+        """Test that pipeline_transforms_local_paths returns 4-tuple."""
+
+        def mock_get_local_path(uri, **kwargs):
+            filename = Path(uri).name
+            mock_path = tmp_path / filename
+            mock_path.touch()
+
+            class MockResult:
+                def __init__(self, path):
+                    self.path = path
+
+            return MockResult(mock_path)
+
+        with patch(
+            "aind_zarr_utils.pipeline_transformed.get_local_path_for_resource",
+            side_effect=mock_get_local_path,
+        ):
+            result = pt.pipeline_transforms_local_paths(
+                "s3://bucket/data/acquisition/session.ome.zarr/0",
+                sample_processing_data,
+                s3_client=mock_s3_client,
+                cache_dir=tmp_path,
+            )
+
+        # Should return 4-tuple: (pt_paths, pt_inverted, img_paths,
+        # img_inverted)
+        assert len(result) == 4
+        pt_paths, pt_inverted, img_paths, img_inverted = result
+
+        # Each should have 4 transforms (2 individual + 2 template)
+        assert len(pt_paths) == 4
+        assert len(pt_inverted) == 4
+        assert len(img_paths) == 4
+        assert len(img_inverted) == 4
+
+        # All paths should be strings
+        for path in pt_paths + img_paths:
+            assert isinstance(path, str)
+            assert Path(path).exists()
+
+        # All inversion flags should be booleans
+        for flag in pt_inverted + img_inverted:
+            assert isinstance(flag, bool)
+
+    def test_pipeline_transforms_local_paths_different_chains(
+        self, sample_processing_data, mock_s3_client, tmp_path
+    ):
+        """Test that point and image transforms use different chains."""
+        paths_called = []
+
+        def mock_get_local_path(uri, **kwargs):
+            paths_called.append(uri)
+            filename = Path(uri).name
+            mock_path = tmp_path / filename
+            mock_path.touch()
+
+            class MockResult:
+                def __init__(self, path):
+                    self.path = path
+
+            return MockResult(mock_path)
+
+        with patch(
+            "aind_zarr_utils.pipeline_transformed.get_local_path_for_resource",
+            side_effect=mock_get_local_path,
+        ):
+            pt_paths, pt_inverted, img_paths, img_inverted = (
+                pt.pipeline_transforms_local_paths(
+                    "s3://bucket/data/acquisition/session.ome.zarr/0",
+                    sample_processing_data,
+                    s3_client=mock_s3_client,
+                    cache_dir=tmp_path,
+                )
+            )
+
+        # Point transforms should use reverse chains (inverse warp files)
+        assert any("InverseWarp" in path for path in pt_paths)
+
+        # Image transforms should use forward chains (regular warp files)
+        assert any("1Warp.nii.gz" in path for path in img_paths)
+        assert not any("InverseWarp" in path for path in img_paths)
+
+    def test_pipeline_transforms_local_paths_template_base_forwarding(
+        self, sample_processing_data, mock_s3_client, tmp_path
+    ):
+        """Test template_base parameter forwarding."""
+        custom_template_base = "/local/templates/"
+
+        def mock_get_local_path(uri, **kwargs):
+            filename = Path(uri).name
+            mock_path = tmp_path / filename
+            mock_path.touch()
+
+            class MockResult:
+                def __init__(self, path):
+                    self.path = path
+
+            return MockResult(mock_path)
+
+        with patch(
+            "aind_zarr_utils.pipeline_transformed.get_local_path_for_resource",
+            side_effect=mock_get_local_path,
+        ):
+            result = pt.pipeline_transforms_local_paths(
+                "s3://bucket/data/acquisition/session.ome.zarr/0",
+                sample_processing_data,
+                s3_client=mock_s3_client,
+                cache_dir=tmp_path,
+                template_base=custom_template_base,
+            )
+
+        # Should still return valid 4-tuple
+        assert len(result) == 4
+        pt_paths, pt_inverted, img_paths, img_inverted = result
+
+        # All should have proper lengths
+        for item in [pt_paths, pt_inverted, img_paths, img_inverted]:
+            assert len(item) == 4
+
+
+class TestTemplateBaseParameter:
+    """Tests for template_base parameter functionality across functions."""
+
+    @pytest.fixture
+    def sample_processing_data(self):
+        return {
+            "processing_pipeline": {
+                "pipeline_version": "3.1.0",
+                "data_processes": [
+                    {
+                        "name": "Image atlas alignment",
+                        "notes": ATLAS_ALIGNMENT_NOTES,
+                        "input_location": "s3://bucket/data/session.ome.zarr",
+                    }
+                ],
+            }
+        }
+
+    def test_pipeline_transforms_template_base_override(
+        self, sample_processing_data
+    ):
+        """Test pipeline_transforms with custom template_base."""
+        zarr_uri = "s3://bucket/data/acquisition/session.ome.zarr/0"
+        custom_template_base = "/local/templates/"
+
+        individual, template = pt.pipeline_transforms(
+            zarr_uri,
+            sample_processing_data,
+            template_base=custom_template_base,
+        )
+
+        # Individual should still point to the asset location
+        assert individual.base.endswith("image_atlas_alignment/session")
+
+        # Template should use custom base
+        assert template.base == custom_template_base
+        assert (
+            template.chain
+            == pt._PIPELINE_TEMPLATE_TRANSFORM_CHAINS[
+                "SmartSPIM-template_2024-05-16_11-26-14"
+            ]
+        )
+
+    def test_pipeline_transforms_template_base_none_fallback(
+        self, sample_processing_data
+    ):
+        """Test pipeline_transforms fallback when template_base=None."""
+        zarr_uri = "s3://bucket/data/acquisition/session.ome.zarr/0"
+
+        individual, template = pt.pipeline_transforms(
+            zarr_uri, sample_processing_data, template_base=None
+        )
+
+        # Template should use default from _PIPELINE_TEMPLATE_TRANSFORMS
+        assert (
+            template
+            == pt._PIPELINE_TEMPLATE_TRANSFORMS[
+                "SmartSPIM-template_2024-05-16_11-26-14"
+            ]
+        )
+        assert template.base.startswith("s3://aind-open-data/")
+
+    def test_indices_to_ccf_template_base_forwarding(
+        self, mock_s3_client, tmp_path
+    ):
+        """Test that indices_to_ccf forwards template_base parameter."""
+        annotation_indices = {"layer1": np.array([[10, 20, 30], [40, 50, 60]])}
+
+        processing_data = {
+            "processing_pipeline": {
+                "pipeline_version": "3.1.0",
+                "data_processes": [
+                    {
+                        "name": "Image importing",
+                        "code_version": "0.0.25",
+                        "input_location": "s3://bucket/data/session.ome.zarr",
+                    },
+                    {
+                        "name": "Image atlas alignment",
+                        "notes": ATLAS_ALIGNMENT_NOTES,
+                        "input_location": "s3://bucket/data/session.ome.zarr",
+                    },
+                ],
+            }
+        }
+
+        custom_template_base = "/local/templates/"
+
+        # Mock all the underlying functions to avoid complex dependencies
+        with (
+            patch(
+                "aind_zarr_utils.pipeline_transformed.mimic_pipeline_zarr_to_anatomical_stub"
+            ) as mock_stub,
+            patch(
+                "aind_zarr_utils.pipeline_transformed.annotation_indices_to_anatomical"
+            ) as mock_indices,
+            patch(
+                "aind_zarr_utils.pipeline_transformed.pipeline_point_transforms_local_paths"
+            ) as mock_transforms,
+            patch(
+                "aind_zarr_utils.pipeline_transformed.apply_ants_transforms_to_point_arr"
+            ) as mock_ants,
+        ):
+            # Set up mocks
+            mock_stub.return_value = "mock_stub"
+            mock_indices.return_value = {"layer1": np.array([[1.0, 2.0, 3.0]])}
+            mock_transforms.return_value = (
+                ["/path1", "/path2"],
+                [False, True],
+            )
+            mock_ants.return_value = np.array([[10.0, 20.0, 30.0]])
+
+            pt.indices_to_ccf(
+                annotation_indices,
+                "s3://bucket/session.ome.zarr",
+                {},
+                processing_data,
+                template_base=custom_template_base,
+            )
+
+            # Verify template_base was forwarded to
+            # pipeline_point_transforms_local_paths
+            mock_transforms.assert_called_once()
+            call_kwargs = mock_transforms.call_args[1]
+            assert call_kwargs["template_base"] == custom_template_base
+
+    def test_neuroglancer_to_ccf_template_base_forwarding(self):
+        """Test that neuroglancer_to_ccf forwards template_base parameter."""
+        sample_neuroglancer_data = {
+            "layers": [
+                {
+                    "name": "annotations",
+                    "type": "annotation",
+                    "annotations": [
+                        {"point": [10, 20, 30, 0], "description": "point1"}
+                    ],
+                }
+            ]
+        }
+
+        processing_data = {
+            "processing_pipeline": {
+                "pipeline_version": "3.0.0",
+                "data_processes": [
+                    {
+                        "name": "Image importing",
+                        "code_version": "0.0.25",
+                    }
+                ],
+            }
+        }
+
+        custom_template_base = "/local/templates/"
+
+        # Mock underlying functions
+        with (
+            patch(
+                "aind_zarr_utils.pipeline_transformed.neuroglancer_annotations_to_indices"
+            ) as mock_ng_indices,
+            patch(
+                "aind_zarr_utils.pipeline_transformed.indices_to_ccf"
+            ) as mock_indices_to_ccf,
+        ):
+            mock_ng_indices.return_value = (
+                {"layer1": np.array([[1, 2, 3]])},
+                None,
+            )
+            mock_indices_to_ccf.return_value = {
+                "layer1": np.array([[10.0, 20.0, 30.0]])
+            }
+
+            pt.neuroglancer_to_ccf(
+                sample_neuroglancer_data,
+                "s3://bucket/session.ome.zarr",
+                {},
+                processing_data,
+                template_base=custom_template_base,
+            )
+
+            # Verify template_base was forwarded to indices_to_ccf
+            mock_indices_to_ccf.assert_called_once()
+            call_kwargs = mock_indices_to_ccf.call_args[1]
+            assert call_kwargs["template_base"] == custom_template_base
 
 
 class TestIndicesTransformations:
@@ -795,3 +1440,216 @@ class TestIntegrationScenarios:
             pt.mimic_pipeline_zarr_to_anatomical_stub(
                 "s3://bucket/session.ome.zarr", {}, incomplete_data
             )
+
+    def test_image_vs_point_transform_workflows(
+        self,
+        complete_processing_data,
+        mock_transform_path_resolution,
+        tmp_path,
+    ):
+        """Test complete workflows for both image and point transforms."""
+        zarr_uri = "s3://bucket/data/acquisition/session.ome.zarr/0"
+
+        # Test image transform workflow
+        img_paths, img_inverted = pt.pipeline_image_transforms_local_paths(
+            zarr_uri, complete_processing_data, cache_dir=tmp_path
+        )
+
+        # Test point transform workflow
+        pt_paths, pt_inverted = pt.pipeline_point_transforms_local_paths(
+            zarr_uri, complete_processing_data, cache_dir=tmp_path
+        )
+
+        # Both should have same number of transforms
+        assert len(img_paths) == len(pt_paths) == 4
+
+        # But should use different files (forward vs reverse chains)
+        assert img_paths != pt_paths
+
+        # Point transforms should include inverse warp files
+        assert any("InverseWarp" in path for path in pt_paths)
+
+        # Image transforms should not include inverse warp files
+        assert not any("InverseWarp" in path for path in img_paths)
+
+    def test_template_base_override_workflow(
+        self,
+        complete_processing_data,
+        mock_template_base_paths,
+        mock_transform_path_resolution,
+        tmp_path,
+    ):
+        """Test end-to-end workflow with custom template base."""
+        zarr_uri = "s3://bucket/data/acquisition/session.ome.zarr/0"
+        custom_template_base = mock_template_base_paths["template_dir"]
+
+        # Test with custom template base
+        result = pt.pipeline_transforms_local_paths(
+            zarr_uri,
+            complete_processing_data,
+            template_base=custom_template_base,
+            cache_dir=tmp_path,
+        )
+
+        pt_paths, pt_inverted, img_paths, img_inverted = result
+
+        # Should still get 4 transforms each
+        assert len(pt_paths) == len(img_paths) == 4
+
+        # All paths should exist
+        for path in pt_paths + img_paths:
+            assert Path(path).exists()
+
+    def test_comprehensive_indices_to_ccf_workflow(
+        self,
+        comprehensive_processing_data,
+        mock_template_base_paths,
+        mock_transform_path_resolution,
+        mock_overlay_selector,
+        tmp_path,
+    ):
+        """Test complete indices_to_ccf workflow with template_base."""
+        annotation_indices = {"layer1": np.array([[10, 20, 30], [40, 50, 60]])}
+        zarr_uri = "s3://aind-open-data/SmartSPIM_776259_2025-06-26_20-44-52_stitched_2025-07-22_11-35-09/image_tile_fusing/OMEZarr/Ex_561_Em_600.zarr/"
+        metadata = {"test": "metadata"}
+        custom_template_base = mock_template_base_paths["template_dir"]
+
+        # Mock the underlying components to focus on parameter flow
+        with (
+            patch(
+                "aind_zarr_utils.pipeline_transformed.mimic_pipeline_zarr_to_anatomical_stub"
+            ) as mock_stub,
+            patch(
+                "aind_zarr_utils.pipeline_transformed.annotation_indices_to_anatomical"
+            ) as mock_indices,
+            patch(
+                "aind_zarr_utils.pipeline_transformed.apply_ants_transforms_to_point_arr"
+            ) as mock_ants,
+        ):
+            # Set up mocks
+            mock_stub.return_value = "mock_stub"
+            mock_indices.return_value = {
+                "layer1": np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+            }
+            mock_ants.return_value = np.array(
+                [[100.0, 200.0, 300.0], [400.0, 500.0, 600.0]]
+            )
+
+            result = pt.indices_to_ccf(
+                annotation_indices,
+                zarr_uri,
+                metadata,
+                comprehensive_processing_data,
+                template_base=custom_template_base,
+                cache_dir=tmp_path,
+            )
+
+            # Verify result structure
+            assert "layer1" in result
+            assert result["layer1"].shape == (2, 3)
+
+            # Verify template_base was used in the pipeline
+            mock_stub.assert_called_once()
+            mock_indices.assert_called_once()
+            mock_ants.assert_called_once()
+
+    def test_neuroglancer_to_ccf_integration_workflow(
+        self, comprehensive_processing_data, mock_template_base_paths, tmp_path
+    ):
+        """Test complete neuroglancer_to_ccf workflow integration."""
+        neuroglancer_data = {
+            "layers": [
+                {
+                    "name": "annotations",
+                    "type": "annotation",
+                    "annotations": [
+                        {"point": [10, 20, 30, 0], "description": "point1"},
+                        {"point": [40, 50, 60, 0], "description": "point2"},
+                    ],
+                }
+            ]
+        }
+
+        zarr_uri = "s3://bucket/session.ome.zarr"
+        metadata = {"test": "metadata"}
+        custom_template_base = mock_template_base_paths["template_dir"]
+
+        # Mock the underlying workflow components
+        with (
+            patch(
+                "aind_zarr_utils.pipeline_transformed.neuroglancer_annotations_to_indices"
+            ) as mock_ng_indices,
+            patch(
+                "aind_zarr_utils.pipeline_transformed.indices_to_ccf"
+            ) as mock_indices_to_ccf,
+        ):
+            mock_ng_indices.return_value = (
+                {"annotations": np.array([[1, 2, 3], [4, 5, 6]])},
+                {"annotations": ["point1", "point2"]},
+            )
+            mock_indices_to_ccf.return_value = {
+                "annotations": np.array(
+                    [[100.0, 200.0, 300.0], [400.0, 500.0, 600.0]]
+                )
+            }
+
+            points_ccf, descriptions = pt.neuroglancer_to_ccf(
+                neuroglancer_data,
+                zarr_uri,
+                metadata,
+                comprehensive_processing_data,
+                template_base=custom_template_base,
+                cache_dir=tmp_path,
+            )
+
+            # Verify the workflow executed correctly
+            assert "annotations" in points_ccf
+            assert points_ccf["annotations"].shape == (2, 3)
+            assert descriptions is not None
+            assert "annotations" in descriptions
+
+            # Verify template_base was forwarded
+            mock_indices_to_ccf.assert_called_once()
+            call_kwargs = mock_indices_to_ccf.call_args[1]
+            assert call_kwargs["template_base"] == custom_template_base
+
+    def test_helper_function_isolation(
+        self,
+        complete_processing_data,
+        mock_transform_path_resolution,
+        tmp_path,
+    ):
+        """Test that helper functions work independently and consistently."""
+        zarr_uri = "s3://bucket/data/acquisition/session.ome.zarr/0"
+
+        # Get transform paths from main function
+        individual, template = pt.pipeline_transforms(
+            zarr_uri, complete_processing_data
+        )
+
+        # Test helper functions directly
+        img_paths, img_inverted = pt._pipeline_image_transforms_local_paths(
+            individual, template, cache_dir=tmp_path
+        )
+
+        pt_paths, pt_inverted = pt._pipeline_point_transforms_local_paths(
+            individual, template, cache_dir=tmp_path
+        )
+
+        # Should be consistent with public API results
+        public_result = pt.pipeline_transforms_local_paths(
+            zarr_uri, complete_processing_data, cache_dir=tmp_path
+        )
+
+        (
+            public_pt_paths,
+            public_pt_inverted,
+            public_img_paths,
+            public_img_inverted,
+        ) = public_result
+
+        # Helper results should match public API results
+        assert pt_paths == public_pt_paths
+        assert pt_inverted == public_pt_inverted
+        assert img_paths == public_img_paths
+        assert img_inverted == public_img_inverted

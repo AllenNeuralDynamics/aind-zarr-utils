@@ -34,20 +34,22 @@ Notes
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import date, datetime
 from functools import lru_cache
-from typing import Any, Callable, Optional, Protocol, Tuple, TypeVar
+from typing import Any, Protocol, TypeVar
 
 import numpy as np
 import SimpleITK as sitk
 from numpy.typing import NDArray
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
+from typing_extensions import Self
 
 from aind_zarr_utils.zarr import compute_origin_for_corner
 
-Vec3 = Tuple[float, float, float]
+Vec3 = tuple[float, float, float]
 H = TypeVar("H", bound="Header")
 _PIPELINE_MULTISCALE_FACTOR = 2
 
@@ -88,7 +90,7 @@ class Header:
     origin: Vec3  # LPS mm
     spacing: Vec3  # per INDEX axis (i,j,k) in mm
     direction: NDArray  # (3,3) columns are unit vectors for i,j,k (in LPS)
-    size_ijk: Tuple[int, int, int]  # needed for corner anchoring etc.
+    size_ijk: tuple[int, int, int]  # needed for corner anchoring etc.
 
     def direction_tuple(self) -> tuple[float, ...]:
         """
@@ -139,10 +141,10 @@ class Header:
 
     @classmethod
     def from_sitk(
-        cls: type[H],
+        cls,
         sitk_image: sitk.Image,
-        size_ijk: Tuple[int, int, int] | None,
-    ) -> H:
+        size_ijk: tuple[int, int, int] | None,
+    ) -> Self:
         """
         Construct a :class:`Header` from a SimpleITK image.
 
@@ -246,11 +248,11 @@ class OverlayRule:
     name: str
     spec: SpecifierSet  # e.g. ">=0.8.0,<0.9.0"
     factory: Callable[[dict[str, Any]], Overlay]
-    start: Optional[date] = None  # inclusive if set
-    end: Optional[date] = None  # exclusive if set
-    predicate: Optional[Callable[[dict[str, Any]], bool]] = None
+    start: date | None = None  # inclusive if set
+    end: date | None = None  # exclusive if set
+    predicate: Callable[[dict[str, Any]], bool] | None = None
     rule_priority: int = 100  # ordering among rules (not overlay.priority)
-    group: Optional[str] = None  # optional: exclusivity bucket
+    group: str | None = None  # optional: exclusivity bucket
     stop_after: bool = False  # optional: short-circuit after this rule fires
 
 
@@ -336,7 +338,7 @@ class OverlaySelector:
         return overlays
 
     # ergonomic immutable “adders”
-    def with_rule(self, rule: OverlayRule) -> "OverlaySelector":
+    def with_rule(self, rule: OverlayRule) -> OverlaySelector:
         """
         Return a new selector with ``rule`` appended.
 
@@ -354,7 +356,7 @@ class OverlaySelector:
 
     def with_rules(
         self, rules: tuple[OverlayRule, ...] | list[OverlayRule]
-    ) -> "OverlaySelector":
+    ) -> OverlaySelector:
         """
         Return a new selector with rules from ``rules`` appended.
 
@@ -371,7 +373,7 @@ class OverlaySelector:
         return replace(self, rules=self.rules + tuple(rules))
 
 
-def _as_date(d: Any) -> Optional[date]:
+def _as_date(d: Any) -> date | None:
     """
     Normalize an input into a :class:`datetime.date` if possible.
 
@@ -764,10 +766,8 @@ def _require_cardinal(D: np.ndarray, *, atol: float = 1e-6) -> None:
     )
     if not ok:
         raise ValueError(
-            (
-                "Direction is not cardinal (signed permutation). "
-                "Oblique not supported."
-            )
+            "Direction is not cardinal (signed permutation). "
+            "Oblique not supported."
         )
 
 
@@ -862,7 +862,7 @@ class SetLpsWorldSpacingOverlay:
 
 def estimate_pipeline_multiscale(
     zarr_metadata: dict[str, Any], pipeline_ccf_reg_version: Version
-):
+) -> int | None:
     """
     Heuristically estimate the multiscale pyramid level used by the pipeline.
 
@@ -885,3 +885,4 @@ def estimate_pipeline_multiscale(
     """
     if pipeline_ccf_reg_version in SpecifierSet(">=0.0.18,<0.0.34"):
         return 3
+    return None
