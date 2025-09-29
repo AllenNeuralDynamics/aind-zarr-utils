@@ -10,6 +10,7 @@ from itertools import product
 import ants  # type: ignore[import-untyped]
 import numpy as np
 import SimpleITK as sitk
+from ants.core import ANTsImage  # type: ignore[import-untyped]
 from numpy.typing import NDArray
 from ome_zarr.io import parse_url  # type: ignore[import-untyped]
 from ome_zarr.reader import Node, Reader  # type: ignore[import-untyped]
@@ -296,6 +297,7 @@ def _zarr_to_numpy_anatomical(
     nd_metadata: dict,
     level: int = 3,
     scale_unit: str = "millimeter",
+    opened_zarr: tuple[Node, dict] | None = None,
 ) -> tuple[NDArray, list[str], list[float], list[int]]:
     """
     Converts a ZARR file to a NumPy array with anatomical information.
@@ -310,6 +312,9 @@ def _zarr_to_numpy_anatomical(
         Resolution level to read, by default 3.
     scale_unit : str, optional
         Unit for scaling, by default "millimeter".
+    opened_zarr : tuple, optional
+        Pre-opened ZARR file (image_node, zarr_meta), by default None. If
+        provided, this will be used instead of opening the ZARR file again.
 
     Returns
     -------
@@ -323,35 +328,40 @@ def _zarr_to_numpy_anatomical(
         List of size values.
     """
     image_node, rej_axes, dirs, spacing, size = _zarr_to_anatomical(
-        uri, nd_metadata, level=level, scale_unit=scale_unit
+        uri,
+        nd_metadata,
+        level=level,
+        scale_unit=scale_unit,
+        opened_zarr=opened_zarr,
     )
     arr_data = image_node.data[level].compute()
     arr_data_spatial = np.squeeze(arr_data, axis=tuple(rej_axes))
     return arr_data_spatial, dirs, spacing, size
 
 
-def zarr_to_ants(
-    uri: str,
-    nd_metadata: dict,
-    level: int = 3,
-    scale_unit: str = "millimeter",
+def _anatomical_to_ants(
+    arr_data_spatial: NDArray,
+    dirs: list[str],
+    spacing: list[float],
+    size: list[int],
+    *,
     set_origin: tuple[float, float, float] | None = None,
     set_corner: str | None = None,
     set_corner_lps: tuple[float, float, float] | None = None,
-) -> ants.ANTsImage:
+) -> ANTsImage:
     """
-    Converts a ZARR file to an ANTs image.
+    Converts anatomical data to an ANTs image.
 
     Parameters
     ----------
-    uri : str
-        URI of the ZARR file.
-    nd_metadata : dict
-        Neural Dynamics metadata.
-    level : int, optional
-        Resolution level to read, by default 3.
-    scale_unit : str, optional
-        Unit for scaling, by default "millimeter".
+    arr_data_spatial : NDArray
+        NumPy array of the image data with spatial dimensions.
+    dirs : list
+        List of direction codes.
+    spacing : list
+        List of spacing values.
+    size : list
+        List of size values.
     set_origin : tuple, optional
         Origin of the image, by default None. Exclusive of set_corner and
         set_corner_lps.
@@ -361,17 +371,7 @@ def zarr_to_ants(
     set_corner_lps: tuple, optional
         Coordinates of the corner in LPS. If set, must specify both set_corner
         and set_corner_lps, exclusive of set_origin.
-
-    Returns
-    -------
-    ants.ANTsImage
-        ANTs image object.
     """
-    (arr_data_spatial, dirs, spacing, size) = _zarr_to_numpy_anatomical(
-        uri, nd_metadata, level=level, scale_unit=scale_unit
-    )
-
-    # Get direction metadata
     dir_str = "".join(dirs)
     dir_tup = sitk.DICOMOrientImageFilter.GetDirectionCosinesFromOrientation(
         dir_str
@@ -396,6 +396,103 @@ def zarr_to_ants(
     return ants_image
 
 
+def zarr_to_ants(
+    uri: str,
+    nd_metadata: dict,
+    level: int = 3,
+    scale_unit: str = "millimeter",
+    set_origin: tuple[float, float, float] | None = None,
+    set_corner: str | None = None,
+    set_corner_lps: tuple[float, float, float] | None = None,
+    opened_zarr: tuple[Node, dict] | None = None,
+) -> ANTsImage:
+    """
+    Converts a ZARR file to an ANTs image.
+
+    Parameters
+    ----------
+    uri : str
+        URI of the ZARR file.
+    nd_metadata : dict
+        Neural Dynamics metadata.
+    level : int, optional
+        Resolution level to read, by default 3.
+    scale_unit : str, optional
+        Unit for scaling, by default "millimeter".
+    set_origin : tuple, optional
+        Origin of the image, by default None. Exclusive of set_corner and
+        set_corner_lps.
+    set_corner : str, optional
+        Which corner to use, by default None. If set, must specify both
+        set_corner and set_corner_lps, exclusive of set_origin.
+    set_corner_lps: tuple, optional
+        Coordinates of the corner in LPS. If set, must specify both set_corner
+        and set_corner_lps, exclusive of set_origin.
+    opened_zarr : tuple, optional
+        Pre-opened ZARR file (image_node, zarr_meta), by default None. If
+        provided, this will be used instead of opening the ZARR file again.
+
+    Returns
+    -------
+    ants.core.ANTsImage
+        ANTs image object.
+    """
+    (arr_data_spatial, dirs, spacing, size) = _zarr_to_numpy_anatomical(
+        uri,
+        nd_metadata,
+        level=level,
+        scale_unit=scale_unit,
+        opened_zarr=opened_zarr,
+    )
+
+    return _anatomical_to_ants(
+        arr_data_spatial,
+        dirs,
+        spacing,
+        size,
+        set_origin=set_origin,
+        set_corner=set_corner,
+        set_corner_lps=set_corner_lps,
+    )
+
+
+def _anatomical_to_sitk(
+    arr_data_spatial: np.ndarray,
+    dirs: list[str],
+    spacing: list[float],
+    size: list[int],
+    set_origin: tuple[float, float, float] | None,
+    set_corner: str | None,
+    set_corner_lps: tuple[float, float, float] | None,
+) -> sitk.Image:
+    # SimpleITK uses fortran-style arrays, not C-style, so we need to reverse
+    # the order of the axes
+    dir_str = "".join(reversed(dirs))
+    spacing_rev = spacing[::-1]
+    size_rev = size[::-1]
+    dir_tup = sitk.DICOMOrientImageFilter.GetDirectionCosinesFromOrientation(
+        dir_str
+    )
+    origin_type = _origin_args_check(set_origin, set_corner, set_corner_lps)
+    if origin_type == "origin":
+        assert set_origin is not None
+        origin = set_origin
+    elif origin_type == "corner":
+        assert set_corner_lps is not None and set_corner is not None
+        origin = compute_origin_for_corner(
+            size_rev, spacing_rev, dir_tup, set_corner_lps, set_corner
+        )[0]
+    elif origin_type == "none":
+        origin = (0.0, 0.0, 0.0)
+    else:
+        raise ValueError(f"Unknown origin_type: {origin_type}")
+    sitk_image = sitk.GetImageFromArray(arr_data_spatial)
+    sitk_image.SetSpacing(tuple(spacing_rev))
+    sitk_image.SetOrigin(origin)
+    sitk_image.SetDirection(dir_tup)
+    return sitk_image
+
+
 def zarr_to_sitk(
     uri: str,
     nd_metadata: dict,
@@ -404,6 +501,7 @@ def zarr_to_sitk(
     set_origin: tuple[float, float, float] | None = None,
     set_corner: str | None = None,
     set_corner_lps: tuple[float, float, float] | None = None,
+    opened_zarr: tuple[Node, dict] | None = None,
 ) -> sitk.Image:
     """
     Converts a ZARR file to a SimpleITK image.
@@ -427,6 +525,9 @@ def zarr_to_sitk(
     set_corner_lps: tuple, optional
         Coordinates of the corner in LPS. If set, must specify both set_corner
         and set_corner_lps, exclusive of set_origin.
+    opened_zarr : tuple, optional
+        Pre-opened ZARR file (image_node, zarr_meta), by default None. If
+        provided, this will be used instead of opening the ZARR file again.
 
 
     Returns
@@ -434,44 +535,27 @@ def zarr_to_sitk(
     sitk.Image
         SimpleITK image object.
     """
-    if set_origin is None:
-        origin = (0.0, 0.0, 0.0)
-    else:
-        raise NotImplementedError("Setting origin is not implemented yet")
     (
         arr_data_spatial,
         dirs,
         spacing,
         size,
     ) = _zarr_to_numpy_anatomical(
-        uri, nd_metadata, level=level, scale_unit=scale_unit
+        uri,
+        nd_metadata,
+        level=level,
+        scale_unit=scale_unit,
+        opened_zarr=opened_zarr,
     )
-    # SimpleITK uses fortran-style arrays, not C-style, so we need to reverse
-    # the order of the axes
-    dir_str = "".join(reversed(dirs))
-    spacing_rev = spacing[::-1]
-    size_rev = size[::-1]
-    dir_tup = sitk.DICOMOrientImageFilter.GetDirectionCosinesFromOrientation(
-        dir_str
+    return _anatomical_to_sitk(
+        arr_data_spatial,
+        dirs,
+        spacing,
+        size,
+        set_origin=set_origin,
+        set_corner=set_corner,
+        set_corner_lps=set_corner_lps,
     )
-    origin_type = _origin_args_check(set_origin, set_corner, set_corner_lps)
-    if origin_type == "origin":
-        assert set_origin is not None
-        origin = set_origin  # type: ignore[unreachable]
-    elif origin_type == "corner":
-        assert set_corner_lps is not None and set_corner is not None
-        origin = compute_origin_for_corner(
-            size_rev, spacing_rev, dir_tup, set_corner_lps, set_corner
-        )[0]
-    elif origin_type == "none":
-        origin = (0.0, 0.0, 0.0)
-    else:
-        raise ValueError(f"Unknown origin_type: {origin_type}")
-    sitk_image = sitk.GetImageFromArray(arr_data_spatial)
-    sitk_image.SetSpacing(tuple(spacing_rev))
-    sitk_image.SetOrigin(origin)
-    sitk_image.SetDirection(dir_tup)
-    return sitk_image
 
 
 def _origin_args_check(

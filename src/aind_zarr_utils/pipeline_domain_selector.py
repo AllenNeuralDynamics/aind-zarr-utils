@@ -38,7 +38,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import date, datetime
 from functools import lru_cache
-from typing import Any, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar
 
 import numpy as np
 import SimpleITK as sitk
@@ -48,6 +48,9 @@ from packaging.version import Version
 from typing_extensions import Self
 
 from aind_zarr_utils.zarr import compute_origin_for_corner
+
+if TYPE_CHECKING:
+    from ants.core import ANTsImage  # type: ignore[import-untyped]
 
 Vec3 = tuple[float, float, float]
 H = TypeVar("H", bound="Header")
@@ -123,6 +126,30 @@ class Header:
         sitk_image.SetDirection(self.direction_tuple())
         return sitk_image
 
+    def update_ants(self, ants_image: ANTsImage) -> ANTsImage:
+        """
+        Set this header (origin, spacing, direction) on an ANTs image.
+
+        Parameters
+        ----------
+        ants_image : ants.core.ANTsImage
+            The image whose header should be updated.
+
+        Returns
+        -------
+        ants.core.ANTsImage
+            The same image instance, updated in-place for convenience.
+        """
+        # ANTs is backwards for reasons
+        origin_rev = tuple(reversed(self.origin))
+        spacing_rev = tuple(reversed(self.spacing))
+        # ANTs uses a 2D numpy array
+        dir_mat = np.array(self.direction).reshape((3, 3))
+        ants_image.set_origin(origin_rev)
+        ants_image.set_spacing(spacing_rev)
+        ants_image.set_direction(dir_mat)
+        return ants_image
+
     def as_sitk(self) -> sitk.Image:
         """
         Create a minimal SimpleITK image (1×1×1) carrying this header.
@@ -143,7 +170,7 @@ class Header:
     def from_sitk(
         cls,
         sitk_image: sitk.Image,
-        size_ijk: tuple[int, int, int] | None,
+        size_ijk: tuple[int, int, int] | None = None,
     ) -> Self:
         """
         Construct a :class:`Header` from a SimpleITK image.
@@ -167,6 +194,42 @@ class Header:
         direction = np.array(sitk_image.GetDirection()).reshape(3, 3)
         if size_ijk is None:
             size_ijk = sitk_image.GetSize()
+
+        return cls(
+            origin=origin,
+            spacing=spacing,
+            direction=direction,
+            size_ijk=size_ijk,
+        )
+
+    @classmethod
+    def from_ants(
+        cls,
+        ants_image: ANTsImage,
+        size_ijk: tuple[int, int, int] | None = None,
+    ) -> Self:
+        """
+        Construct a :class:`Header` from an ANTs image.
+
+        Parameters
+        ----------
+        ants_image : ants.core.ANTsImage
+            Source image.
+        size_ijk : tuple of int or None
+            Size to record as ``(i, j, k)``. If ``None``, uses
+            :meth:`ants.core.ANTsImage.shape`.
+
+        Returns
+        -------
+        Header
+            New header with origin, spacing, direction, and ``size_ijk`` taken
+            from ``ants_image`` (or the provided size).
+        """
+        origin = tuple(reversed(ants_image.get_origin()))
+        spacing = tuple(reversed(ants_image.get_spacing()))
+        direction = ants_image.get_direction()
+        if size_ijk is None:
+            size_ijk = tuple(reversed(ants_image.shape))
 
         return cls(
             origin=origin,
@@ -405,7 +468,7 @@ def apply_overlays(
     base: Header,
     overlays: list[Overlay],
     meta: dict[str, Any],
-    multiscale_no: int = 3,
+    registration_multiscale_no: int = 3,
 ) -> tuple[Header, list[str]]:
     """
     Apply a sequence of overlays to a base header in deterministic order.
@@ -419,8 +482,9 @@ def apply_overlays(
         :meth:`OverlaySelector.select` returns them in the correct order.
     meta : dict
         Acquisition metadata provided to each overlay call.
-    multiscale_no : int, default 3
-        Multiscale pyramid level to use for overlays that depend on scale.
+    registration_multiscale_no : int, default 3
+        Multiscale pyramid level used by registration pipeline for overlays
+        that depend on scale.
 
     Returns
     -------
@@ -437,7 +501,7 @@ def apply_overlays(
     h = base
     applied: list[str] = []
     for ov in overlays:  # already sorted by overlay.priority
-        h2 = ov(h, meta, multiscale_no)
+        h2 = ov(h, meta, registration_multiscale_no)
         if (
             (h2.origin != h.origin)
             or (h2.spacing != h.spacing)
