@@ -1,3 +1,9 @@
+## v0.8.0 (2025-09-29)
+
+### Feat
+
+- add pipeline sitk and ants images
+
 ## v0.7.0 (2025-09-28)
 
 ### Feat

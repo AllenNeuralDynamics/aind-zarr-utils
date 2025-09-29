@@ -13,7 +13,7 @@ authors = [
 ]
 classifiers = ["Programming Language :: Python :: 3"]
 readme = "README.md"
-version = "0.7.0"
+version = "0.8.0"
 
 dependencies = [
   "aind-anatomical-utils>=0.0.1, <0.3",
