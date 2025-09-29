@@ -51,10 +51,13 @@ from aind_zarr_utils.zarr import (
     _open_zarr,
     _unit_conversion,
     _zarr_to_global,
+    zarr_to_ants,
+    zarr_to_sitk,
     zarr_to_sitk_stub,
 )
 
 if TYPE_CHECKING:
+    from ants.core import ANTsImage  # type: ignore[import-untyped]
     from mypy_boto3_s3 import S3Client
     from ome_zarr.reader import Node  # type: ignore[import-untyped]
 
@@ -372,6 +375,62 @@ def image_atlas_alignment_path_relative_from_processing(
     return rel_path
 
 
+def _pipeline_anatomical_check_args(
+    zarr_uri: str,
+    processing_data: dict[str, Any],
+    opened_zarr: tuple[Node, dict] | None = None,
+) -> tuple[dict[str, Any], str, Node, dict, int | None]:
+    proc = _get_zarr_import_process(processing_data)
+    if not proc:
+        raise ValueError(
+            "Could not find zarr import process in processing data"
+        )
+
+    pipeline_version = proc.get("code_version")
+    if not pipeline_version:
+        raise ValueError("Pipeline version not found in zarr import process")
+    if opened_zarr is None:
+        image_node, zarr_meta = _open_zarr(zarr_uri)
+    else:
+        image_node, zarr_meta = opened_zarr
+    multiscale_no = estimate_pipeline_multiscale(
+        zarr_meta, Version(pipeline_version)
+    )
+    return proc, pipeline_version, image_node, zarr_meta, multiscale_no
+
+
+def _mimic_pipeline_anatomical_header(
+    zarr_uri: str,
+    metadata: dict,
+    processing_data: dict,
+    *,
+    overlay_selector: OverlaySelector = get_selector(),
+    opened_zarr: tuple[Node, dict] | None = None,
+) -> tuple[Header, list[str]]:
+    # Validate and extract needed metadata.
+    _, pipeline_version, image_node, zarr_meta, multiscale_no = (
+        _pipeline_anatomical_check_args(
+            zarr_uri, processing_data, opened_zarr=opened_zarr
+        )
+    )
+
+    stub_img, size_ijk = zarr_to_sitk_stub(
+        zarr_uri,
+        metadata,
+        opened_zarr=(image_node, zarr_meta),
+    )
+
+    # Convert stub to Header for domain corrections.
+    base_header = Header.from_sitk(stub_img, size_ijk)
+
+    # Select and apply overlays based on pipeline version and metadata.
+    overlays = overlay_selector.select(version=pipeline_version, meta=metadata)
+    corrected_header, applied = apply_overlays(
+        base_header, overlays, metadata, multiscale_no or 3
+    )
+    return corrected_header, applied
+
+
 def mimic_pipeline_zarr_to_anatomical_stub(
     zarr_uri: str,
     metadata: dict,
@@ -413,40 +472,159 @@ def mimic_pipeline_zarr_to_anatomical_stub(
     ValueError
         If the needed import process / version is absent.
     """
-    proc = _get_zarr_import_process(processing_data)
-    if not proc:
-        raise ValueError(
-            "Could not find zarr import process in processing data"
-        )
-
-    pipeline_version = proc.get("code_version")
-    if not pipeline_version:
-        raise ValueError("Pipeline version not found in zarr import process")
-    if opened_zarr is None:
-        image_node, zarr_meta = _open_zarr(zarr_uri)
-    else:
-        image_node, zarr_meta = opened_zarr
-    multiscale_no = estimate_pipeline_multiscale(
-        zarr_meta, Version(pipeline_version)
-    )
-
-    stub_img, size_ijk = zarr_to_sitk_stub(
+    # Return corrected stub image.
+    corrected_header, _ = _mimic_pipeline_anatomical_header(
         zarr_uri,
         metadata,
+        processing_data,
+        overlay_selector=overlay_selector,
+        opened_zarr=opened_zarr,
+    )
+    return corrected_header.as_sitk()
+
+
+def mimic_pipeline_zarr_to_sitk(
+    zarr_uri: str,
+    metadata: dict,
+    processing_data: dict,
+    *,
+    level: int = 3,
+    overlay_selector: OverlaySelector = get_selector(),
+    opened_zarr: tuple[Node, dict] | None = None,
+) -> sitk.Image:
+    """
+    Construct a SimpleITK image matching pipeline spatial corrections.
+
+    This fabricates a SimpleITK image that reflects the spatial domain
+    (spacing, direction, origin) the SmartSPIM pipeline would have produced
+    after applying registered overlays and multiscale logic.
+
+    Returns
+    -------
+    ants.core.ANTsImage
+        A new ANTs image instance reflecting the spatial domain.
+    """
+    if level < 0:
+        raise ValueError("Level must be non-negative")
+    _, pipeline_version, image_node, zarr_meta, multiscale_no = (
+        _pipeline_anatomical_check_args(
+            zarr_uri, processing_data, opened_zarr=opened_zarr
+        )
+    )
+
+    img = zarr_to_sitk(
+        zarr_uri,
+        metadata,
+        level=level,
         opened_zarr=(image_node, zarr_meta),
     )
+    if level == 0:
+        # Overlays only work at level 0, so in this case we can work with them
+        # directly.
 
-    # Convert stub to Header for domain corrections.
-    base_header = Header.from_sitk(stub_img, size_ijk)
+        # Convert stub to Header for domain corrections.
+        base_header = Header.from_sitk(img)
 
-    # Select and apply overlays based on pipeline version and metadata.
-    overlays = overlay_selector.select(version=pipeline_version, meta=metadata)
-    corrected_header, applied = apply_overlays(
-        base_header, overlays, metadata, multiscale_no or 3
+        # Select and apply overlays based on pipeline version and metadata.
+        overlays = overlay_selector.select(
+            version=pipeline_version, meta=metadata
+        )
+        corrected_header, _ = apply_overlays(
+            base_header, overlays, metadata, multiscale_no or 3
+        )
+        corrected_header.update_sitk(img)
+    elif level > 0:
+        # For levels > 0, we need to correct for the downsampling factor.
+        # First let's get the level 0 stub with the applied overlays.
+        corrected_header, _ = _mimic_pipeline_anatomical_header(
+            zarr_uri,
+            metadata,
+            processing_data,
+            overlay_selector=overlay_selector,
+            opened_zarr=(image_node, zarr_meta),
+        )
+        spacing_level_scale = 2**level
+        spacing_scaled = tuple(
+            s * spacing_level_scale for s in corrected_header.spacing
+        )
+        img.SetSpacing(spacing_scaled)
+        img.SetOrigin(corrected_header.origin)
+        img.SetDirection(corrected_header.direction_tuple())
+
+    return img
+
+
+def mimic_pipeline_zarr_to_ants(
+    zarr_uri: str,
+    metadata: dict,
+    processing_data: dict,
+    *,
+    level: int = 3,
+    overlay_selector: OverlaySelector = get_selector(),
+    opened_zarr: tuple[Node, dict] | None = None,
+) -> ANTsImage:
+    """
+    Construct an ANTs image matching pipeline spatial corrections.
+
+    This fabricates an ANTs image that reflects the spatial domain (spacing,
+    direction, origin) the SmartSPIM pipeline would have produced after
+    applying registered overlays and multiscale logic.
+
+    Returns
+    -------
+    ants.core.ANTsImage
+        A new ANTs image instance reflecting the spatial domain.
+    """
+    if level < 0:
+        raise ValueError("Level must be non-negative")
+    _, pipeline_version, image_node, zarr_meta, multiscale_no = (
+        _pipeline_anatomical_check_args(
+            zarr_uri, processing_data, opened_zarr=opened_zarr
+        )
     )
 
-    # Return corrected stub image.
-    return corrected_header.as_sitk()
+    img = zarr_to_ants(
+        zarr_uri,
+        metadata,
+        level=level,
+        opened_zarr=(image_node, zarr_meta),
+    )
+    if level == 0:
+        # Overlays only work at level 0, so in this case we can work with them
+        # directly.
+
+        # Convert stub to Header for domain corrections.
+        base_header = Header.from_ants(img)
+
+        # Select and apply overlays based on pipeline version and metadata.
+        overlays = overlay_selector.select(
+            version=pipeline_version, meta=metadata
+        )
+        corrected_header, _ = apply_overlays(
+            base_header, overlays, metadata, multiscale_no or 3
+        )
+        corrected_header.update_ants(img)
+    elif level > 0:
+        # For levels > 0, we need to correct for the downsampling factor.
+        # First let's get the level 0 stub with the applied overlays.
+        corrected_header, _ = _mimic_pipeline_anatomical_header(
+            zarr_uri,
+            metadata,
+            processing_data,
+            overlay_selector=overlay_selector,
+            opened_zarr=(image_node, zarr_meta),
+        )
+        spacing_level_scale = 2**level
+        spacing_rev_scaled = tuple(
+            s * spacing_level_scale for s in reversed(corrected_header.spacing)
+        )
+        origin_rev = tuple(reversed(corrected_header.origin))
+        dir_mat = corrected_header.direction
+        img.set_spacing(spacing_rev_scaled)
+        img.set_origin(origin_rev)
+        img.set_direction(dir_mat)
+
+    return img
 
 
 def pipeline_transforms(

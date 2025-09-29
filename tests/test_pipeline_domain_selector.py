@@ -549,7 +549,7 @@ class TestUtilityFunctions:
         ]
 
         final_header, applied = pds.apply_overlays(
-            base_header, overlays, {}, multiscale_no=0
+            base_header, overlays, {}, registration_multiscale_no=0
         )
 
         # Both overlays should be applied and tracked
@@ -574,7 +574,7 @@ class TestUtilityFunctions:
         overlay = pds.SpacingScaleOverlay(scale=1.0, priority=10)  # No change
 
         final_header, applied = pds.apply_overlays(
-            base_header, [overlay], {}, multiscale_no=0
+            base_header, [overlay], {}, registration_multiscale_no=0
         )
 
         # No changes detected, so overlay not in applied list
