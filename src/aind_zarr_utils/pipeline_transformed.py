@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
 import SimpleITK as sitk
-from aind_registration_utils.ants import (  # type: ignore[import-untyped]
+from aind_registration_utils.ants import (
     apply_ants_transforms_to_point_arr,
 )
 from aind_s3_cache.json_utils import get_json
@@ -438,7 +438,7 @@ def mimic_pipeline_zarr_to_anatomical_stub(
     *,
     overlay_selector: OverlaySelector = get_selector(),
     opened_zarr: tuple[Node, dict] | None = None,
-) -> sitk.Image:
+) -> tuple[sitk.Image, tuple[int, int, int]]:
     """
     Construct a SimpleITK stub matching pipeline spatial corrections.
 
@@ -466,13 +466,14 @@ def mimic_pipeline_zarr_to_anatomical_stub(
     -------
     sitk.Image
         Stub image with corrected spatial metadata.
+    tuple
+        The size of the image in IJK coordinates.
 
     Raises
     ------
     ValueError
         If the needed import process / version is absent.
     """
-    # Return corrected stub image.
     corrected_header, _ = _mimic_pipeline_anatomical_header(
         zarr_uri,
         metadata,
@@ -480,7 +481,9 @@ def mimic_pipeline_zarr_to_anatomical_stub(
         overlay_selector=overlay_selector,
         opened_zarr=opened_zarr,
     )
-    return corrected_header.as_sitk()
+    stub_img = corrected_header.as_sitk()
+    native_size = corrected_header.size_ijk
+    return stub_img, native_size
 
 
 def mimic_pipeline_zarr_to_sitk(
@@ -1028,7 +1031,7 @@ def indices_to_ccf(
     dict[str, NDArray]
         Mapping layer → (N, 3) array of physical CCF coordinates.
     """
-    pipeline_stub = mimic_pipeline_zarr_to_anatomical_stub(
+    pipeline_stub, _ = mimic_pipeline_zarr_to_anatomical_stub(
         zarr_uri, metadata, processing_data, opened_zarr=opened_zarr
     )
     annotation_points = annotation_indices_to_anatomical(
