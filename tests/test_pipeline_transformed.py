@@ -902,7 +902,7 @@ class TestTemplateBaseParameter:
             ) as mock_ants,
         ):
             # Set up mocks
-            mock_stub.return_value = "mock_stub"
+            mock_stub.return_value = ("mock_stub", (100, 100, 100))
             mock_indices.return_value = {"layer1": np.array([[1.0, 2.0, 3.0]])}
             mock_transforms.return_value = (
                 ["/path1", "/path2"],
@@ -1527,7 +1527,7 @@ class TestIntegrationScenarios:
             ) as mock_ants,
         ):
             # Set up mocks
-            mock_stub.return_value = "mock_stub"
+            mock_stub.return_value = ("mock_stub", (100, 100, 100))
             mock_indices.return_value = {
                 "layer1": np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
             }
