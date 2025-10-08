@@ -1,3 +1,9 @@
+## v0.9.0 (2025-10-08)
+
+### Feat
+
+- return ijk size from `mimic_pipeline_zarr_to_anatomical_stub`
+
 ## v0.8.0 (2025-09-29)
 
 ### Feat

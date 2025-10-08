@@ -3,7 +3,7 @@
 Core functions for working with ZARR datasets and neuroimaging coordinates.
 """
 
-__version__ = "0.8.0"
+__version__ = "0.9.0"
 
 # Core ZARR conversion
 # Basic coordinate transformation
