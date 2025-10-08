@@ -42,12 +42,11 @@ from typing import TYPE_CHECKING, Any, Protocol, TypeVar
 
 import numpy as np
 import SimpleITK as sitk
+from aind_anatomical_utils.anatomical_volume import fix_corner_compute_origin
 from numpy.typing import NDArray
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 from typing_extensions import Self
-
-from aind_zarr_utils.zarr import compute_origin_for_corner
 
 if TYPE_CHECKING:
     from ants.core import ANTsImage  # type: ignore[import-untyped]
@@ -743,7 +742,7 @@ class ForceCornerAnchorOverlay:
     """
     Set the origin so a particular anatomical corner lands at a target point.
 
-    Uses :func:`aind_zarr_utils.zarr.compute_origin_for_corner` to compute the
+    Uses :func:`aind_zarr_utils.zarr.fix_corner_compute_origin` to compute the
     required origin from the current header, a corner code (e.g., ``"RAS"``),
     and a target point expressed in a labeled frame.
 
@@ -785,7 +784,7 @@ class ForceCornerAnchorOverlay:
         Header
             Header with updated origin.
         """
-        origin_lps, _, _ = compute_origin_for_corner(
+        origin_lps, _, _ = fix_corner_compute_origin(
             size=h.size_ijk,
             spacing=h.spacing,
             direction=h.direction,
