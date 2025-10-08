@@ -227,7 +227,7 @@ class TestOverlays:
     def test_force_corner_anchor_overlay(self, monkeypatch):
         """Test ForceCornerAnchorOverlay."""
 
-        # Mock the compute_origin_for_corner function
+        # Mock the fix_corner_compute_origin function
         def mock_compute_origin(
             size,
             spacing,
@@ -240,7 +240,7 @@ class TestOverlays:
             return (10.0, 20.0, 30.0), None, None
 
         monkeypatch.setattr(
-            "aind_zarr_utils.pipeline_domain_selector.compute_origin_for_corner",
+            "aind_zarr_utils.pipeline_domain_selector.fix_corner_compute_origin",
             mock_compute_origin,
         )
 
