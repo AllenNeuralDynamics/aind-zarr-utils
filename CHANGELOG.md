@@ -1,3 +1,9 @@
+## v0.10.1 (2025-10-09)
+
+### Fix
+
+- update domain selector to newest pipeline version
+
 ## v0.10.0 (2025-10-09)
 
 
