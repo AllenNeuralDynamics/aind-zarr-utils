@@ -1135,11 +1135,34 @@ def neuroglancer_to_ccf(
 
 
 def alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
-    asset_uri: str | None = None, a_zarr_uri: str | None = None
+    asset_uri: str | None = None,
+    a_zarr_uri: str | None = None,
+    **kwargs: Any,
 ) -> tuple[str, dict, dict]:
     """
     Return the alignment uris for a given Zarr path.
 
+    Parameters
+    ----------
+    asset_uri : str, optional
+        Base URI for the asset containing the Zarr and metadata files. If
+        ``None``, the asset root is inferred from ``a_zarr_uri``.
+    a_zarr_uri : str, optional
+        URI of an acquisition Zarr within the asset. If ``None``, the asset
+        root is taken from ``asset_uri``.
+    **kwargs : Any
+        Forwarded keyword arguments accepted by :func:`get_json`. Common keys
+        include:
+        - ``s3_client`` : S3Client | None
+        - ``anonymous`` : bool
+
+    Returns
+    -------
+    tuple
+        ``(zarr_uri, metadata, processing_data)`` where ``zarr_uri`` is the
+        inferred alignment Zarr URI, ``metadata`` is the parsed
+        ``metadata.nd.json`` content, and ``processing_data`` is the parsed
+        ``processing.json`` content.
     """
     if asset_uri is None:
         if a_zarr_uri is None:
@@ -1152,8 +1175,8 @@ def alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
     processing_pathlike = asset_pathlike / "processing.json"
     metadata_uri = as_string(uri_type, bucket, metadata_pathlike)
     processing_uri = as_string(uri_type, bucket, processing_pathlike)
-    metadata = get_json(metadata_uri)
-    processing_data = get_json(processing_uri)
+    metadata = get_json(metadata_uri, **kwargs)
+    processing_data = get_json(processing_uri, **kwargs)
     alignment_rel_path = image_atlas_alignment_path_relative_from_processing(
         processing_data
     )
