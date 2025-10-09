@@ -273,7 +273,7 @@ def _get_processing_pipeline_data(
     if not ver_str:
         raise ValueError("Missing pipeline version")
     pipeline_ver = int(ver_str.split(".")[0])
-    if pipeline_ver != 3:
+    if pipeline_ver not in set((3, 4)):
         raise ValueError(f"Unsupported pipeline version: {pipeline_ver}")
     pipeline: dict[str, Any] = processing_data.get("processing_pipeline", {})
     return pipeline
