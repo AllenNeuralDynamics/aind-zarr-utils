@@ -1,3 +1,8 @@
+## v0.10.0 (2025-10-09)
+
+
+- move compute_origin_for_corner to aind_anatomical_utils
+
 ## v0.9.0 (2025-10-08)
 
 ### Feat
