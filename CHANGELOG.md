@@ -1,3 +1,9 @@
+## v0.10.2 (2025-10-09)
+
+### Fix
+
+- Add connection kwargs to metadata convenience functions
+
 ## v0.10.1 (2025-10-09)
 
 ### Fix
