@@ -1,3 +1,9 @@
+## v0.10.3 (2025-10-10)
+
+### Fix
+
+- add compat for aind-registration-utils 0.4
+
 ## v0.10.2 (2025-10-09)
 
 ### Fix
