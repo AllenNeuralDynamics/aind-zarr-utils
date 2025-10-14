@@ -1239,7 +1239,9 @@ def neuroglancer_to_ccf_auto_metadata(
         If no image sources can be found in ``neuroglancer_data``.
     """
     if asset_uri is None:
-        image_sources = get_image_sources(neuroglancer_data)
+        image_sources = get_image_sources(
+            neuroglancer_data, remove_zarr_protocol=True
+        )
         # Get first image source in dict
         a_zarr_uri = next(iter(image_sources.values()), None)
         if a_zarr_uri is None:
