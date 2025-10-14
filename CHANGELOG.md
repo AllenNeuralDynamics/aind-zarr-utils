@@ -1,3 +1,9 @@
+## v0.10.4 (2025-10-14)
+
+### Fix
+
+- remove prefixes like "zarr://" from neuroglancer sources
+
 ## v0.10.3 (2025-10-10)
 
 ### Fix
