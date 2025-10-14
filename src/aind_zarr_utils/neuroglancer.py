@@ -4,6 +4,7 @@ Module for reading Neuroglancer annotation layers.
 
 from __future__ import annotations
 
+import re
 from typing import TypeVar
 
 import numpy as np
@@ -431,7 +432,9 @@ def _process_layer_and_descriptions(
     return points_arr, None
 
 
-def get_image_sources(data: dict) -> dict[str, str | None]:
+def get_image_sources(
+    data: dict, remove_zarr_protocol: bool = False
+) -> dict[str, str | None]:
     """
     Reads image source URL(s) from a Neuroglancer JSON file.
 
@@ -439,6 +442,9 @@ def get_image_sources(data: dict) -> dict[str, str | None]:
     ----------
     data: dict
         Parsed Neuroglancer JSON data.
+    remove_zarr_protocol : bool, optional
+        If True, removes 'zarr://' or 'zarr:/' prefixes from the source URLs.
+        Default is False.
 
     Returns
     -------
@@ -448,5 +454,8 @@ def get_image_sources(data: dict) -> dict[str, str | None]:
     image_sources = {}
     for layer in data.get("layers", []):
         if layer.get("type") == "image" and "name" in layer:
-            image_sources[layer["name"]] = layer.get("source", None)
+            this_source = layer.get("source", None)
+            if remove_zarr_protocol and this_source is not None:
+                this_source = re.sub(r"^zarr:/+", "", this_source)
+            image_sources[layer["name"]] = this_source
     return image_sources
