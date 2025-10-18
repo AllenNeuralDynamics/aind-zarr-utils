@@ -84,82 +84,82 @@ def test_get_layer_by_name():
         ng._get_layer_by_name(layers, "baz")
 
 
-def test_neuroglancer_annotations_to_indices(monkeypatch):
-    data = {
-        "layers": [
-            {
-                "name": "a",
-                "type": "annotation",
-                "annotations": [
-                    {"point": [1, 2, 3, 4], "description": "desc"}
-                ],
-            }
-        ]
-    }
-    monkeypatch.setattr(
-        ng, "_resolve_layer_names", lambda layers, names, layer_type: ["a"]
-    )
-    monkeypatch.setattr(
-        ng,
-        "_process_annotation_layers",
-        lambda layers, names, return_description: (
-            {"a": np.array([[1, 2, 3]])},
-            {"a": np.array(["desc"])},
-        ),
-    )
-    ann, desc = ng.neuroglancer_annotations_to_indices(data)
-    assert "a" in ann
-    assert "a" in desc
+def test_neuroglancer_annotations_to_indices(neuroglancer_test_data):
+    """Test converting neuroglancer annotations to indices using real data."""
+    ann, desc = ng.neuroglancer_annotations_to_indices(neuroglancer_test_data)
+
+    # Should have annotations from both annotation layers
+    assert "annotations_layer1" in ann
+    assert "annotations_layer2" in ann
+    assert "annotations_layer1" in desc
+    assert "annotations_layer2" in desc
+
+    # Verify layer1 has 2 points (strips 4th dimension from points)
+    assert ann["annotations_layer1"].shape == (2, 3)
+    assert np.allclose(ann["annotations_layer1"][0], [10.0, 20.0, 30.0])
+    assert np.allclose(ann["annotations_layer1"][1], [15.0, 25.0, 35.0])
+    assert desc["annotations_layer1"][0] == "point1"
+    assert desc["annotations_layer1"][1] == "point2"
+
+    # Verify layer2 has 1 point
+    assert ann["annotations_layer2"].shape == (1, 3)
+    assert np.allclose(ann["annotations_layer2"][0], [5.0, 10.0, 15.0])
+    assert desc["annotations_layer2"][0] == "point3"
 
 
 def test_neuroglancer_annotations_to_anatomical(
-    mock_annotation_functions, monkeypatch
+    neuroglancer_test_data, real_ome_zarr, mock_nd_metadata
 ):
-    data = {"layers": []}
-    monkeypatch.setattr(
-        ng,
-        "neuroglancer_annotations_to_indices",
-        lambda *a, **k: (
-            {"a": np.array([[1, 2, 3]])},
-            {"a": np.array(["desc"])},
-        ),
-    )
+    """Test converting neuroglancer annotations to anatomical space using real
+    data."""
     points, desc = ng.neuroglancer_annotations_to_anatomical(
-        data, "uri", {}, layer_names=None
+        neuroglancer_test_data,
+        real_ome_zarr,
+        mock_nd_metadata,
+        layer_names=["annotations_layer1"],
     )
-    assert "a" in points
-    assert np.allclose(points["a"], [[2, 3, 4]])
-    assert "a" in desc
+
+    # Should only have layer1 since we specified it
+    assert "annotations_layer1" in points
+    assert "annotations_layer1" in desc
+
+    # Verify we got transformed coordinates (not just indices)
+    # The transformation uses real SimpleITK under the hood
+    assert points["annotations_layer1"].shape == (2, 3)
+    # Values should be different from input indices due to transformation
+    assert not np.allclose(points["annotations_layer1"][0], [10.0, 20.0, 30.0])
+
+    # Descriptions should be preserved
+    assert desc["annotations_layer1"][0] == "point1"
+    assert desc["annotations_layer1"][1] == "point2"
 
 
-def test_neuroglancer_annotations_to_global(monkeypatch):
-    data = {
-        "dimensions": {"z": (1, "mm"), "y": (2, "mm"), "x": (3, "mm")},
-        "layers": [
-            {
-                "name": "a",
-                "type": "annotation",
-                "annotations": [
-                    {"point": [1, 2, 3, 4], "description": "desc"}
-                ],
-            }
-        ],
-    }
-    monkeypatch.setattr(
-        ng, "_resolve_layer_names", lambda layers, names, layer_type: ["a"]
+def test_neuroglancer_annotations_to_global(neuroglancer_test_data):
+    """Test converting neuroglancer annotations to global coordinates using
+    real data."""
+    ann, units, desc = ng.neuroglancer_annotations_to_global(
+        neuroglancer_test_data
     )
-    monkeypatch.setattr(
-        ng,
-        "_process_annotation_layers",
-        lambda layers, names, spacing, return_description: (
-            {"a": np.array([[1, 2, 3]])},
-            {"a": np.array(["desc"])},
-        ),
-    )
-    ann, units, desc = ng.neuroglancer_annotations_to_global(data)
-    assert "a" in ann
-    assert units == ["mm", "mm", "mm"]
-    assert "a" in desc
+
+    # Should have both annotation layers
+    assert "annotations_layer1" in ann
+    assert "annotations_layer2" in ann
+
+    # Verify units match dimensions
+    assert units == ["millimeter", "millimeter", "millimeter"]
+
+    # Verify annotations are scaled by spacing from dimensions
+    # dimensions: z=1.0mm, y=2.0mm, x=3.0mm
+    # point1: [10, 20, 30] → [10*1.0, 20*2.0, 30*3.0] = [10, 40, 90]
+    assert np.allclose(ann["annotations_layer1"][0], [10.0, 40.0, 90.0])
+    assert np.allclose(ann["annotations_layer1"][1], [15.0, 50.0, 105.0])
+
+    # point3: [5, 10, 15] → [5*1.0, 10*2.0, 15*3.0] = [5, 20, 45]
+    assert np.allclose(ann["annotations_layer2"][0], [5.0, 20.0, 45.0])
+
+    # Descriptions should be preserved
+    assert desc["annotations_layer1"][0] == "point1"
+    assert desc["annotations_layer2"][0] == "point3"
 
 
 def test_get_image_sources():

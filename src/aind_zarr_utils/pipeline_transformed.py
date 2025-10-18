@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
 import SimpleITK as sitk
+from aind_anatomical_utils.anatomical_volume import AnatomicalHeader
 from aind_registration_utils.ants import (
     apply_ants_transforms_to_point_arr,
 )
@@ -41,7 +42,6 @@ from aind_zarr_utils.neuroglancer import (
     neuroglancer_annotations_to_indices,
 )
 from aind_zarr_utils.pipeline_domain_selector import (
-    Header,
     OverlaySelector,
     apply_overlays,
     estimate_pipeline_multiscale,
@@ -406,7 +406,7 @@ def _mimic_pipeline_anatomical_header(
     *,
     overlay_selector: OverlaySelector = get_selector(),
     opened_zarr: tuple[Node, dict] | None = None,
-) -> tuple[Header, list[str]]:
+) -> tuple[AnatomicalHeader, list[str]]:
     # Validate and extract needed metadata.
     _, pipeline_version, image_node, zarr_meta, multiscale_no = (
         _pipeline_anatomical_check_args(
@@ -420,8 +420,8 @@ def _mimic_pipeline_anatomical_header(
         opened_zarr=(image_node, zarr_meta),
     )
 
-    # Convert stub to Header for domain corrections.
-    base_header = Header.from_sitk(stub_img, size_ijk)
+    # Convert stub to AnatomicalHeader for domain corrections.
+    base_header = AnatomicalHeader.from_sitk(stub_img, size_ijk)
 
     # Select and apply overlays based on pipeline version and metadata.
     overlays = overlay_selector.select(version=pipeline_version, meta=metadata)
@@ -525,8 +525,8 @@ def mimic_pipeline_zarr_to_sitk(
         # Overlays only work at level 0, so in this case we can work with them
         # directly.
 
-        # Convert stub to Header for domain corrections.
-        base_header = Header.from_sitk(img)
+        # Convert stub to AnatomicalHeader for domain corrections.
+        base_header = AnatomicalHeader.from_sitk(img)
 
         # Select and apply overlays based on pipeline version and metadata.
         overlays = overlay_selector.select(
@@ -596,8 +596,8 @@ def mimic_pipeline_zarr_to_ants(
         # Overlays only work at level 0, so in this case we can work with them
         # directly.
 
-        # Convert stub to Header for domain corrections.
-        base_header = Header.from_ants(img)
+        # Convert stub to AnatomicalHeader for domain corrections.
+        base_header = AnatomicalHeader.from_ants(img)
 
         # Select and apply overlays based on pipeline version and metadata.
         overlays = overlay_selector.select(

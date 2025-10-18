@@ -8,7 +8,6 @@ the correct LPS world coordinates before applying ANTs/ITK transforms.
 
 This module provides:
 
-- A lightweight immutable :class:`Header` describing an ITK/SimpleITK header.
 - A composable **overlay system** where small, pure operations (overlays) tweak
   the base header in deterministic order.
 - A :class:`OverlaySelector` which chooses a list of overlays to apply based on
@@ -38,210 +37,24 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import date, datetime
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Protocol, TypeVar
+from typing import Any, Protocol, TypeVar
 
 import numpy as np
-import SimpleITK as sitk
-from aind_anatomical_utils.anatomical_volume import fix_corner_compute_origin
-from numpy.typing import NDArray
+from aind_anatomical_utils.anatomical_volume import (
+    AnatomicalHeader,
+    fix_corner_compute_origin,
+)
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
-from typing_extensions import Self
-
-if TYPE_CHECKING:
-    from ants.core import ANTsImage  # type: ignore[import-untyped]
 
 Vec3 = tuple[float, float, float]
-H = TypeVar("H", bound="Header")
 _PIPELINE_MULTISCALE_FACTOR = 2
-
-
-@dataclass(frozen=True, slots=True)
-class Header:
-    """
-    Lightweight, immutable wrapper of an ITK/SimpleITK header.
-
-    The physical mapping is:
-
-    ``physical = origin + direction @ (spacing ⊙ index)``
-
-    where **columns** of ``direction`` are the LPS unit vectors of the index
-    axes ``(i, j, k)``; ``spacing`` is per-index-axis (mm); and ``origin`` is
-    LPS (mm).
-
-    Parameters
-    ----------
-    origin : tuple of float
-        Image origin in LPS (mm). Length-3.
-    spacing : tuple of float
-        Spacing per **index axis** ``(i, j, k)`` in millimeters. Length-3.
-    direction : numpy.ndarray
-        3×3 direction cosine matrix. Columns are unit vectors for ``i, j, k``
-        expressed in LPS. Row-major when flattened for SimpleITK APIs.
-    size_ijk : tuple of int
-        Image size (number of voxels) along ``(i, j, k)``. Used by overlays
-        like corner anchoring.
-
-    Notes
-    -----
-    - Use :meth:`as_sitk` to obtain a 1×1×1 SimpleITK image carrying this
-      header.
-    - Use :meth:`update_sitk` to set the header onto an existing image.
-    """
-
-    origin: Vec3  # LPS mm
-    spacing: Vec3  # per INDEX axis (i,j,k) in mm
-    direction: NDArray  # (3,3) columns are unit vectors for i,j,k (in LPS)
-    size_ijk: tuple[int, int, int]  # needed for corner anchoring etc.
-
-    def direction_tuple(self) -> tuple[float, ...]:
-        """
-        Return the direction matrix flattened row-major as a tuple of floats.
-
-        Returns
-        -------
-        tuple of float
-            Length-9 row-major flattening of the 3×3 direction matrix, suitable
-            for :meth:`SimpleITK.Image.SetDirection`.
-        """
-        return tuple(float(x) for x in self.direction.ravel())
-
-    def update_sitk(self, sitk_image: sitk.Image) -> sitk.Image:
-        """
-        Set this header (origin, spacing, direction) on a SimpleITK image.
-
-        Parameters
-        ----------
-        sitk_image : SimpleITK.Image
-            The image whose header should be updated.
-
-        Returns
-        -------
-        SimpleITK.Image
-            The same image instance, updated in-place for convenience.
-        """
-        sitk_image.SetOrigin(tuple(self.origin))
-        sitk_image.SetSpacing(tuple(self.spacing))
-        sitk_image.SetDirection(self.direction_tuple())
-        return sitk_image
-
-    def update_ants(self, ants_image: ANTsImage) -> ANTsImage:
-        """
-        Set this header (origin, spacing, direction) on an ANTs image.
-
-        Parameters
-        ----------
-        ants_image : ants.core.ANTsImage
-            The image whose header should be updated.
-
-        Returns
-        -------
-        ants.core.ANTsImage
-            The same image instance, updated in-place for convenience.
-        """
-        # ANTs is backwards for reasons
-        origin_rev = tuple(reversed(self.origin))
-        spacing_rev = tuple(reversed(self.spacing))
-        # ANTs uses a 2D numpy array
-        dir_mat = np.array(self.direction).reshape((3, 3))
-        ants_image.set_origin(origin_rev)
-        ants_image.set_spacing(spacing_rev)
-        ants_image.set_direction(dir_mat)
-        return ants_image
-
-    def as_sitk(self) -> sitk.Image:
-        """
-        Create a minimal SimpleITK image (1×1×1) carrying this header.
-
-        Returns
-        -------
-        SimpleITK.Image
-            A new image with this :class:`Header`'s origin, spacing, and
-            direction set. Pixel type is ``UInt8`` and size is 1×1×1, which is
-            sufficient for coordinate transforms via
-            :meth:`TransformContinuousIndexToPhysicalPoint`.
-        """
-        img = sitk.Image([1, 1, 1], sitk.sitkUInt8)
-        self.update_sitk(img)
-        return img
-
-    @classmethod
-    def from_sitk(
-        cls,
-        sitk_image: sitk.Image,
-        size_ijk: tuple[int, int, int] | None = None,
-    ) -> Self:
-        """
-        Construct a :class:`Header` from a SimpleITK image.
-
-        Parameters
-        ----------
-        sitk_image : SimpleITK.Image
-            Source image.
-        size_ijk : tuple of int or None
-            Size to record as ``(i, j, k)``. If ``None``, uses
-            :meth:`SimpleITK.Image.GetSize`.
-
-        Returns
-        -------
-        Header
-            New header with origin, spacing, direction, and ``size_ijk`` taken
-            from ``sitk_image`` (or the provided size).
-        """
-        origin = sitk_image.GetOrigin()
-        spacing = sitk_image.GetSpacing()
-        direction = np.array(sitk_image.GetDirection()).reshape(3, 3)
-        if size_ijk is None:
-            size_ijk = sitk_image.GetSize()
-
-        return cls(
-            origin=origin,
-            spacing=spacing,
-            direction=direction,
-            size_ijk=size_ijk,
-        )
-
-    @classmethod
-    def from_ants(
-        cls,
-        ants_image: ANTsImage,
-        size_ijk: tuple[int, int, int] | None = None,
-    ) -> Self:
-        """
-        Construct a :class:`Header` from an ANTs image.
-
-        Parameters
-        ----------
-        ants_image : ants.core.ANTsImage
-            Source image.
-        size_ijk : tuple of int or None
-            Size to record as ``(i, j, k)``. If ``None``, uses
-            :meth:`ants.core.ANTsImage.shape`.
-
-        Returns
-        -------
-        Header
-            New header with origin, spacing, direction, and ``size_ijk`` taken
-            from ``ants_image`` (or the provided size).
-        """
-        origin = tuple(reversed(ants_image.get_origin()))
-        spacing = tuple(reversed(ants_image.get_spacing()))
-        direction = ants_image.get_direction()
-        if size_ijk is None:
-            size_ijk = tuple(reversed(ants_image.shape))
-
-        return cls(
-            origin=origin,
-            spacing=spacing,
-            direction=direction,
-            size_ijk=size_ijk,
-        )
 
 
 # Callable overlay interface (dataclass implementations satisfy this)
 class Overlay(Protocol):
     """
-    Protocol for callable overlays that transform a :class:`Header`.
+    Protocol for callable overlays that transform a :class:`AnatomicalHeader`.
 
     Required interface
     ------------------
@@ -250,8 +63,8 @@ class Overlay(Protocol):
     priority : int
         Execution priority (lower numbers run earlier). Independent of
         :attr:`OverlayRule.rule_priority`.
-    __call__(h, meta, multiscale_no) -> Header
-        Apply the overlay, returning a new :class:`Header`.
+    __call__(h, meta, multiscale_no) -> AnatomicalHeader
+        Apply the overlay, returning a new :class:`AnatomicalHeader`.
 
     Notes
     -----
@@ -268,10 +81,10 @@ class Overlay(Protocol):
 
     def __call__(
         self,
-        h: Header,
+        h: AnatomicalHeader,
         meta: dict[str, Any],
         multiscale_no: int,
-    ) -> Header: ...
+    ) -> AnatomicalHeader: ...
 
 
 T = TypeVar("T", bound=Overlay)
@@ -464,17 +277,17 @@ def _as_date(d: Any) -> date | None:
 
 
 def apply_overlays(
-    base: Header,
+    base: AnatomicalHeader,
     overlays: list[Overlay],
     meta: dict[str, Any],
     registration_multiscale_no: int = 3,
-) -> tuple[Header, list[str]]:
+) -> tuple[AnatomicalHeader, list[str]]:
     """
     Apply a sequence of overlays to a base header in deterministic order.
 
     Parameters
     ----------
-    base : Header
+    base : AnatomicalHeader
         Starting header (often constructed from acquisition metadata).
     overlays : list of Overlay
         Overlays to apply. Should already be sorted by overlay ``priority``;
@@ -487,7 +300,7 @@ def apply_overlays(
 
     Returns
     -------
-    header : Header
+    header : AnatomicalHeader
         The final header after all overlays are applied.
     applied : list of str
         ``name`` of each overlay that resulted in a change.
@@ -625,14 +438,14 @@ class SpacingScaleOverlay:
     priority: int = 50
 
     def __call__(
-        self, h: Header, meta: dict[str, Any], multiscale_no: int
-    ) -> Header:
+        self, h: AnatomicalHeader, meta: dict[str, Any], multiscale_no: int
+    ) -> AnatomicalHeader:
         """
         Apply the scaling to the spacing.
 
         Parameters
         ----------
-        h : Header
+        h : AnatomicalHeader
             Input header.
         meta : dict
             Unused.
@@ -641,7 +454,7 @@ class SpacingScaleOverlay:
 
         Returns
         -------
-        Header
+        AnatomicalHeader
             New header with spacing multiplied by ``scale``.
         """
         i, j, k = h.spacing
@@ -674,15 +487,15 @@ class FlipIndexAxesOverlay:
     priority: int = 40
 
     def __call__(
-        self, h: Header, meta: dict[str, Any], multiscale_no: int
-    ) -> Header:
+        self, h: AnatomicalHeader, meta: dict[str, Any], multiscale_no: int
+    ) -> AnatomicalHeader:
         """
         Negate selected columns of the direction matrix.
 
         Returns
         -------
-        Header
-            Header with updated direction matrix.
+        AnatomicalHeader
+            AnatomicalHeader with updated direction matrix.
         """
         D = h.direction.copy()
         if self.flip_i:
@@ -715,16 +528,16 @@ class PermuteIndexAxesOverlay:
     priority: int = 30
 
     def __call__(
-        self, h: Header, meta: dict[str, Any], multiscale_no: int
-    ) -> Header:
+        self, h: AnatomicalHeader, meta: dict[str, Any], multiscale_no: int
+    ) -> AnatomicalHeader:
         """
         Reorder columns of ``direction``, elements of ``spacing``, and
         entries of ``size_ijk`` according to ``order``.
 
         Returns
         -------
-        Header
-            Header with permuted index axes.
+        AnatomicalHeader
+            AnatomicalHeader with permuted index axes.
         """
         i0, i1, i2 = self.order
         D = h.direction[:, [i0, i1, i2]]
@@ -734,7 +547,9 @@ class PermuteIndexAxesOverlay:
             h.size_ijk[i1],
             h.size_ijk[i2],
         )
-        return Header(origin=h.origin, spacing=S, direction=D, size_ijk=N)
+        return AnatomicalHeader(
+            origin=h.origin, spacing=S, direction=D, size_ijk=N
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -773,21 +588,21 @@ class ForceCornerAnchorOverlay:
     priority: int = 90
 
     def __call__(
-        self, h: Header, meta: dict[str, Any], multiscale_no: int
-    ) -> Header:
+        self, h: AnatomicalHeader, meta: dict[str, Any], multiscale_no: int
+    ) -> AnatomicalHeader:
         """
         Compute and set the origin such that the specified corner aligns with
         the target point.
 
         Returns
         -------
-        Header
-            Header with updated origin.
+        AnatomicalHeader
+            AnatomicalHeader with updated origin.
         """
         origin_lps, _, _ = fix_corner_compute_origin(
             size=h.size_ijk,
             spacing=h.spacing,
-            direction=h.direction,
+            direction=h.direction,  # type: ignore[arg-type]
             target_point=self.target_point_labeled,
             corner_code=self.corner_code,
             target_frame=self.target_frame,
@@ -895,14 +710,14 @@ class SetLpsWorldSpacingOverlay:
     priority: int = 55  # after permute/flip, before anchoring
 
     def __call__(
-        self, h: Header, meta: dict[str, Any], multiscale_no: int
-    ) -> Header:
+        self, h: AnatomicalHeader, meta: dict[str, Any], multiscale_no: int
+    ) -> AnatomicalHeader:
         """
         Convert the desired LPS spacings to index-order spacing and set it.
 
         Parameters
         ----------
-        h : Header
+        h : AnatomicalHeader
             Input header whose direction determines the mapping.
         meta : dict
             Unused.
@@ -912,8 +727,8 @@ class SetLpsWorldSpacingOverlay:
 
         Returns
         -------
-        Header
-            Header with updated spacing.
+        AnatomicalHeader
+            AnatomicalHeader with updated spacing.
         """
         si, sj, sk = lps_world_to_index_spacing_cardinal(
             h.direction, self.lps_spacing_mm

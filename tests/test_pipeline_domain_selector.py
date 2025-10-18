@@ -4,111 +4,11 @@ from datetime import date, datetime
 
 import numpy as np
 import pytest
+from aind_anatomical_utils.anatomical_volume import AnatomicalHeader
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 
 from aind_zarr_utils import pipeline_domain_selector as pds
-
-
-class TestHeader:
-    """Test the Header dataclass."""
-
-    def test_header_creation(self):
-        """Test basic Header creation."""
-        origin = (1.0, 2.0, 3.0)
-        spacing = (0.5, 0.5, 1.0)
-        direction = np.eye(3)
-        size_ijk = (100, 200, 50)
-
-        header = pds.Header(
-            origin=origin,
-            spacing=spacing,
-            direction=direction,
-            size_ijk=size_ijk,
-        )
-
-        assert header.origin == origin
-        assert header.spacing == spacing
-        assert np.array_equal(header.direction, direction)
-        assert header.size_ijk == size_ijk
-
-    def test_header_immutable(self):
-        """Test that Header is frozen/immutable."""
-        header = pds.Header(
-            origin=(0, 0, 0),
-            spacing=(1, 1, 1),
-            direction=np.eye(3),
-            size_ijk=(10, 10, 10),
-        )
-
-        with pytest.raises(Exception):  # FrozenInstanceError or AttributeError
-            header.origin = (1, 1, 1)
-
-    def test_direction_tuple(self):
-        """Test direction matrix flattening."""
-        direction = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
-
-        header = pds.Header(
-            origin=(0, 0, 0),
-            spacing=(1, 1, 1),
-            direction=direction,
-            size_ijk=(10, 10, 10),
-        )
-
-        direction_tuple = header.direction_tuple()
-        expected = (1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
-        assert direction_tuple == expected
-
-    def test_from_sitk(self, mock_sitk_image):
-        """Test Header creation from SimpleITK image."""
-        mock_sitk_image._origin = (1.0, 2.0, 3.0)
-        mock_sitk_image._spacing = (0.5, 0.5, 1.0)
-        mock_sitk_image._direction = tuple(range(9))
-        mock_sitk_image._size = (100, 200, 50)
-
-        header = pds.Header.from_sitk(mock_sitk_image, size_ijk=None)
-
-        assert header.origin == (1.0, 2.0, 3.0)
-        assert header.spacing == (0.5, 0.5, 1.0)
-        assert header.size_ijk == (100, 200, 50)
-        assert header.direction.shape == (3, 3)
-
-    def test_from_sitk_custom_size(self, mock_sitk_image):
-        """Test Header creation with custom size."""
-        custom_size = (75, 75, 75)
-        header = pds.Header.from_sitk(mock_sitk_image, size_ijk=custom_size)
-
-        assert header.size_ijk == custom_size
-
-    def test_update_sitk(self, mock_sitk_image):
-        """Test updating SimpleITK image with Header."""
-        header = pds.Header(
-            origin=(5.0, 10.0, 15.0),
-            spacing=(2.0, 2.0, 2.0),
-            direction=np.eye(3),
-            size_ijk=(50, 50, 50),
-        )
-
-        result = header.update_sitk(mock_sitk_image)
-
-        assert result is mock_sitk_image  # Returns same instance
-        assert mock_sitk_image._origin == (5.0, 10.0, 15.0)
-        assert mock_sitk_image._spacing == (2.0, 2.0, 2.0)
-
-    def test_as_sitk(self, mock_sitk_module):
-        """Test creating SimpleITK image from Header."""
-        header = pds.Header(
-            origin=(1.0, 2.0, 3.0),
-            spacing=(0.5, 0.5, 1.0),
-            direction=np.eye(3),
-            size_ijk=(10, 20, 30),
-        )
-
-        sitk_img = header.as_sitk()
-
-        # SimpleITK images have GetOrigin() and GetSpacing() methods
-        assert sitk_img.GetOrigin() == (1.0, 2.0, 3.0)
-        assert sitk_img.GetSpacing() == (0.5, 0.5, 1.0)
 
 
 class TestOverlays:
@@ -118,7 +18,7 @@ class TestOverlays:
         """Test SpacingScaleOverlay."""
         overlay = pds.SpacingScaleOverlay(scale=2.0)
 
-        header = pds.Header(
+        header = AnatomicalHeader(
             origin=(0, 0, 0),
             spacing=(1.0, 1.5, 2.0),
             direction=np.eye(3),
@@ -140,7 +40,7 @@ class TestOverlays:
             dtype=np.float64,
         )
 
-        header = pds.Header(
+        header = AnatomicalHeader(
             origin=(0, 0, 0),
             spacing=(1, 1, 1),
             direction=direction,
@@ -165,7 +65,7 @@ class TestOverlays:
 
         direction = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
 
-        header = pds.Header(
+        header = AnatomicalHeader(
             origin=(0, 0, 0),
             spacing=(1.0, 2.0, 3.0),
             direction=direction,
@@ -189,7 +89,7 @@ class TestOverlays:
         overlay = pds.SetLpsWorldSpacingOverlay(lps_spacing_mm=(0.5, 1.0, 1.5))
 
         # Identity direction matrix
-        header = pds.Header(
+        header = AnatomicalHeader(
             origin=(0, 0, 0),
             spacing=(999, 999, 999),  # Will be replaced
             direction=np.eye(3),
@@ -205,7 +105,7 @@ class TestOverlays:
         """Test SetLpsWorldSpacingOverlay with multiscale downsampling."""
         overlay = pds.SetLpsWorldSpacingOverlay(lps_spacing_mm=(1.0, 1.0, 2.0))
 
-        header = pds.Header(
+        header = AnatomicalHeader(
             origin=(0, 0, 0),
             spacing=(999, 999, 999),
             direction=np.eye(3),
@@ -248,7 +148,7 @@ class TestOverlays:
             corner_code="RAS", target_point_labeled=(5.0, 5.0, 5.0)
         )
 
-        header = pds.Header(
+        header = AnatomicalHeader(
             origin=(0, 0, 0),  # Will be changed
             spacing=(1, 1, 1),
             direction=np.eye(3),
@@ -536,7 +436,7 @@ class TestUtilityFunctions:
 
     def test_apply_overlays(self):
         """Test apply_overlays function."""
-        base_header = pds.Header(
+        base_header = AnatomicalHeader(
             origin=(0, 0, 0),
             spacing=(1, 1, 1),
             direction=np.eye(3),
@@ -563,7 +463,7 @@ class TestUtilityFunctions:
 
     def test_apply_overlays_no_change(self):
         """Test apply_overlays when overlay makes no changes."""
-        base_header = pds.Header(
+        base_header = AnatomicalHeader(
             origin=(0, 0, 0),
             spacing=(2, 2, 2),  # Already scaled
             direction=np.eye(3),
