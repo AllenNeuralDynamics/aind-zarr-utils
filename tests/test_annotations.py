@@ -1,23 +1,36 @@
 import numpy as np
+import SimpleITK as sitk
 
 from aind_zarr_utils import annotations as ann
 
 
-def test_annotation_indices_to_anatomical(monkeypatch):
-    # Dummy transform function just returns indices + 1
-    def dummy_transform(img, indices):
-        return indices + 1
+def test_annotation_indices_to_anatomical():
+    """Test converting annotation indices to anatomical coordinates using real
+    SimpleITK."""
+    # Create a real SimpleITK image with known properties
+    # Spacing: 2mm in each direction
+    # Origin: (10, 20, 30) mm
+    # Direction: identity (no rotation)
+    img = sitk.Image([5, 5, 5], sitk.sitkUInt8)
+    img.SetSpacing((2.0, 2.0, 2.0))
+    img.SetOrigin((10.0, 20.0, 30.0))
+    img.SetDirection((1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0))
 
-    monkeypatch.setattr(
-        ann, "transform_sitk_indices_to_physical_points", dummy_transform
-    )
-    img = object()
-    annotations = {"a": np.array([[1, 2, 3], [4, 5, 6]])}
+    # Annotation indices in (z, y, x) order (Python/numpy convention)
+    annotations = {"a": np.array([[1.0, 2.0, 3.0], [2.0, 3.0, 4.0]])}
+
     result = ann.annotation_indices_to_anatomical(img, annotations)
-    # Should reverse indices and add 1
-    expected = {
-        "a": np.array([[4, 3, 2], [7, 6, 5]])
-    }  # [1,2,3][::-1] = [3,2,1] + 1 = [4,3,2]
+
+    # Expected physical points:
+    # SimpleITK uses (x, y, z) order, so indices [1,2,3] in zyx → [3,2,1] in
+    # xyz
+    # Physical point = origin + index * spacing
+    # For [1, 2, 3] (zyx) → [3, 2, 1] (xyz) → (10+3*2, 20+2*2, 30+1*2) = (16,
+    # 24, 32)
+    # For [2, 3, 4] (zyx) → [4, 3, 2] (xyz) → (10+4*2, 20+3*2, 30+2*2) = (18,
+    # 26, 34)
+    expected = {"a": np.array([[16.0, 24.0, 32.0], [18.0, 26.0, 34.0]])}
+
     assert np.allclose(result["a"], expected["a"])
 
 

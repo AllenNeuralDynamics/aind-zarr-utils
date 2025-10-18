@@ -14,6 +14,8 @@ from typing import Any
 
 import numpy as np
 import pytest
+import SimpleITK as sitk
+import zarr
 from botocore.exceptions import ClientError
 
 # ============================================================================
@@ -229,119 +231,6 @@ def mock_requests_get():
     return _mock_get
 
 
-# ============================================================================
-# SimpleITK Infrastructure
-# ============================================================================
-
-
-class UnifiedSitkImage:
-    """
-    Comprehensive SimpleITK Image mock for all modules.
-
-    Supports all Image operations needed across:
-    - zarr.py: Basic image properties and stubs
-    - pipeline_domain_selector.py: Header manipulation
-    - annotations.py: Coordinate transformations
-    """
-
-    def __init__(
-        self,
-        size: tuple[int, int, int] = (10, 10, 10),
-        origin: tuple[float, float, float] = (0.0, 0.0, 0.0),
-        spacing: tuple[float, float, float] = (1.0, 1.0, 1.0),
-        direction: tuple[float, ...] = None,
-        pixel_type: str = "uint8",
-    ):
-        self._size = size
-        self._origin = origin
-        self._spacing = spacing
-        # Use identity matrix as default direction (cardinal)
-        self._direction = direction or (
-            1.0,
-            0.0,
-            0.0,
-            0.0,
-            1.0,
-            0.0,
-            0.0,
-            0.0,
-            1.0,
-        )
-        self.pixel_type = pixel_type
-
-    # ---- Property getters ----
-
-    def GetSize(self) -> tuple[int, int, int]:
-        return self._size
-
-    def GetOrigin(self) -> tuple[float, float, float]:
-        return self._origin
-
-    def GetSpacing(self) -> tuple[float, float, float]:
-        return self._spacing
-
-    def GetDirection(self) -> tuple[float, ...]:
-        return self._direction
-
-    # ---- Property setters ----
-
-    def SetOrigin(self, origin: tuple[float, float, float]) -> None:
-        self._origin = tuple(origin)
-
-    def SetSpacing(self, spacing: tuple[float, float, float]) -> None:
-        self._spacing = tuple(spacing)
-
-    def SetDirection(self, direction: tuple[float, ...]) -> None:
-        self._direction = tuple(direction)
-
-
-class MockSitkModule:
-    """Mock SimpleITK module with all needed classes and constants."""
-
-    # Pixel type constants
-    sitkUInt8 = "uint8"
-    sitkFloat32 = "float32"
-    sitkFloat64 = "float64"
-
-    @staticmethod
-    def Image(size: tuple[int, int, int], pixel_type: str) -> UnifiedSitkImage:
-        """Create a new mock SimpleITK Image."""
-        return UnifiedSitkImage(size=size, pixel_type=pixel_type)
-
-    @staticmethod
-    def GetImageFromArray(array: np.ndarray) -> UnifiedSitkImage:
-        """Create mock Image from numpy array."""
-        shape = array.shape if hasattr(array, "shape") else (10, 10, 10)
-        # SimpleITK reverses array dimensions
-        size = tuple(reversed(shape)) if len(shape) == 3 else (10, 10, 10)
-        return UnifiedSitkImage(size=size)
-
-    class DICOMOrientImageFilter:
-        """Mock DICOM orientation filter."""
-
-        @staticmethod
-        def GetDirectionCosinesFromOrientation(
-            orientation: str,
-        ) -> tuple[float, ...]:
-            """Return mock direction cosines for any orientation string."""
-            # Return identity-like direction for testing
-            return tuple(float(i) for i in range(9))
-
-
-@pytest.fixture
-def mock_sitk_module(monkeypatch):
-    """Mock the entire SimpleITK module consistently across tests."""
-    mock_sitk = MockSitkModule()
-    monkeypatch.setattr("aind_zarr_utils.zarr.sitk", mock_sitk)
-    return mock_sitk
-
-
-@pytest.fixture
-def mock_sitk_image():
-    """Provide a basic mock SimpleITK image for direct use."""
-    return UnifiedSitkImage()
-
-
 @pytest.fixture
 def mock_overlay_selector(monkeypatch):
     """Mock OverlaySelector for pipeline_transformed tests."""
@@ -361,68 +250,6 @@ def mock_overlay_selector(monkeypatch):
     )
 
     return selector
-
-
-# ============================================================================
-# ANTs Infrastructure
-# ============================================================================
-
-
-class MockAntsImage:
-    """Mock ANTs image for testing coordinate transformations."""
-
-    def __init__(self, spacing=(1.0, 1.0, 1.0), origin=(0.0, 0.0, 0.0)):
-        self.spacing = spacing
-        self.origin = origin
-        self.direction = np.eye(3)
-        self.shape = (10, 10, 10)
-
-    def set_spacing(self, spacing):
-        self.spacing = spacing
-
-    def set_origin(self, origin):
-        self.origin = origin
-
-    def set_direction(self, direction):
-        self.direction = direction
-
-
-class MockAntsModule:
-    """Mock ANTs module for coordinate transformation testing."""
-
-    @staticmethod
-    def from_numpy(
-        array: np.ndarray, spacing=None, direction=None, origin=None
-    ):
-        """Mock ants.from_numpy."""
-        img = MockAntsImage()
-        if spacing is not None:
-            img.spacing = spacing
-        if direction is not None:
-            img.direction = direction
-        if origin is not None:
-            img.origin = origin
-        return img
-
-    @staticmethod
-    def image_read(filename: str):
-        """Mock ants.image_read."""
-        return MockAntsImage()
-
-    @staticmethod
-    def image_write(image, filename: str):
-        """Mock ants.image_write."""
-        # Create empty file to simulate write
-        Path(filename).parent.mkdir(parents=True, exist_ok=True)
-        Path(filename).touch()
-
-
-@pytest.fixture
-def mock_ants_module(monkeypatch):
-    """Mock ANTs module for transformation testing."""
-    mock_ants = MockAntsModule()
-    monkeypatch.setattr("aind_zarr_utils.zarr.ants", mock_ants)
-    return mock_ants
 
 
 # ============================================================================
@@ -536,6 +363,88 @@ def mock_zarr_operations(monkeypatch):
         "parse_url": mock_parse_url,
         "reader": mock_reader,
     }
+
+
+@pytest.fixture
+def real_ome_zarr(tmp_path):
+    """
+    Create a real OME-ZARR file with proper structure for testing.
+
+    Creates a multi-scale zarr with:
+    - 4 resolution levels (0, 1, 2, 3)
+    - 5D data: (t=1, c=1, z=10, y=10, x=10) at level 0
+    - Proper OME-ZARR v0.4 metadata with axes and coordinate transformations
+    - Real numpy data that can be read
+
+    Returns the path to the zarr store.
+    """
+    zarr_path = tmp_path / "test.ome.zarr"
+
+    # Open zarr group (zarr v3 API)
+    root = zarr.open_group(str(zarr_path), mode="w")
+
+    # Create multiscale data with 4 levels
+    levels = 4
+    base_shape = (1, 1, 10, 10, 10)  # t, c, z, y, x
+
+    # Prepare multiscale metadata
+    datasets = []
+    for level in range(levels):
+        # Calculate scaled shape (only scale spatial dimensions z, y, x)
+        scale_factor = 2**level
+        scaled_shape = (
+            base_shape[0],  # t unchanged
+            base_shape[1],  # c unchanged
+            max(1, base_shape[2] // scale_factor),  # z
+            max(1, base_shape[3] // scale_factor),  # y
+            max(1, base_shape[4] // scale_factor),  # x
+        )
+
+        # Create array with incrementing values for validation
+        data = np.arange(np.prod(scaled_shape), dtype=np.float32).reshape(
+            scaled_shape
+        )
+
+        # Write to zarr (zarr v3 API)
+        root.create_array(name=str(level), data=data, chunks=(1, 1, 5, 5, 5))
+
+        # Add to multiscale datasets metadata
+        datasets.append(
+            {
+                "path": str(level),
+                "coordinateTransformations": [
+                    {
+                        "type": "scale",
+                        "scale": [
+                            1.0,  # t
+                            1.0,  # c
+                            1.0 * scale_factor,  # z spacing in mm
+                            1.0 * scale_factor,  # y spacing in mm
+                            1.0 * scale_factor,  # x spacing in mm
+                        ],
+                    }
+                ],
+            }
+        )
+
+    # Set OME-ZARR multiscales metadata
+    root.attrs["multiscales"] = [
+        {
+            "version": "0.4",
+            "name": "test",
+            "axes": [
+                {"name": "t", "type": "time", "unit": "second"},
+                {"name": "c", "type": "channel"},
+                {"name": "z", "type": "space", "unit": "millimeter"},
+                {"name": "y", "type": "space", "unit": "millimeter"},
+                {"name": "x", "type": "space", "unit": "millimeter"},
+            ],
+            "datasets": datasets,
+            "coordinateTransformations": [{"type": "identity"}],
+        }
+    ]
+
+    return str(zarr_path)
 
 
 # ============================================================================
@@ -704,6 +613,59 @@ def invalid_swc_data():
 
 
 # ============================================================================
+# Neuroglancer Testing Infrastructure
+# ============================================================================
+
+
+@pytest.fixture
+def neuroglancer_test_data():
+    """
+    Provide realistic neuroglancer JSON data for testing.
+
+    Returns a neuroglancer state with annotation layers and dimension
+    information.
+    """
+    return {
+        "dimensions": {
+            "z": (1.0, "millimeter"),
+            "y": (2.0, "millimeter"),
+            "x": (3.0, "millimeter"),
+        },
+        "layers": [
+            {
+                "name": "annotations_layer1",
+                "type": "annotation",
+                "annotations": [
+                    {
+                        "point": [10.0, 20.0, 30.0, 40.0],
+                        "description": "point1",
+                    },
+                    {
+                        "point": [15.0, 25.0, 35.0, 45.0],
+                        "description": "point2",
+                    },
+                ],
+            },
+            {
+                "name": "image_layer",
+                "type": "image",
+                "source": "zarr://s3://bucket/data.zarr",
+            },
+            {
+                "name": "annotations_layer2",
+                "type": "annotation",
+                "annotations": [
+                    {
+                        "point": [5.0, 10.0, 15.0, 20.0],
+                        "description": "point3",
+                    },
+                ],
+            },
+        ],
+    }
+
+
+# ============================================================================
 # Annotation Testing Infrastructure
 # ============================================================================
 
@@ -717,8 +679,13 @@ def mock_annotation_functions(monkeypatch):
         return {k: v + 1 for k, v in annotations.items()}
 
     def mock_zarr_to_sitk_stub(zarr_uri, metadata, **kwargs):
-        """Mock zarr to sitk stub conversion."""
-        return UnifiedSitkImage(), (10, 10, 10)
+        """Mock zarr to sitk stub conversion using real SimpleITK."""
+        # Create a real SimpleITK image stub
+        stub_img = sitk.Image([10, 10, 10], sitk.sitkUInt8)
+        stub_img.SetSpacing((1.0, 1.0, 1.0))
+        stub_img.SetOrigin((0.0, 0.0, 0.0))
+        stub_img.SetDirection((1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0))
+        return stub_img, (10, 10, 10)
 
     monkeypatch.setattr(
         "aind_zarr_utils.neuroglancer.annotation_indices_to_anatomical",
