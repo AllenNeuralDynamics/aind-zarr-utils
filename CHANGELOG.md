@@ -1,3 +1,13 @@
+## v0.11.0 (2025-10-19)
+
+### BREAKING CHANGE
+
+- Removed `Header` from `pipeline_domain_selector`
+
+### Refactor
+
+- Remove Header to aind-anatomical-utils
+
 ## v0.10.4 (2025-10-14)
 
 ### Fix
