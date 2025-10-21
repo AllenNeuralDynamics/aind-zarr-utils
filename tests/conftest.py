@@ -376,11 +376,13 @@ def real_ome_zarr(tmp_path):
     - Proper OME-ZARR v0.4 metadata with axes and coordinate transformations
     - Real numpy data that can be read
 
+    Compatible with both zarr v2 and v3.
+
     Returns the path to the zarr store.
     """
     zarr_path = tmp_path / "test.ome.zarr"
 
-    # Open zarr group (zarr v3 API)
+    # Open zarr group (compatible with both v2 and v3)
     root = zarr.open_group(str(zarr_path), mode="w")
 
     # Create multiscale data with 4 levels
@@ -405,8 +407,23 @@ def real_ome_zarr(tmp_path):
             scaled_shape
         )
 
-        # Write to zarr (zarr v3 API)
-        root.create_array(name=str(level), data=data, chunks=(1, 1, 5, 5, 5))
+        # Write to zarr - use API compatible with both v2 and v3
+        if hasattr(root, "create_array"):
+            # zarr v3 API
+            root.create_array(
+                name=str(level), data=data, chunks=(1, 1, 5, 5, 5)
+            )
+        else:
+            # zarr v2 API
+            # Use dimension_separator='/' for compatibility with ome-zarr
+            # Reader
+            root.create_dataset(
+                name=str(level),
+                data=data,
+                chunks=(1, 1, 5, 5, 5),
+                dtype=np.float32,
+                dimension_separator="/",
+            )
 
         # Add to multiscale datasets metadata
         datasets.append(

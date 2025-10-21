@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "aind-zarr-utils"
 description = "Utilities for working with ZARR data and AIND metadata"
 license = "MIT"
-requires-python = ">=3.11, <3.14"
+requires-python = ">=3.10"
 authors = [
   { name = "Galen Lynch", email = "galen@galenlynch.com" },
   { name = "Allen Institute for Neural Dynamics" },
@@ -31,7 +31,6 @@ dependencies = [
   # boto3 option required to help pip resolve dependencies
   "s3fs[boto3]>=2021",
   "SimpleITK>=2,<3",
-  "zarr>3,<4",
 ]
 
 [project.urls]
