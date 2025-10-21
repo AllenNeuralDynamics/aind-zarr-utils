@@ -602,7 +602,7 @@ class ForceCornerAnchorOverlay:
         origin_lps, _, _ = fix_corner_compute_origin(
             size=h.size_ijk,
             spacing=h.spacing,
-            direction=h.direction,  # type: ignore[arg-type]
+            direction=h.direction,
             target_point=self.target_point_labeled,
             corner_code=self.corner_code,
             target_frame=self.target_frame,
