@@ -1,3 +1,9 @@
+## v0.11.1 (2025-10-21)
+
+### Fix
+
+- loosen zarr dep range
+
 ## v0.11.0 (2025-10-19)
 
 ### BREAKING CHANGE
