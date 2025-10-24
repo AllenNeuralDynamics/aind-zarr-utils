@@ -103,7 +103,7 @@ mccabe = { max-complexity = 14 }
 pydocstyle = { convention = "numpy" }
 
 [tool.codespell]
-skip = '.git,*.pdf,*.svg,./bonsai,*.bonsai,./docs/_build,uv.lock,./doc_template'
+skip = '.git,*.pdf,*.svg,./bonsai,*.bonsai,./docs/_build,uv.lock,./doc_template,./docs/build'
 ignore-words-list = "nd"
 
 [tool.pytest.ini_options]
