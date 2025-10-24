@@ -1,3 +1,9 @@
+## v0.11.2 (2025-10-24)
+
+### Fix
+
+- Modify existing anatomical images to be like pipeline
+
 ## v0.11.1 (2025-10-21)
 
 ### Fix
