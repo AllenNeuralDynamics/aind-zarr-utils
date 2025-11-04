@@ -1,3 +1,9 @@
+## v0.11.3 (2025-11-04)
+
+### Fix
+
+- convert to native endianness before creating images
+
 ## v0.11.2 (2025-10-24)
 
 ### Fix
