@@ -14,6 +14,64 @@ from ome_zarr.io import parse_url  # type: ignore[import-untyped]
 from ome_zarr.reader import Node, Reader  # type: ignore[import-untyped]
 
 
+def ensure_native_endian(
+    a: np.ndarray, *, inplace: bool = False
+) -> np.ndarray:
+    """
+    Return `a` with native-endian dtype.
+    - View if already native or byteorder-agnostic.
+    - Copy only when endianness must change or fields are mixed.
+    - With `inplace=True`, mutate array when it's safe.
+    """
+    a = np.asarray(a)
+    dt = a.dtype
+
+    # -------- Plain (non-structured) dtype --------
+    if dt.fields is None:
+        # Already native or endian-agnostic ('|')
+        if dt.byteorder in ("|", "="):
+            return a
+        # Needs endian fix
+        if inplace:
+            if not a.flags.writeable:
+                raise ValueError(
+                    "Array is not writeable; cannot convert in-place."
+                )
+            a.byteswap(inplace=True)
+            a.dtype = dt.newbyteorder("=")  # type: ignore[misc]
+            return a
+        return a.astype(dt.newbyteorder("="), copy=False)
+
+    # -------- Structured dtype --------
+    # Collect byteorders of endian-aware fields ('<' or '>')
+    field_orders = {
+        subdt.byteorder
+        for (subdt, *_) in dt.fields.values()
+        if subdt.byteorder in ("<", ">")
+    }
+
+    if not field_orders:
+        # Either all fields are native '=' or byteorder-agnostic '|'
+        return a
+
+    if len(field_orders) > 1:
+        # Mixed endianness across fields → let NumPy fix per-field via astype
+        # (copy)
+        return a.astype(dt.newbyteorder("="), copy=True)
+
+    # Homogeneous non-native across fields ('<' OR '>')
+    if inplace:
+        if not a.flags.writeable:
+            raise ValueError(
+                "Array is not writeable; cannot convert in-place."
+            )
+        a.byteswap(inplace=True)
+        a.dtype = dt.newbyteorder("=")  # type: ignore[misc]
+        return a
+
+    return a.astype(dt.newbyteorder("="), copy=False)
+
+
 def direction_from_acquisition_metadata(
     acq_metadata: dict,
 ) -> tuple[NDArray, list[str], list[str]]:
@@ -150,7 +208,9 @@ def _open_zarr(uri: str) -> tuple[Node, dict]:
     return image_node, zarr_meta
 
 
-def zarr_to_numpy(uri: str, level: int = 3) -> tuple[NDArray, dict, int]:
+def zarr_to_numpy(
+    uri: str, level: int = 3, ensure_native_endianness: bool = False
+) -> tuple[NDArray, dict, int]:
     """
     Converts a ZARR file to a NumPy array.
 
@@ -160,6 +220,9 @@ def zarr_to_numpy(uri: str, level: int = 3) -> tuple[NDArray, dict, int]:
         URI of the ZARR file.
     level : int, optional
         Resolution level to read, by default 3.
+    ensure_native_endianness : bool, optional
+        Whether to ensure native endianness of the returned array, by default
+        False.
 
     Returns
     -------
@@ -172,6 +235,8 @@ def zarr_to_numpy(uri: str, level: int = 3) -> tuple[NDArray, dict, int]:
     """
     image_node, zarr_meta = _open_zarr(uri)
     arr_data = image_node.data[level].compute()
+    if ensure_native_endianness:
+        arr_data = ensure_native_endian(arr_data, inplace=True)
     return arr_data, zarr_meta, level
 
 
@@ -296,6 +361,7 @@ def _zarr_to_numpy_anatomical(
     level: int = 3,
     scale_unit: str = "millimeter",
     opened_zarr: tuple[Node, dict] | None = None,
+    ensure_native_endianness: bool = False,
 ) -> tuple[NDArray, list[str], list[float], list[int]]:
     """
     Converts a ZARR file to a NumPy array with anatomical information.
@@ -313,6 +379,9 @@ def _zarr_to_numpy_anatomical(
     opened_zarr : tuple, optional
         Pre-opened ZARR file (image_node, zarr_meta), by default None. If
         provided, this will be used instead of opening the ZARR file again.
+    ensure_native_endianness : bool, optional
+        Whether to ensure native endianness of the returned array, by default
+        False.
 
     Returns
     -------
@@ -334,6 +403,8 @@ def _zarr_to_numpy_anatomical(
     )
     arr_data = image_node.data[level].compute()
     arr_data_spatial = np.squeeze(arr_data, axis=tuple(rej_axes))
+    if ensure_native_endianness:
+        arr_data_spatial = ensure_native_endian(arr_data_spatial, inplace=True)
     return arr_data_spatial, dirs, spacing, size
 
 
@@ -441,6 +512,7 @@ def zarr_to_ants(
         level=level,
         scale_unit=scale_unit,
         opened_zarr=opened_zarr,
+        ensure_native_endianness=True,
     )
 
     return _anatomical_to_ants(
@@ -544,6 +616,7 @@ def zarr_to_sitk(
         level=level,
         scale_unit=scale_unit,
         opened_zarr=opened_zarr,
+        ensure_native_endianness=True,
     )
     return _anatomical_to_sitk(
         arr_data_spatial,
