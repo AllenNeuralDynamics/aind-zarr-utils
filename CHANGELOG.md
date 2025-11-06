@@ -1,3 +1,9 @@
+## v0.11.4 (2025-11-06)
+
+### Fix
+
+- allow image sources to be dicts
+
 ## v0.11.3 (2025-11-04)
 
 ### Fix
