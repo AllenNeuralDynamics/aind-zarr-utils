@@ -455,7 +455,13 @@ def get_image_sources(
     for layer in data.get("layers", []):
         if layer.get("type") == "image" and "name" in layer:
             this_source = layer.get("source", None)
-            if remove_zarr_protocol and this_source is not None:
-                this_source = re.sub(r"^zarr:/+", "", this_source)
-            image_sources[layer["name"]] = this_source
+            source_str = None
+            if this_source is not None:
+                if isinstance(this_source, str):
+                    source_str = this_source
+                elif isinstance(this_source, dict):
+                    source_str = this_source.get("url")
+            if remove_zarr_protocol and source_str is not None:
+                source_str = re.sub(r"^zarr:/+", "", source_str)
+            image_sources[layer["name"]] = source_str
     return image_sources
