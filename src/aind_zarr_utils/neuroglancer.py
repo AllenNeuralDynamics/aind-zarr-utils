@@ -432,6 +432,25 @@ def _process_layer_and_descriptions(
     return points_arr, None
 
 
+def _sanitize_source_url(source: str) -> str:
+    """
+    Sanitizes a Neuroglancer source URL by removing 'zarr://' or 'zarr:/'.
+
+    Parameters
+    ----------
+    source : str
+        Original source URL.
+
+    Returns
+    -------
+    str
+        Sanitized source URL.
+    """
+    source = re.sub(r"^zarr:/+", "", source)
+    source = re.sub(r"\|zarr2:$", "", source)
+    return source
+
+
 def get_image_sources(
     data: dict, remove_zarr_protocol: bool = False
 ) -> dict[str, str | None]:
@@ -462,6 +481,6 @@ def get_image_sources(
                 elif isinstance(this_source, dict):
                     source_str = this_source.get("url")
             if remove_zarr_protocol and source_str is not None:
-                source_str = re.sub(r"^zarr:/+", "", source_str)
+                source_str = _sanitize_source_url(source_str)
             image_sources[layer["name"]] = source_str
     return image_sources
