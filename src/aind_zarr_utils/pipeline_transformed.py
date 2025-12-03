@@ -54,7 +54,7 @@ from aind_zarr_utils.pipeline_domain_selector import (
 from aind_zarr_utils.zarr import (
     _open_zarr,
     _unit_conversion,
-    _zarr_to_global,
+    _zarr_to_scaled,
     zarr_to_ants,
     zarr_to_sitk,
     zarr_to_sitk_stub,
@@ -1537,7 +1537,8 @@ def indices_to_ccf(
     ----------
     annotation_indices : dict[str, NDArray]
         Mapping layer name → (N, 3) index array (z, y, x order expected by
-        downstream conversion routine).
+        downstream conversion routine). Index arrays can contain continuous
+        (floating-point) values for sub-voxel precision.
     zarr_uri : str
         LS acquisition Zarr.
     metadata : dict
@@ -1563,7 +1564,7 @@ def indices_to_ccf(
     Returns
     -------
     dict[str, NDArray]
-        Mapping layer → (N, 3) array of physical CCF coordinates.
+        Mapping layer → (N, 3) array of anatomical CCF coordinates in LPS.
     """
     pipeline_stub, _ = mimic_pipeline_zarr_to_anatomical_stub(
         zarr_uri, metadata, processing_data, opened_zarr=opened_zarr
@@ -1829,12 +1830,13 @@ def swc_data_to_zarr_indices(
     Returns
     -------
     dict[str, NDArray]
-        Mapping neuron ID → (N, 3) array of zarr indices.
+        Mapping neuron ID → (N, 3) array of integer zarr indices (rounded from
+        continuous coordinates).
     """
     unit_scale = _unit_conversion(swc_point_units, "millimeter")
     swc_point_order_lower = swc_point_order.lower()
     swc_to_zarr_axis_order = [swc_point_order_lower.index(ax) for ax in "zyx"]
-    _, _, _, spacing_raw, _ = _zarr_to_global(
+    _, _, _, spacing_raw, _ = _zarr_to_scaled(
         zarr_uri, level=0, opened_zarr=opened_zarr
     )
 
@@ -1893,7 +1895,7 @@ def swc_data_to_ccf(
     Returns
     -------
     dict[str, NDArray]
-        Mapping neuron ID → (N, 3) array of physical CCF coordinates in LPS.
+        Mapping neuron ID → (N, 3) array of anatomical CCF coordinates in LPS.
     """
     if opened_zarr is None:
         an_open_zarr = _open_zarr(alignment_zarr_uri)
@@ -1948,7 +1950,7 @@ def swc_data_to_ccf_auto_metadata(
     Returns
     -------
     dict[str, NDArray]
-        Mapping neuron ID → (N, 3) array of physical CCF coordinates in LPS.
+        Mapping neuron ID → (N, 3) array of anatomical CCF coordinates in LPS.
     """
     zarr_uri, metadata, processing_data = (
         alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
@@ -1982,7 +1984,8 @@ def indices_to_ccf_auto_metadata(
     ----------
     annotation_indices : dict[str, NDArray]
         Mapping layer name → (N, 3) index array (z, y, x order expected by
-        downstream conversion routine).
+        downstream conversion routine). Index arrays can contain continuous
+        (floating-point) values for sub-voxel precision.
     zarr_uri : str
         URI of the acquisition Zarr file that the indices reference. The asset
         root will be inferred from this URI to locate metadata files.
@@ -2000,7 +2003,7 @@ def indices_to_ccf_auto_metadata(
     Returns
     -------
     dict[str, NDArray]
-        Mapping layer → (N, 3) array of physical CCF coordinates in LPS.
+        Mapping layer → (N, 3) array of anatomical CCF coordinates in LPS.
 
     See Also
     --------

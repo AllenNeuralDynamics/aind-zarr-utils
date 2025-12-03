@@ -240,7 +240,7 @@ def zarr_to_numpy(
     return arr_data, zarr_meta, level
 
 
-def _zarr_to_global(
+def _zarr_to_scaled(
     uri: str,
     *,
     level: int = 3,
@@ -248,7 +248,7 @@ def _zarr_to_global(
     opened_zarr: tuple[Node, dict] | None = None,
 ) -> tuple[Node, set[int], list[str], list[float], list[int]]:
     """
-    Extracts global information from a ZARR file.
+    Extracts scaled coordinate information from a ZARR file.
 
     Parameters
     ----------
@@ -348,7 +348,7 @@ def _zarr_to_anatomical(
     # Get direction metadata
     _, axes, directions = direction_from_nd_metadata(nd_metadata)
     metadata_axes_to_dir = {a: d for a, d in zip(axes, directions)}
-    image_node, rej_axes, zarr_axes, spacing, size = _zarr_to_global(
+    image_node, rej_axes, zarr_axes, spacing, size = _zarr_to_scaled(
         uri, level=level, scale_unit=scale_unit, opened_zarr=opened_zarr
     )
     dirs = [metadata_axes_to_dir[a] for a in zarr_axes]

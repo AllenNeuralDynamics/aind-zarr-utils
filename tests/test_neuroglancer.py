@@ -134,10 +134,10 @@ def test_neuroglancer_annotations_to_anatomical(
     assert desc["annotations_layer1"][1] == "point2"
 
 
-def test_neuroglancer_annotations_to_global(neuroglancer_test_data):
-    """Test converting neuroglancer annotations to global coordinates using
+def test_neuroglancer_annotations_to_scaled(neuroglancer_test_data):
+    """Test converting neuroglancer annotations to scaled coordinates using
     real data."""
-    ann, units, desc = ng.neuroglancer_annotations_to_global(
+    ann, units, desc = ng.neuroglancer_annotations_to_scaled(
         neuroglancer_test_data
     )
 
