@@ -1,3 +1,9 @@
+## v0.11.6 (2025-12-03)
+
+### Fix
+
+- add auto-metadata indices to ccf function
+
 ## v0.11.5 (2025-11-07)
 
 ### Fix
