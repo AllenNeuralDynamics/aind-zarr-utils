@@ -25,24 +25,25 @@ def annotation_indices_to_anatomical(
         The reference image.
     annotations : dict
         Dictionary where keys are annotation names and values are numpy arrays
-        of indices.
+        of indices. Indices can be continuous (floating-point) values
+        representing sub-voxel positions, or integer voxel coordinates.
 
     Returns
     -------
-    physical_points : dict
-        Dictionary where keys are annotation names and values are physical
-        points.
+    anatomical_points : dict
+        Dictionary where keys are annotation names and values are anatomical
+        points (in LPS coordinate system).
     """
-    physical_points = {}
+    anatomical_points = {}
     for annotation, indices in annotations.items():
         indices_sitk = indices[:, ::-1]  # numpy to sitk indexing
-        physical_points[annotation] = (
+        anatomical_points[annotation] = (
             transform_sitk_indices_to_physical_points(
                 img,
                 indices_sitk,
             )
         )
-    return physical_points
+    return anatomical_points
 
 
 def annotations_and_descriptions_to_dict(

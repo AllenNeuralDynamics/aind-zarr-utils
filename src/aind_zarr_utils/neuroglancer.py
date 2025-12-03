@@ -49,7 +49,9 @@ def neuroglancer_annotations_to_indices(
     Returns
     -------
     annotations : dict
-        Dictionary of annotation coordinates for each layer.
+        Dictionary where keys are annotation layer names and values are (N, 3)
+        numpy arrays of continuous (floating-point) voxel indices in (z, y, x)
+        order. Values may represent sub-voxel positions.
     descriptions : dict or None
         Dictionary of annotation descriptions for each layer. Returned only if
         `return_description` is True, otherwise None.
@@ -81,7 +83,7 @@ def neuroglancer_annotations_to_anatomical(
     stub_image: sitk.Image | None = None,
 ) -> tuple[dict[str, NDArray], dict[str, NDArray] | None]:
     """
-    Transforms Neuroglancer annotations to physical points in the image space.
+    Transforms Neuroglancer annotations to anatomical points.
 
     Notes
     -----
@@ -107,7 +109,7 @@ def neuroglancer_annotations_to_anatomical(
         If True, returns annotation descriptions alongside points. Default is
         True.
     scale_unit : str, optional
-        Unit to scale the physical points. Default is "millimeter".
+        Unit to scale the anatomical points. Default is "millimeter".
     set_origin : tuple, optional
         Origin of the image, by default None. Exclusive of set_corner and
         set_corner_lps.
@@ -124,8 +126,8 @@ def neuroglancer_annotations_to_anatomical(
 
     Returns
     -------
-    physical_points : dict
-        Dictionary where keys are annotation names and values are physical
+    anatomical_points : dict
+        Dictionary where keys are annotation names and values are anatomical
         points. The points are in LPS (Left, Posterior, Superior) order,
         which is the standard for medical imaging.
     descriptions : dict
@@ -155,17 +157,17 @@ def neuroglancer_annotations_to_anatomical(
     return annotation_points, descriptions
 
 
-def neuroglancer_annotations_to_global(
+def neuroglancer_annotations_to_scaled(
     data: dict,
     layer_names: str | list[str] | None = None,
     return_description: bool = True,
 ) -> tuple[dict[str, NDArray], list[str], dict[str, NDArray] | None]:
     """
     Reads annotation layers from a Neuroglancer JSON file and returns points in
-    neuroglancer global coordinates.
+    neuroglancer scaled coordinates.
 
     This function reads the annotation layers from a Neuroglancer JSON file and
-    returns the points in physical coordinates. The points are scaled by the
+    returns the points in scaled coordinates. The points are scaled by the
     voxel spacing found in the JSON file and are in units described by the
     `units` return value. Optionally, it returns the descriptions of the
     annotations if they exist.
@@ -175,8 +177,8 @@ def neuroglancer_annotations_to_global(
     This function assumes that none of the layers have had their transform
     altered. If any has, this will likely return incorrect values.
 
-    The physical coordinates are scaled by the voxel spacing found in the
-    JSON file and are in units described by the `units` return value. They do
+    The scaled coordinates are voxel indices multiplied by voxel spacing found
+    in the JSON file, with units described by the `units` return value. They do
     NOT take into account how the brain was imaged, or what orientation the
     brain is in. For that, use `neuroglancer_annotations_to_anatomical`
     instead.
