@@ -152,3 +152,84 @@ def test_zarr_to_sitk_stub(real_ome_zarr, mock_nd_metadata):
     # Verify size_ijk tuple has correct values
     assert len(size_ijk) == 3
     assert size_ijk == (10, 10, 10)
+
+
+def test_scaled_points_to_indices_basic(real_ome_zarr):
+    """Test basic scaled coordinates to indices conversion."""
+    # At level 0, spacing is [1.0, 1.0, 1.0] mm (z, y, x)
+    scaled_pts = {
+        "layer1": np.array([[2.0, 4.0, 6.0], [3.0, 6.0, 9.0]])  # in mm
+    }
+
+    indices = zarr_mod.scaled_points_to_indices(
+        scaled_pts, real_ome_zarr, scale_unit="millimeter"
+    )
+
+    # Expected: [2.0/1.0, 4.0/1.0, 6.0/1.0] = [2.0, 4.0, 6.0]
+    expected = np.array([[2.0, 4.0, 6.0], [3.0, 6.0, 9.0]])
+    np.testing.assert_allclose(indices["layer1"], expected)
+    # Verify returned indices are continuous (float)
+    assert indices["layer1"].dtype == np.float64
+
+
+def test_scaled_points_to_indices_multiple_layers(real_ome_zarr):
+    """Test conversion with multiple annotation layers."""
+    scaled_pts = {
+        "layer1": np.array([[1.0, 2.0, 3.0]]),
+        "layer2": np.array([[4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]),
+        "layer3": np.array([[0.5, 1.0, 1.5]]),
+    }
+
+    indices = zarr_mod.scaled_points_to_indices(scaled_pts, real_ome_zarr)
+
+    # All layers should be present
+    assert set(indices.keys()) == {"layer1", "layer2", "layer3"}
+    # Verify shapes
+    assert indices["layer1"].shape == (1, 3)
+    assert indices["layer2"].shape == (2, 3)
+    assert indices["layer3"].shape == (1, 3)
+    # Verify values (spacing is 1.0 at level 0)
+    np.testing.assert_allclose(indices["layer1"], [[1.0, 2.0, 3.0]])
+    np.testing.assert_allclose(indices["layer3"], [[0.5, 1.0, 1.5]])
+
+
+def test_scaled_points_to_indices_float_precision(real_ome_zarr):
+    """Test that returned indices preserve sub-voxel precision."""
+    # Use fractional scaled coordinates
+    scaled_pts = {"layer1": np.array([[1.5, 2.3, 3.7], [0.1, 0.2, 0.3]])}
+
+    indices = zarr_mod.scaled_points_to_indices(scaled_pts, real_ome_zarr)
+
+    # Should preserve fractional values
+    expected = np.array([[1.5, 2.3, 3.7], [0.1, 0.2, 0.3]])
+    np.testing.assert_allclose(indices["layer1"], expected)
+    # Verify dtype is float
+    assert indices["layer1"].dtype == np.float64
+
+
+def test_scaled_points_to_indices_empty_dict(real_ome_zarr):
+    """Test behavior with empty input dictionary."""
+    scaled_pts = {}
+
+    indices = zarr_mod.scaled_points_to_indices(scaled_pts, real_ome_zarr)
+
+    # Should return empty dict
+    assert indices == {}
+
+
+def test_scaled_points_to_indices_shape_validation(real_ome_zarr):
+    """Test error handling for incorrect array shapes."""
+    # Wrong number of dimensions (1D instead of 2D)
+    scaled_pts_1d = {"layer1": np.array([1.0, 2.0, 3.0])}
+    with pytest.raises(ValueError, match="Expected \\(N, 3\\) array"):
+        zarr_mod.scaled_points_to_indices(scaled_pts_1d, real_ome_zarr)
+
+    # Wrong number of columns (2 instead of 3)
+    scaled_pts_2cols = {"layer1": np.array([[1.0, 2.0]])}
+    with pytest.raises(ValueError, match="Expected \\(N, 3\\) array"):
+        zarr_mod.scaled_points_to_indices(scaled_pts_2cols, real_ome_zarr)
+
+    # Wrong number of columns (4 instead of 3)
+    scaled_pts_4cols = {"layer1": np.array([[1.0, 2.0, 3.0, 4.0]])}
+    with pytest.raises(ValueError, match="Expected \\(N, 3\\) array"):
+        zarr_mod.scaled_points_to_indices(scaled_pts_4cols, real_ome_zarr)

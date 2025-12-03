@@ -23,7 +23,12 @@ from .pipeline_transformed import (
     neuroglancer_to_ccf_auto_metadata,
     swc_data_to_ccf_auto_metadata,
 )
-from .zarr import zarr_to_ants, zarr_to_sitk, zarr_to_sitk_stub
+from .zarr import (
+    scaled_points_to_indices,
+    zarr_to_ants,
+    zarr_to_sitk,
+    zarr_to_sitk_stub,
+)
 
 __all__ = [
     # Core ZARR conversion
@@ -35,6 +40,7 @@ __all__ = [
     "neuroglancer_annotations_to_indices",
     # Coordinate transformation
     "annotation_indices_to_anatomical",
+    "scaled_points_to_indices",
     # Pipeline integration
     "mimic_pipeline_zarr_to_anatomical_stub",
     "neuroglancer_to_ccf",

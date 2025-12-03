@@ -307,6 +307,84 @@ def _zarr_to_scaled(
     return image_node, rej_axes, kept_zarr_axes, spacing, size
 
 
+def scaled_points_to_indices(
+    scaled_points: dict[str, NDArray],
+    zarr_uri: str,
+    *,
+    scale_unit: str = "millimeter",
+    opened_zarr: tuple[Node, dict] | None = None,
+) -> dict[str, NDArray]:
+    """
+    Convert scaled (non-anatomical) coordinates to zarr indices.
+
+    Scaled coordinates are voxel indices multiplied by voxel spacing, without
+    anatomical direction information from ND metadata. This function divides
+    by spacing to recover continuous indices.
+
+    Parameters
+    ----------
+    scaled_points : dict[str, NDArray]
+        Mapping layer name → (N, 3) array of scaled coordinates in (z, y, x)
+        order. Coordinates are in the units specified by `scale_unit`.
+    zarr_uri : str
+        URI of the Zarr file. Used to extract voxel spacing from metadata.
+    scale_unit : str, optional
+        Units of the scaled coordinates. Default is "millimeter".
+    opened_zarr : tuple, optional
+        Pre-opened Zarr (image_node, zarr_meta). If provided, avoids
+        re-opening the Zarr file.
+
+    Returns
+    -------
+    dict[str, NDArray]
+        Mapping layer name → (N, 3) array of continuous (floating-point)
+        indices in (z, y, x) order. These can be passed to
+        `indices_to_ccf_auto_metadata()` or similar functions.
+
+    See Also
+    --------
+    indices_to_ccf_auto_metadata : Transform indices to CCF coordinates.
+    swc_data_to_zarr_indices : Similar function for SWC coordinates.
+    neuroglancer_annotations_to_scaled : Extract scaled coords from
+        Neuroglancer.
+
+    Examples
+    --------
+    Convert scaled coordinates to indices, then to CCF:
+
+    >>> scaled_pts = {"layer1": np.array([[1.0, 2.0, 3.0]])}  # in mm
+    >>> indices = scaled_points_to_indices(scaled_pts, zarr_uri)
+    >>> ccf_coords = indices_to_ccf_auto_metadata(indices, zarr_uri)
+
+    Notes
+    -----
+    - Scaled coordinates are physical distances but lack anatomical
+      orientation
+    - The returned indices are continuous (float), not rounded to integers
+    - Uses only Zarr scale metadata, not ND acquisition metadata
+    """
+    # Get spacing from Zarr metadata (no anatomical info needed)
+    _, _, _, spacing_raw, _ = _zarr_to_scaled(
+        zarr_uri, level=0, scale_unit=scale_unit, opened_zarr=opened_zarr
+    )
+
+    spacing = np.array(spacing_raw)
+    indices = {}
+
+    for layer, pts in scaled_points.items():
+        pts_arr = np.asarray(pts)
+        if pts_arr.ndim != 2 or pts_arr.shape[1] != 3:
+            raise ValueError(
+                f"Expected (N, 3) array for layer {layer}, "
+                f"got shape {pts_arr.shape}"
+            )
+        # Convert scaled coords to indices: indices = coords / spacing
+        # Keep as float (continuous indices), don't round
+        indices[layer] = pts_arr / spacing
+
+    return indices
+
+
 def _zarr_to_anatomical(
     uri: str,
     nd_metadata: dict,
