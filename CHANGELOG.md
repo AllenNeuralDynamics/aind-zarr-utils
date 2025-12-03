@@ -1,3 +1,9 @@
+## v0.12.0 (2025-12-03)
+
+### Feat
+
+- Refactor/global to scaled (#51)
+
 ## v0.11.6 (2025-12-03)
 
 ### Fix
