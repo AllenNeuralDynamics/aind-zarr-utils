@@ -1964,3 +1964,72 @@ def swc_data_to_ccf_auto_metadata(
         swc_point_units=swc_point_units,
         **kwargs,
     )
+
+
+def indices_to_ccf_auto_metadata(
+    annotation_indices: dict[str, NDArray],
+    zarr_uri: str,
+    **kwargs: Any,
+) -> dict[str, NDArray]:
+    """Resolve pipeline metadata files then convert indices to CCF.
+
+    This is a convenience wrapper that infers the location of and loads the
+    accompanying ``metadata.nd.json`` and ``processing.json`` files from the
+    asset root (inferred from the Zarr URI), and then delegates to
+    :func:`indices_to_ccf`.
+
+    Parameters
+    ----------
+    annotation_indices : dict[str, NDArray]
+        Mapping layer name → (N, 3) index array (z, y, x order expected by
+        downstream conversion routine).
+    zarr_uri : str
+        URI of the acquisition Zarr file that the indices reference. The asset
+        root will be inferred from this URI to locate metadata files.
+    **kwargs : Any
+        Forwarded keyword arguments accepted by :func:`indices_to_ccf`.
+        Common keys include:
+
+        - ``s3_client`` : S3Client | None
+        - ``anonymous`` : bool
+        - ``cache_dir`` : str | os.PathLike | None
+        - ``template_used`` : str
+        - ``template_base`` : str | None
+        - ``opened_zarr`` : tuple[Node, dict] | None
+
+    Returns
+    -------
+    dict[str, NDArray]
+        Mapping layer → (N, 3) array of physical CCF coordinates in LPS.
+
+    See Also
+    --------
+    indices_to_ccf : The underlying function that performs the transformation.
+    neuroglancer_to_ccf_auto_metadata : Similar wrapper for Neuroglancer data.
+    swc_data_to_ccf_auto_metadata : Similar wrapper for SWC data.
+
+    Examples
+    --------
+    Convert annotation indices to CCF coordinates:
+
+    >>> indices = {
+    ...     "layer1": np.array([[100, 200, 300], [150, 250, 350]]),
+    ...     "layer2": np.array([[50, 100, 150]])
+    ... }
+    >>> ccf_coords = indices_to_ccf_auto_metadata(
+    ...     indices,
+    ...     zarr_uri="s3://aind-open-data/dataset_123/image.zarr"
+    ... )
+    """
+    alignment_zarr_uri, metadata, processing_data = (
+        alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
+            a_zarr_uri=zarr_uri
+        )
+    )
+    return indices_to_ccf(
+        annotation_indices,
+        alignment_zarr_uri,
+        metadata,
+        processing_data,
+        **kwargs,
+    )
