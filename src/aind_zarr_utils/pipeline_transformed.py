@@ -1794,11 +1794,12 @@ def ccf_to_indices(
         for point_lps in pipeline_pts:
             # Pipeline anatomical → continuous indices
             # Both ANTs and SimpleITK use LPS points - no conversion needed
+            # Convert to numpy ordering `...[::-1]`
             continuous_idx = (
                 pipeline_stub.TransformPhysicalPointToContinuousIndex(
                     point_lps.astype(np.float64)
                 )
-            )
+            )[::-1]
             ls_indices_layer.append(np.array(continuous_idx))
 
         ls_indices[layer] = np.array(ls_indices_layer)
