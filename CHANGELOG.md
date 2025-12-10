@@ -1,3 +1,9 @@
+## v0.13.0 (2025-12-10)
+
+### Feat
+
+- transform CCF coordinates to zarr indices (#52)
+
 ## v0.12.0 (2025-12-03)
 
 ### Feat
