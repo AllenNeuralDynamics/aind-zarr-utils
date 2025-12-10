@@ -1,3 +1,9 @@
+## v0.13.2 (2025-12-10)
+
+### Fix
+
+- return numpy-ordered indices when converting from ccf
+
 ## v0.13.1 (2025-12-10)
 
 ### Fix
