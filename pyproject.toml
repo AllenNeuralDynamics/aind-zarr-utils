@@ -29,7 +29,7 @@ dependencies = [
   # This is a workaround for pip dependency problems with ome-zarr: s3fs is
   # NOT a direct dependency of this package, but ome-zarr requires it.
   # boto3 option required to help pip resolve dependencies
-  "s3fs[boto3]>=2021",
+  "s3fs>=2021",
   "SimpleITK>=2,<3",
 ]
 

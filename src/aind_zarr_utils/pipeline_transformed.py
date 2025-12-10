@@ -1796,7 +1796,7 @@ def ccf_to_indices(
             # Both ANTs and SimpleITK use LPS points - no conversion needed
             continuous_idx = (
                 pipeline_stub.TransformPhysicalPointToContinuousIndex(
-                    tuple(point_lps)
+                    point_lps.astype(np.float64)
                 )
             )
             ls_indices_layer.append(np.array(continuous_idx))
