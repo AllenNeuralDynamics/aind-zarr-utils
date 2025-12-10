@@ -1669,6 +1669,197 @@ def neuroglancer_to_ccf(
     return annotation_points_ccf, descriptions
 
 
+def ccf_to_indices(
+    ccf_points: dict[str, NDArray],
+    alignment_zarr_uri: str,
+    metadata: dict,
+    processing_data: dict,
+    *,
+    template_used: str = "SmartSPIM-template_2024-05-16_11-26-14",
+    template_base: str | None = None,
+    opened_zarr: tuple[Node, dict] | None = None,
+    scale_unit: str = "millimeter",
+) -> dict[str, NDArray]:
+    """
+    Transform points from CCF space to continuous zarr indices.
+
+    This function applies the inverse of the registration pipeline, converting
+    points from Allen CCF space back to the continuous (sub-index) indices of
+    the zarr dataset, accounting for pipeline-specific domain corrections.
+
+    The transformation chain is:
+    1. CCF → Pipeline anatomical (via ANTs image transforms)
+    2. Pipeline anatomical → continuous indices (via pipeline stub)
+
+    Parameters
+    ----------
+    ccf_points : dict[str, NDArray]
+        Mapping layer name → (N, 3) array of CCF coordinates in LPS order.
+    alignment_zarr_uri : str
+        URI of the alignment zarr (channel used for registration).
+    metadata : dict
+        Neural Dynamics metadata (metadata.nd.json).
+    processing_data : dict
+        Processing pipeline metadata (processing.json).
+    template_used : str, optional
+        Template identifier. Default is
+        "SmartSPIM-template_2024-05-16_11-26-14".
+    template_base : str, optional
+        Base path for template transforms. If None, uses default S3 location.
+    opened_zarr : tuple, optional
+        Pre-opened zarr (image_node, zarr_meta). Avoids re-opening.
+    scale_unit : str, optional
+        Unit for anatomical coordinates. Default is "millimeter".
+
+    Returns
+    -------
+    dict[str, NDArray]
+        Mapping layer name → (N, 3) array of continuous indices in z,y,x order
+        used by Neuroglancer
+
+    See Also
+    --------
+    indices_to_ccf : Forward transform from indices to CCF.
+    ccf_to_anatomical_auto_metadata : Convenience wrapper with auto metadata.
+
+    Notes
+    -----
+    - ANTs transforms output in pipeline anatomical space
+    - Converts from pipeline space to LS space via shared index space
+    - Returns coordinates in zarr z,y,x order (used by Neuroglancer)
+    - Output coordinates match what Neuroglancer uses
+
+    Examples
+    --------
+    >>> ccf_pts = {"layer1": np.array([[5000, 6000, 7000]])}  # CCF coords
+    >>> anatomical_pts = ccf_to_anatomical(
+    ...     ccf_pts, alignment_zarr_uri, metadata, processing_data
+    ... )
+    """
+    # Get image transform chains (for transforming points from CCF to pipeline)
+    img_transform_paths_str, img_transform_is_inverted = (
+        pipeline_image_transforms_local_paths(
+            alignment_zarr_uri,
+            processing_data,
+            template_used=template_used,
+            template_base=template_base,
+        )
+    )
+
+    # Concatenate all points from all layers for batch processing
+    layer_names = []
+    layer_sizes = []
+    all_ccf_points = []
+
+    for layer, pts in ccf_points.items():
+        layer_names.append(layer)
+        layer_sizes.append(len(pts))
+        all_ccf_points.append(pts)
+
+    # Stack all points into single array
+    all_ccf_points_arr = np.vstack(all_ccf_points)
+
+    # Single ANTs call for all points (reduces overhead)
+    all_pipeline_points_arr = apply_ants_transforms_to_point_arr(
+        all_ccf_points_arr,
+        transform_list=img_transform_paths_str,
+        whichtoinvert=img_transform_is_inverted,
+    )
+
+    # Re-segregate transformed points back into layers
+    pipeline_anatomical_points = {}
+    start_idx = 0
+    for layer_name, size in zip(layer_names, layer_sizes):
+        end_idx = start_idx + size
+        pipeline_anatomical_points[layer_name] = all_pipeline_points_arr[
+            start_idx:end_idx
+        ]
+        start_idx = end_idx
+
+    # Get both stubs at once using helper function
+    pipeline_stub, _ = mimic_pipeline_zarr_to_anatomical_stub(
+        alignment_zarr_uri,
+        metadata,
+        processing_data,
+        opened_zarr=opened_zarr,
+    )
+
+    # Convert pipeline anatomical → indices → LS anatomical
+    ls_indices = {}
+
+    for layer, pipeline_pts in pipeline_anatomical_points.items():
+        # Convert each point: Pipeline anatomical → indices → LS anatomical
+        ls_indices_layer = []
+
+        for point_lps in pipeline_pts:
+            # Pipeline anatomical → continuous indices
+            # Both ANTs and SimpleITK use LPS points - no conversion needed
+            continuous_idx = (
+                pipeline_stub.TransformPhysicalPointToContinuousIndex(
+                    tuple(point_lps)
+                )
+            )
+            ls_indices_layer.append(np.array(continuous_idx))
+
+        ls_indices[layer] = np.array(ls_indices_layer)
+
+    return ls_indices
+
+
+def ccf_to_indices_auto_metadata(
+    ccf_points: dict[str, NDArray],
+    zarr_uri: str,
+    *,
+    template_used: str = "SmartSPIM-template_2024-05-16_11-26-14",
+    **kwargs: Any,
+) -> dict[str, NDArray]:
+    """
+    Resolve pipeline metadata then convert CCF to indices.
+
+    Convenience wrapper that infers and loads metadata.nd.json and
+    processing.json from the asset root, then delegates to ccf_to_indices.
+    Parameters
+    ----------
+    ccf_points : dict[str, NDArray]
+        Mapping layer name → (N, 3) array of CCF coordinates in LPS order.
+    zarr_uri : str
+        URI of the acquisition zarr. Asset root will be inferred.
+    template_used : str, optional
+        Template identifier. Default is
+        "SmartSPIM-template_2024-05-16_11-26-14".
+    **kwargs : Any
+        Forwarded to ccf_to_indices.
+
+    Returns
+    -------
+    dict[str, NDArray]
+        Mapping layer name → (N, 3) array of continuous indices in z,y,x order
+        (used by Neuroglancer).
+
+    See Also
+    --------
+    ccf_to_indices : Main function with explicit metadata parameters.
+
+    Examples
+    --------
+    >>> ccf_pts = {"layer1": np.array([[5000, 6000, 7000]])}
+    >>> indices_pts = ccf_to_indices_auto_metadata(ccf_pts, zarr_uri)
+    """
+    alignment_zarr_uri, metadata, processing_data = (
+        alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
+            a_zarr_uri=zarr_uri
+        )
+    )
+    return ccf_to_indices(
+        ccf_points,
+        alignment_zarr_uri,
+        metadata,
+        processing_data,
+        template_used=template_used,
+        **kwargs,
+    )
+
+
 def alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
     asset_uri: str | None = None,
     a_zarr_uri: str | None = None,
