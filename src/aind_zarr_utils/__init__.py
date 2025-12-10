@@ -17,6 +17,8 @@ from .neuroglancer import (
 
 # Pipeline integration
 from .pipeline_transformed import (
+    ccf_to_indices,
+    ccf_to_indices_auto_metadata,
     indices_to_ccf_auto_metadata,
     mimic_pipeline_zarr_to_anatomical_stub,
     neuroglancer_to_ccf,
@@ -47,4 +49,6 @@ __all__ = [
     "neuroglancer_to_ccf_auto_metadata",
     "swc_data_to_ccf_auto_metadata",
     "indices_to_ccf_auto_metadata",
+    "ccf_to_indices",
+    "ccf_to_indices_auto_metadata",
 ]
