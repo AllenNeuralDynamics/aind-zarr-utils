@@ -356,7 +356,7 @@ def _base_rules() -> tuple[OverlayRule, ...]:
     rules.append(
         OverlayRule(
             name="anchor RAS corner to recorded bug point",
-            spec=SpecifierSet(">=0.0.18,<0.0.35"),
+            spec=SpecifierSet(">=0.0.18"),
             factory=lambda meta: ForceCornerAnchorOverlay(
                 corner_code="RAS",
                 target_point_labeled=(-1.5114, -1.5, 1.5),
