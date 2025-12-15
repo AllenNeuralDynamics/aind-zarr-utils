@@ -16,6 +16,26 @@ This module provides:
 - A few concrete overlays (axis permutation/flip, spacing fixes, corner
   anchoring) and helpers for cardinal (axis-aligned) headers.
 
+Version-Aware Corrections
+-------------------------
+Some overlays apply corrections for known bugs in specific zarr import pipeline
+versions. When applying these corrections to versions beyond the last verified
+buggy version, warnings are emitted to alert users that the correction is being
+applied optimistically (assuming the bug persists in newer code).
+
+Example warning::
+
+    UserWarning: Applying RAS corner anchor correction for zarr_import version
+    0.0.50, which exceeds last verified buggy version 0.0.34. This assumes
+    the alignment bug persists in newer versions.
+
+If you receive this warning and know the bug has been fixed in your zarr import
+version, you can either:
+
+1. Update the package to disable this correction for your version
+2. Suppress the warning if the correction is harmless
+3. Create a custom overlay selector without this rule
+
 Notes
 -----
 - All coordinates are expressed in **ITK LPS** convention and **millimeters**.
@@ -72,6 +92,9 @@ class Overlay(Protocol):
        predicates/factories.
     - ``multiscale_no`` is the multiscale level index for pipelines that
       downsample by fixed ratios.
+    - ``zarr_import_version`` is an optional parameter for version-aware
+      overlays that emit warnings or change behavior based on the zarr
+      import process version.
     """
 
     @property
@@ -84,6 +107,7 @@ class Overlay(Protocol):
         h: AnatomicalHeader,
         meta: dict[str, Any],
         multiscale_no: int,
+        zarr_import_version: str | None = None,
     ) -> AnatomicalHeader: ...
 
 
@@ -281,6 +305,7 @@ def apply_overlays(
     overlays: list[Overlay],
     meta: dict[str, Any],
     registration_multiscale_no: int = 3,
+    zarr_import_version: str | None = None,
 ) -> tuple[AnatomicalHeader, list[str]]:
     """
     Apply a sequence of overlays to a base header in deterministic order.
@@ -297,6 +322,9 @@ def apply_overlays(
     registration_multiscale_no : int, default 3
         Multiscale pyramid level used by registration pipeline for overlays
         that depend on scale.
+    zarr_import_version : str or None, optional
+        Zarr import process version, provided to overlays for version-aware
+        behavior (e.g., warnings for untested versions).
 
     Returns
     -------
@@ -313,7 +341,12 @@ def apply_overlays(
     h = base
     applied: list[str] = []
     for ov in overlays:  # already sorted by overlay.priority
-        h2 = ov(h, meta, registration_multiscale_no)
+        h2 = ov(
+            h,
+            meta,
+            registration_multiscale_no,
+            zarr_import_version=zarr_import_version,
+        )
         if (
             (h2.origin != h.origin)
             or (h2.spacing != h.spacing)
@@ -356,10 +389,11 @@ def _base_rules() -> tuple[OverlayRule, ...]:
     rules.append(
         OverlayRule(
             name="anchor RAS corner to recorded bug point",
-            spec=SpecifierSet(">=0.0.18,<0.0.35"),
-            factory=lambda meta: ForceCornerAnchorOverlay(
+            spec=SpecifierSet(">=0.0.18"),
+            factory=lambda meta: ForceCornerAnchorOverlayWithVersionWarning(
                 corner_code="RAS",
                 target_point_labeled=(-1.5114, -1.5, 1.5),
+                last_verified_buggy_version="0.0.34",
             ),
             rule_priority=90,
         )
@@ -438,7 +472,11 @@ class SpacingScaleOverlay:
     priority: int = 50
 
     def __call__(
-        self, h: AnatomicalHeader, meta: dict[str, Any], multiscale_no: int
+        self,
+        h: AnatomicalHeader,
+        meta: dict[str, Any],
+        multiscale_no: int,
+        zarr_import_version: str | None = None,
     ) -> AnatomicalHeader:
         """
         Apply the scaling to the spacing.
@@ -450,6 +488,8 @@ class SpacingScaleOverlay:
         meta : dict
             Unused.
         multiscale_no : int
+            Unused.
+        zarr_import_version : str or None, optional
             Unused.
 
         Returns
@@ -487,7 +527,11 @@ class FlipIndexAxesOverlay:
     priority: int = 40
 
     def __call__(
-        self, h: AnatomicalHeader, meta: dict[str, Any], multiscale_no: int
+        self,
+        h: AnatomicalHeader,
+        meta: dict[str, Any],
+        multiscale_no: int,
+        zarr_import_version: str | None = None,
     ) -> AnatomicalHeader:
         """
         Negate selected columns of the direction matrix.
@@ -528,7 +572,11 @@ class PermuteIndexAxesOverlay:
     priority: int = 30
 
     def __call__(
-        self, h: AnatomicalHeader, meta: dict[str, Any], multiscale_no: int
+        self,
+        h: AnatomicalHeader,
+        meta: dict[str, Any],
+        multiscale_no: int,
+        zarr_import_version: str | None = None,
     ) -> AnatomicalHeader:
         """
         Reorder columns of ``direction``, elements of ``spacing``, and
@@ -588,7 +636,11 @@ class ForceCornerAnchorOverlay:
     priority: int = 90
 
     def __call__(
-        self, h: AnatomicalHeader, meta: dict[str, Any], multiscale_no: int
+        self,
+        h: AnatomicalHeader,
+        meta: dict[str, Any],
+        multiscale_no: int,
+        zarr_import_version: str | None = None,
     ) -> AnatomicalHeader:
         """
         Compute and set the origin such that the specified corner aligns with
@@ -609,6 +661,81 @@ class ForceCornerAnchorOverlay:
             use_outer_box=self.use_outer_box,
         )
         return replace(h, origin=origin_lps)
+
+
+@dataclass(frozen=True, slots=True)
+class ForceCornerAnchorOverlayWithVersionWarning(ForceCornerAnchorOverlay):
+    """
+    Extends ForceCornerAnchorOverlay with version-aware warnings.
+
+    Emits a warning if the zarr_import_version parameter exceeds the last
+    verified buggy version, indicating the correction is being applied
+    optimistically to a version that may have fixed the bug.
+
+    Parameters
+    ----------
+    last_verified_buggy_version : str, default "0.0.34"
+        The last zarr import version known to have the alignment bug.
+        If the runtime version exceeds this, a warning is emitted.
+
+    See Also
+    --------
+    ForceCornerAnchorOverlay : Base class for corner anchor correction.
+    """
+
+    last_verified_buggy_version: str = "0.0.34"
+
+    def __call__(
+        self,
+        h: AnatomicalHeader,
+        meta: dict[str, Any],
+        multiscale_no: int,
+        zarr_import_version: str | None = None,
+    ) -> AnatomicalHeader:
+        """
+        Compute and set the origin, emitting a warning if the version is
+        beyond the last verified buggy version.
+
+        Parameters
+        ----------
+        h : AnatomicalHeader
+            Input header.
+        meta : dict
+            Acquisition metadata (unused by this overlay).
+        multiscale_no : int
+            Multiscale level (unused by this overlay).
+        zarr_import_version : str or None, optional
+            Zarr import process version. If provided and exceeds
+            ``last_verified_buggy_version``, a warning is emitted.
+
+        Returns
+        -------
+        AnatomicalHeader
+            AnatomicalHeader with updated origin.
+        """
+        import warnings
+
+        if zarr_import_version:
+            current = Version(zarr_import_version)
+            verified = Version(self.last_verified_buggy_version)
+
+            if current > verified:
+                warnings.warn(
+                    f"Applying RAS corner anchor correction for "
+                    f"zarr_import version {zarr_import_version}, which "
+                    f"exceeds last verified buggy version "
+                    f"{self.last_verified_buggy_version}. Assuming the "
+                    f"atlas alignment bug persists in this version. If "
+                    f"the bug has been fixed, this correction may "
+                    f"introduce errors.",
+                    UserWarning,
+                    stacklevel=5,
+                )
+
+        # Call parent implementation
+        return ForceCornerAnchorOverlay.__call__(
+            self, h, meta, multiscale_no, zarr_import_version
+        )
 
 
 def _require_cardinal(D: np.ndarray, *, atol: float = 1e-6) -> None:
@@ -710,7 +837,11 @@ class SetLpsWorldSpacingOverlay:
     priority: int = 55  # after permute/flip, before anchoring
 
     def __call__(
-        self, h: AnatomicalHeader, meta: dict[str, Any], multiscale_no: int
+        self,
+        h: AnatomicalHeader,
+        meta: dict[str, Any],
+        multiscale_no: int,
+        zarr_import_version: str | None = None,
     ) -> AnatomicalHeader:
         """
         Convert the desired LPS spacings to index-order spacing and set it.
@@ -724,6 +855,8 @@ class SetLpsWorldSpacingOverlay:
         multiscale_no : int
             Multiscale level index. Spacing is downscaled by
             ``(1 / _PIPELINE_MULTISCALE_FACTOR) ** multiscale_no``.
+        zarr_import_version : str or None, optional
+            Unused.
 
         Returns
         -------

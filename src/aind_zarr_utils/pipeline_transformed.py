@@ -401,8 +401,8 @@ def _pipeline_anatomical_check_args(
     -------
     import_process : dict
         The zarr import process metadata.
-    pipeline_version : str
-        The pipeline version string.
+    zarr_import_version : str
+        The zarr import process version string (from Image importing process).
     image_node : Node
         The root node of the opened Zarr image.
     zarr_meta : dict
@@ -416,22 +416,24 @@ def _pipeline_anatomical_check_args(
             "Could not find zarr import process in processing data"
         )
 
-    pipeline_version = proc.get("code_version")
-    if not pipeline_version:
-        raise ValueError("Pipeline version not found in zarr import process")
+    zarr_import_version = proc.get("code_version")
+    if not zarr_import_version:
+        raise ValueError(
+            "Zarr import version not found in zarr import process"
+        )
     if opened_zarr is None:
         image_node, zarr_meta = _open_zarr(zarr_uri)
     else:
         image_node, zarr_meta = opened_zarr
     multiscale_no = estimate_pipeline_multiscale(
-        zarr_meta, Version(pipeline_version)
+        zarr_meta, Version(zarr_import_version)
     )
-    return proc, pipeline_version, image_node, zarr_meta, multiscale_no
+    return proc, zarr_import_version, image_node, zarr_meta, multiscale_no
 
 
 def _apply_pipeline_overlays_to_header(
     base_header: AnatomicalHeader,
-    pipeline_version: str,
+    zarr_import_version: str,
     metadata: dict,
     multiscale_no: int | None,
     *,
@@ -444,8 +446,9 @@ def _apply_pipeline_overlays_to_header(
     ----------
     base_header : AnatomicalHeader
         The base anatomical header to modify.
-    pipeline_version : str
-        The pipeline version string.
+    zarr_import_version : str
+        The zarr import process version string (code_version from
+        Image importing process).
     metadata : dict
         ND metadata (instrument + acquisition) used by overlays.
     multiscale_no : int or None
@@ -461,8 +464,16 @@ def _apply_pipeline_overlays_to_header(
     list[str]
         List of applied overlay names.
     """
-    overlays = overlay_selector.select(version=pipeline_version, meta=metadata)
-    return apply_overlays(base_header, overlays, metadata, multiscale_no or 3)
+    overlays = overlay_selector.select(
+        version=zarr_import_version, meta=metadata
+    )
+    return apply_overlays(
+        base_header,
+        overlays,
+        metadata,
+        multiscale_no or 3,
+        zarr_import_version=zarr_import_version,
+    )
 
 
 def _mimic_pipeline_anatomical_header(
@@ -501,7 +512,7 @@ def _mimic_pipeline_anatomical_header(
         Base anatomical header before overlays were applied.
     """
     # Validate and extract needed metadata.
-    _, pipeline_version, image_node, zarr_meta, multiscale_no = (
+    _, zarr_import_version, image_node, zarr_meta, multiscale_no = (
         _pipeline_anatomical_check_args(
             zarr_uri, processing_data, opened_zarr=opened_zarr
         )
@@ -516,10 +527,10 @@ def _mimic_pipeline_anatomical_header(
     # Convert stub to AnatomicalHeader for domain corrections.
     base_header = AnatomicalHeader.from_sitk(stub_img, size_ijk)
 
-    # Select and apply overlays based on pipeline version and metadata.
+    # Select and apply overlays based on zarr import version and metadata.
     header, applied = _apply_pipeline_overlays_to_header(
         base_header,
-        pipeline_version,
+        zarr_import_version,
         metadata,
         multiscale_no,
         overlay_selector=overlay_selector,
@@ -749,7 +760,7 @@ def apply_pipeline_overlays_to_sitk(
     ```
     """
     # Derive pipeline-specific parameters from zarr_uri and processing_data
-    _, pipeline_version, image_node, zarr_meta, multiscale_no = (
+    _, zarr_import_version, image_node, zarr_meta, multiscale_no = (
         _pipeline_anatomical_check_args(
             zarr_uri, processing_data, opened_zarr=opened_zarr
         )
@@ -762,12 +773,16 @@ def apply_pipeline_overlays_to_sitk(
         # Convert stub to AnatomicalHeader for domain corrections.
         base_header = AnatomicalHeader.from_sitk(img)
 
-        # Select and apply overlays based on pipeline version and metadata.
+        # Select and apply overlays based on zarr import version and metadata.
         overlays = overlay_selector.select(
-            version=pipeline_version, meta=metadata
+            version=zarr_import_version, meta=metadata
         )
         corrected_header, _ = apply_overlays(
-            base_header, overlays, metadata, multiscale_no or 3
+            base_header,
+            overlays,
+            metadata,
+            multiscale_no or 3,
+            zarr_import_version=zarr_import_version,
         )
         corrected_header.update_sitk(img)
     elif level > 0:
@@ -1000,7 +1015,7 @@ def apply_pipeline_overlays_to_ants(
     ```
     """
     # Derive pipeline-specific parameters from zarr_uri and processing_data
-    _, pipeline_version, image_node, zarr_meta, multiscale_no = (
+    _, zarr_import_version, image_node, zarr_meta, multiscale_no = (
         _pipeline_anatomical_check_args(
             zarr_uri, processing_data, opened_zarr=opened_zarr
         )
@@ -1013,12 +1028,16 @@ def apply_pipeline_overlays_to_ants(
         # Convert stub to AnatomicalHeader for domain corrections.
         base_header = AnatomicalHeader.from_ants(img)
 
-        # Select and apply overlays based on pipeline version and metadata.
+        # Select and apply overlays based on zarr import version and metadata.
         overlays = overlay_selector.select(
-            version=pipeline_version, meta=metadata
+            version=zarr_import_version, meta=metadata
         )
         corrected_header, _ = apply_overlays(
-            base_header, overlays, metadata, multiscale_no or 3
+            base_header,
+            overlays,
+            metadata,
+            multiscale_no or 3,
+            zarr_import_version=zarr_import_version,
         )
         corrected_header.update_ants(img)
     elif level > 0:

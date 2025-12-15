@@ -324,7 +324,7 @@ class TestMimicPipelineStub:
                 "data_processes": [{"name": "Image importing"}],
             }
         }
-        with pytest.raises(ValueError, match="Pipeline version not found"):
+        with pytest.raises(ValueError, match="Zarr import version not found"):
             pt.mimic_pipeline_zarr_to_anatomical_stub(
                 "s3://bucket/session.ome.zarr", {}, processing_data
             )
