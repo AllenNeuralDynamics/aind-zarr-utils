@@ -92,6 +92,9 @@ class Overlay(Protocol):
        predicates/factories.
     - ``multiscale_no`` is the multiscale level index for pipelines that
       downsample by fixed ratios.
+    - ``zarr_import_version`` is an optional parameter for version-aware
+      overlays that emit warnings or change behavior based on the zarr
+      import process version.
     """
 
     @property
@@ -104,6 +107,7 @@ class Overlay(Protocol):
         h: AnatomicalHeader,
         meta: dict[str, Any],
         multiscale_no: int,
+        zarr_import_version: str | None = None,
     ) -> AnatomicalHeader: ...
 
 
