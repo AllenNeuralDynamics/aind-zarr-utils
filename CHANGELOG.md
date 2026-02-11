@@ -1,3 +1,9 @@
+## v0.14.0 (2026-02-11)
+
+### Feat
+
+- allow template base to be paths, as well as strings
+
 ## v0.13.2 (2025-12-10)
 
 ### Fix
