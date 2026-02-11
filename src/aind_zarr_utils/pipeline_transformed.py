@@ -1188,7 +1188,7 @@ def pipeline_transforms(
     processing_data: dict[str, Any],
     *,
     template_used: str = "SmartSPIM-template_2024-05-16_11-26-14",
-    template_base: str | None = None,
+    template_base: str | os.PathLike | None = None,
 ) -> tuple[TemplatePaths, TemplatePaths]:
     """
     Return individual→template and template→CCF transform path data.
@@ -1201,7 +1201,7 @@ def pipeline_transforms(
         Processing metadata.
     template_used : str, optional
         Key identifying which template transform set to apply.
-    template_base : str, optional
+    template_base : str or PathLike, optional
         Base path for the template transforms. If ``None``, the default from
         :data:`_PIPELINE_TEMPLATE_TRANSFORMS` is used. Defaults to ``None``.
 
@@ -1237,7 +1237,8 @@ def pipeline_transforms(
     )
     if template_base:
         template_ants_paths = TemplatePaths(
-            template_base, _PIPELINE_TEMPLATE_TRANSFORM_CHAINS[template_used]
+            str(template_base),
+            _PIPELINE_TEMPLATE_TRANSFORM_CHAINS[template_used],
         )
     else:
         template_ants_paths = _PIPELINE_TEMPLATE_TRANSFORMS[template_used]
@@ -1297,7 +1298,7 @@ def pipeline_image_transforms_local_paths(
     anonymous: bool = True,
     cache_dir: str | os.PathLike | None = None,
     template_used: str = "SmartSPIM-template_2024-05-16_11-26-14",
-    template_base: str | None = None,
+    template_base: str | os.PathLike | None = None,
 ) -> tuple[list[str], list[bool]]:
     """
     Resolve local filesystem paths to the image transform chain files.
@@ -1320,7 +1321,7 @@ def pipeline_image_transforms_local_paths(
     template_used : str, optional
         Template transform key (see
         :data:`_PIPELINE_TEMPLATE_TRANSFORMS`).
-    template_base : str, optional
+    template_base : str or PathLike, optional
         Base path for the template transforms. If ``None``, the default from
         :data:`_PIPELINE_TEMPLATE_TRANSFORMS` will be used. Defaults to
         ``None``.
@@ -1401,7 +1402,7 @@ def pipeline_point_transforms_local_paths(
     anonymous: bool = True,
     cache_dir: str | os.PathLike | None = None,
     template_used: str = "SmartSPIM-template_2024-05-16_11-26-14",
-    template_base: str | None = None,
+    template_base: str | os.PathLike | None = None,
 ) -> tuple[list[str], list[bool]]:
     """
     Resolve local filesystem paths to the point transform chain files.
@@ -1424,7 +1425,7 @@ def pipeline_point_transforms_local_paths(
     template_used : str, optional
         Template transform key (see
         :data:`_PIPELINE_TEMPLATE_TRANSFORMS`).
-    template_base : str, optional
+    template_base : str or PathLike, optional
         Base path for the template transforms. If ``None``, the default from
         :data:`_PIPELINE_TEMPLATE_TRANSFORMS` will be used. Defaults to
         ``None``.
@@ -1459,7 +1460,7 @@ def pipeline_transforms_local_paths(
     anonymous: bool = True,
     cache_dir: str | os.PathLike | None = None,
     template_used: str = "SmartSPIM-template_2024-05-16_11-26-14",
-    template_base: str | None = None,
+    template_base: str | os.PathLike | None = None,
 ) -> tuple[list[str], list[bool], list[str], list[bool]]:
     """
     Resolve local filesystem paths to the transform chain files.
@@ -1486,7 +1487,7 @@ def pipeline_transforms_local_paths(
     template_used : str, optional
         Template transform key (see
         :data:`_PIPELINE_TEMPLATE_TRANSFORMS`).
-    template_base : str, optional
+    template_base : str or PathLike, optional
         Base path for the template transforms. If ``None``, the default from
         :data:`_PIPELINE_TEMPLATE_TRANSFORMS` will be used. Defaults to
         ``None``.
@@ -1546,7 +1547,7 @@ def indices_to_ccf(
     anonymous: bool = True,
     cache_dir: str | os.PathLike | None = None,
     template_used: str = "SmartSPIM-template_2024-05-16_11-26-14",
-    template_base: str | None = None,
+    template_base: str | os.PathLike | None = None,
     opened_zarr: tuple[Node, dict] | None = None,
 ) -> dict[str, NDArray]:
     """
@@ -1572,7 +1573,7 @@ def indices_to_ccf(
         Resource cache directory.
     template_used : str, optional
         Template transform key.
-    template_base : str, optional
+    template_base : str or PathLike, optional
         Base path for the template transforms. If ``None``, the default from
         :data:`_PIPELINE_TEMPLATE_TRANSFORMS` will be used. Defaults to
         ``None``.
@@ -1625,7 +1626,7 @@ def neuroglancer_to_ccf(
     anonymous: bool = True,
     cache_dir: str | os.PathLike | None = None,
     template_used: str = "SmartSPIM-template_2024-05-16_11-26-14",
-    template_base: str | None = None,
+    template_base: str | os.PathLike | None = None,
     opened_zarr: tuple[Node, dict] | None = None,
 ) -> tuple[dict[str, NDArray], dict[str, NDArray] | None]:
     """
@@ -1653,7 +1654,7 @@ def neuroglancer_to_ccf(
         Cache directory for transform downloads.
     template_used : str, optional
         Template transform key.
-    template_base : str, optional
+    template_base : str or PathLike, optional
         Base path for the template transforms. If ``None``, the default from
         :data:`_PIPELINE_TEMPLATE_TRANSFORMS` will be used. Defaults to
         ``None``.
@@ -1695,7 +1696,7 @@ def ccf_to_indices(
     processing_data: dict,
     *,
     template_used: str = "SmartSPIM-template_2024-05-16_11-26-14",
-    template_base: str | None = None,
+    template_base: str | os.PathLike | None = None,
     opened_zarr: tuple[Node, dict] | None = None,
     scale_unit: str = "millimeter",
 ) -> dict[str, NDArray]:
@@ -1723,7 +1724,7 @@ def ccf_to_indices(
     template_used : str, optional
         Template identifier. Default is
         "SmartSPIM-template_2024-05-16_11-26-14".
-    template_base : str, optional
+    template_base : str or PathLike, optional
         Base path for template transforms. If None, uses default S3 location.
     opened_zarr : tuple, optional
         Pre-opened zarr (image_node, zarr_meta). Avoids re-opening.
@@ -2208,7 +2209,7 @@ def indices_to_ccf_auto_metadata(
         - ``anonymous`` : bool
         - ``cache_dir`` : str | os.PathLike | None
         - ``template_used`` : str
-        - ``template_base`` : str | None
+        - ``template_base`` : str | os.PathLike | None
         - ``opened_zarr`` : tuple[Node, dict] | None
 
     Returns
