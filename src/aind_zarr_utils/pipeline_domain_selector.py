@@ -1,7 +1,8 @@
-"""
-Module to determine and reproduce the *physical domain* that a registration
-pipeline used (including historical/buggy variants), based on its version and
-acquisition metadata. The goal is to produce a SimpleITK header (origin,
+"""Determine and reproduce the *physical domain* that a registration pipeline used.
+
+Used for historical/buggy variants of the SmartSPIM CCF registration pipeline,
+based on pipeline version and acquisition metadata. The goal is to produce a
+SimpleITK header (origin,
 spacing, direction) that recreates exactly the coordinate system **the
 transforms were fit in**, so that voxel indices from a Zarr can be mapped to
 the correct LPS world coordinates before applying ANTs/ITK transforms.
@@ -98,9 +99,14 @@ class Overlay(Protocol):
     """
 
     @property
-    def name(self) -> str: ...
+    def name(self) -> str:
+        """Human-friendly identifier for the overlay (used in logs/audits)."""
+        ...
+
     @property
-    def priority(self) -> int: ...
+    def priority(self) -> int:
+        """Execution priority; lower numbers run earlier."""
+        ...
 
     def __call__(
         self,
@@ -108,7 +114,9 @@ class Overlay(Protocol):
         meta: dict[str, Any],
         multiscale_no: int,
         zarr_import_version: str | None = None,
-    ) -> AnatomicalHeader: ...
+    ) -> AnatomicalHeader:
+        """Apply the overlay and return a new ``AnatomicalHeader``."""
+        ...
 
 
 T = TypeVar("T", bound=Overlay)
@@ -117,9 +125,7 @@ T = TypeVar("T", bound=Overlay)
 # -------- Overlay Rule (version/date/meta -> create ONE overlay instance) ----
 @dataclass(frozen=True, slots=True)
 class OverlayRule:
-    """
-    Rule describing *when* to instantiate an overlay and *which* overlay to
-    use.
+    """Rule describing *when* to instantiate an overlay and *which* overlay to use.
 
     Parameters
     ----------
@@ -184,9 +190,7 @@ class OverlaySelector:
         version: str,
         meta: dict[str, Any],
     ) -> list[Overlay]:
-        """
-        Select and instantiate **all** overlays whose rules match ``version``
-        and ``meta``.
+        """Select and instantiate **all** overlays whose rules match ``version`` and ``meta``.
 
         Parameters
         ----------
@@ -253,9 +257,7 @@ class OverlaySelector:
         """
         return replace(self, rules=self.rules + (rule,))
 
-    def with_rules(
-        self, rules: tuple[OverlayRule, ...] | list[OverlayRule]
-    ) -> OverlaySelector:
+    def with_rules(self, rules: tuple[OverlayRule, ...] | list[OverlayRule]) -> OverlaySelector:
         """
         Return a new selector with rules from ``rules`` appended.
 
@@ -347,11 +349,7 @@ def apply_overlays(
             registration_multiscale_no,
             zarr_import_version=zarr_import_version,
         )
-        if (
-            (h2.origin != h.origin)
-            or (h2.spacing != h.spacing)
-            or (h2.direction.tobytes() != h.direction.tobytes())
-        ):
+        if (h2.origin != h.origin) or (h2.spacing != h.spacing) or (h2.direction.tobytes() != h.direction.tobytes()):
             applied.append(ov.name)
         h = h2
     return h, applied
@@ -360,7 +358,7 @@ def apply_overlays(
 # ---- Build your default rules ---------------------------------------------
 def _base_rules() -> tuple[OverlayRule, ...]:
     """
-    Internal: construct the default built-in rules for the selector.
+    Construct the default built-in rules for the selector (internal helper).
 
     Returns
     -------
@@ -379,9 +377,7 @@ def _base_rules() -> tuple[OverlayRule, ...]:
         OverlayRule(
             name="Fixed world image spacing (0.0144,0.0144,0.016)",
             spec=SpecifierSet(">=0.0.18,<0.0.32"),
-            factory=lambda meta: SetLpsWorldSpacingOverlay(
-                lps_spacing_mm=(0.0144, 0.0144, 0.016)
-            ),
+            factory=lambda meta: SetLpsWorldSpacingOverlay(lps_spacing_mm=(0.0144, 0.0144, 0.016)),
             rule_priority=55,
         )
     )
@@ -498,16 +494,12 @@ class SpacingScaleOverlay:
             New header with spacing multiplied by ``scale``.
         """
         i, j, k = h.spacing
-        return replace(
-            h, spacing=(i * self.scale, j * self.scale, k * self.scale)
-        )
+        return replace(h, spacing=(i * self.scale, j * self.scale, k * self.scale))
 
 
 @dataclass(frozen=True, slots=True)
 class FlipIndexAxesOverlay:
-    """
-    Flip one or more **index axes** by negating the corresponding columns of
-    the direction matrix.
+    """Flip one or more **index axes** by negating the corresponding columns of the direction matrix.
 
     Parameters
     ----------
@@ -553,9 +545,7 @@ class FlipIndexAxesOverlay:
 
 @dataclass(frozen=True, slots=True)
 class PermuteIndexAxesOverlay:
-    """
-    Permute the **index axes** (i, j, k) and carry spacing/size/direction
-    along.
+    """Permute the **index axes** (i, j, k) and carry spacing/size/direction along.
 
     Parameters
     ----------
@@ -578,9 +568,7 @@ class PermuteIndexAxesOverlay:
         multiscale_no: int,
         zarr_import_version: str | None = None,
     ) -> AnatomicalHeader:
-        """
-        Reorder columns of ``direction``, elements of ``spacing``, and
-        entries of ``size_ijk`` according to ``order``.
+        """Reorder direction columns, spacing elements, and size_ijk entries according to ``order``.
 
         Returns
         -------
@@ -595,9 +583,7 @@ class PermuteIndexAxesOverlay:
             h.size_ijk[i1],
             h.size_ijk[i2],
         )
-        return AnatomicalHeader(
-            origin=h.origin, spacing=S, direction=D, size_ijk=N
-        )
+        return AnatomicalHeader(origin=h.origin, spacing=S, direction=D, size_ijk=N)
 
 
 @dataclass(frozen=True, slots=True)
@@ -642,9 +628,7 @@ class ForceCornerAnchorOverlay:
         multiscale_no: int,
         zarr_import_version: str | None = None,
     ) -> AnatomicalHeader:
-        """
-        Compute and set the origin such that the specified corner aligns with
-        the target point.
+        """Compute and set the origin such that the specified corner aligns with the target point.
 
         Returns
         -------
@@ -692,9 +676,7 @@ class ForceCornerAnchorOverlayWithVersionWarning(ForceCornerAnchorOverlay):
         multiscale_no: int,
         zarr_import_version: str | None = None,
     ) -> AnatomicalHeader:
-        """
-        Compute and set the origin, emitting a warning if the version is
-        beyond the last verified buggy version.
+        """Compute and set the origin, emitting a warning if the version is beyond the last verified buggy version.
 
         Parameters
         ----------
@@ -733,9 +715,7 @@ class ForceCornerAnchorOverlayWithVersionWarning(ForceCornerAnchorOverlay):
                 )
 
         # Call parent implementation
-        return ForceCornerAnchorOverlay.__call__(
-            self, h, meta, multiscale_no, zarr_import_version
-        )
+        return ForceCornerAnchorOverlay.__call__(self, h, meta, multiscale_no, zarr_import_version)
 
 
 def _require_cardinal(D: np.ndarray, *, atol: float = 1e-6) -> None:
@@ -770,15 +750,10 @@ def _require_cardinal(D: np.ndarray, *, atol: float = 1e-6) -> None:
         and np.allclose(M.sum(axis=1), 1.0, atol=atol)
     )
     if not ok:
-        raise ValueError(
-            "Direction is not cardinal (signed permutation). "
-            "Oblique not supported."
-        )
+        raise ValueError("Direction is not cardinal (signed permutation). Oblique not supported.")
 
 
-def lps_world_to_index_spacing_cardinal(
-    D: np.ndarray, lps_spacing_mm: Vec3
-) -> Vec3:
+def lps_world_to_index_spacing_cardinal(D: np.ndarray, lps_spacing_mm: Vec3) -> Vec3:
     """
     Convert **LPS world** spacings to **index-order** spacings (cardinal only).
 
@@ -863,17 +838,13 @@ class SetLpsWorldSpacingOverlay:
         AnatomicalHeader
             AnatomicalHeader with updated spacing.
         """
-        si, sj, sk = lps_world_to_index_spacing_cardinal(
-            h.direction, self.lps_spacing_mm
-        )
+        si, sj, sk = lps_world_to_index_spacing_cardinal(h.direction, self.lps_spacing_mm)
         scaling = (1 / _PIPELINE_MULTISCALE_FACTOR) ** multiscale_no
         base_spacing: Vec3 = (scaling * si, scaling * sj, scaling * sk)
         return replace(h, spacing=base_spacing)
 
 
-def estimate_pipeline_multiscale(
-    zarr_metadata: dict[str, Any], pipeline_ccf_reg_version: Version
-) -> int | None:
+def estimate_pipeline_multiscale(zarr_metadata: dict[str, Any], pipeline_ccf_reg_version: Version) -> int | None:
     """
     Heuristically estimate the multiscale pyramid level used by the pipeline.
 

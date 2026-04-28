@@ -37,9 +37,7 @@ def test_annotation_indices_to_anatomical():
 def test_annotations_and_descriptions_to_dict():
     annotation_points = {"a": [[1, 2, 3], [4, 5, 6]]}
     descriptions = {"a": ["foo", None]}
-    result = ann.annotations_and_descriptions_to_dict(
-        annotation_points, descriptions
-    )
+    result = ann.annotations_and_descriptions_to_dict(annotation_points, descriptions)
     assert "a" in result
     assert result["a"]["foo"] == [1, 2, 3]
     assert result["a"]["1"] == [4, 5, 6]

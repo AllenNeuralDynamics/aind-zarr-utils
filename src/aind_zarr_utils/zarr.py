@@ -1,6 +1,4 @@
-"""
-Module for turning ZARRs into ants images and vice versa.
-"""
+"""Module for turning ZARRs into ants images and vice versa."""
 
 from __future__ import annotations
 
@@ -14,14 +12,12 @@ from ome_zarr.io import parse_url  # type: ignore[import-untyped]
 from ome_zarr.reader import Node, Reader  # type: ignore[import-untyped]
 
 
-def ensure_native_endian(
-    a: np.ndarray, *, inplace: bool = False
-) -> np.ndarray:
-    """
-    Return `a` with native-endian dtype.
+def ensure_native_endian(a: np.ndarray, *, inplace: bool = False) -> np.ndarray:
+    """Return ``a`` with native-endian dtype.
+
     - View if already native or byteorder-agnostic.
     - Copy only when endianness must change or fields are mixed.
-    - With `inplace=True`, mutate array when it's safe.
+    - With ``inplace=True``, mutate array when it's safe.
     """
     a = np.asarray(a)
     dt = a.dtype
@@ -34,9 +30,7 @@ def ensure_native_endian(
         # Needs endian fix
         if inplace:
             if not a.flags.writeable:
-                raise ValueError(
-                    "Array is not writeable; cannot convert in-place."
-                )
+                raise ValueError("Array is not writeable; cannot convert in-place.")
             a.byteswap(inplace=True)
             a.dtype = dt.newbyteorder("=")  # type: ignore[misc]
             return a
@@ -44,11 +38,7 @@ def ensure_native_endian(
 
     # -------- Structured dtype --------
     # Collect byteorders of endian-aware fields ('<' or '>')
-    field_orders = {
-        subdt.byteorder
-        for (subdt, *_) in dt.fields.values()
-        if subdt.byteorder in ("<", ">")
-    }
+    field_orders = {subdt.byteorder for (subdt, *_) in dt.fields.values() if subdt.byteorder in ("<", ">")}
 
     if not field_orders:
         # Either all fields are native '=' or byteorder-agnostic '|'
@@ -62,9 +52,7 @@ def ensure_native_endian(
     # Homogeneous non-native across fields ('<' OR '>')
     if inplace:
         if not a.flags.writeable:
-            raise ValueError(
-                "Array is not writeable; cannot convert in-place."
-            )
+            raise ValueError("Array is not writeable; cannot convert in-place.")
         a.byteswap(inplace=True)
         a.dtype = dt.newbyteorder("=")  # type: ignore[misc]
         return a
@@ -76,7 +64,7 @@ def direction_from_acquisition_metadata(
     acq_metadata: dict,
 ) -> tuple[NDArray, list[str], list[str]]:
     """
-    Extracts direction, axes, and dimensions from acquisition metadata.
+    Extract direction, axes, and dimensions from acquisition metadata.
 
     Parameters
     ----------
@@ -106,7 +94,7 @@ def direction_from_nd_metadata(
     nd_metadata: dict,
 ) -> tuple[NDArray, list[str], list[str]]:
     """
-    Extracts direction, axes, and dimensions from ND metadata.
+    Extract direction, axes, and dimensions from ND metadata.
 
     Parameters
     ----------
@@ -127,7 +115,7 @@ def direction_from_nd_metadata(
 
 def _units_to_meter(unit: str) -> float:
     """
-    Converts a unit of length to meters.
+    Convert a unit of length to meters.
 
     Parameters
     ----------
@@ -160,7 +148,7 @@ def _units_to_meter(unit: str) -> float:
 
 def _unit_conversion(src: str, dst: str) -> float:
     """
-    Converts between two units of length.
+    Convert between two units of length.
 
     Parameters
     ----------
@@ -183,7 +171,7 @@ def _unit_conversion(src: str, dst: str) -> float:
 
 def _open_zarr(uri: str) -> tuple[Node, dict]:
     """
-    Opens a ZARR file and retrieves its metadata.
+    Open a ZARR file and retrieve its metadata.
 
     Parameters
     ----------
@@ -208,11 +196,9 @@ def _open_zarr(uri: str) -> tuple[Node, dict]:
     return image_node, zarr_meta
 
 
-def zarr_to_numpy(
-    uri: str, level: int = 3, ensure_native_endianness: bool = False
-) -> tuple[NDArray, dict, int]:
+def zarr_to_numpy(uri: str, level: int = 3, ensure_native_endianness: bool = False) -> tuple[NDArray, dict, int]:
     """
-    Converts a ZARR file to a NumPy array.
+    Convert a ZARR file to a NumPy array.
 
     Parameters
     ----------
@@ -248,7 +234,7 @@ def _zarr_to_scaled(
     opened_zarr: tuple[Node, dict] | None = None,
 ) -> tuple[Node, set[int], list[str], list[float], list[int]]:
     """
-    Extracts scaled coordinate information from a ZARR file.
+    Extract scaled coordinate information from a ZARR file.
 
     Parameters
     ----------
@@ -290,18 +276,14 @@ def _zarr_to_scaled(
         if ax_name in spatial_dims:
             original_to_subset_axes_map[j] = i
             i += 1
-    rej_axes = set(range(len(original_zarr_axes))) - set(
-        original_to_subset_axes_map.keys()
-    )
+    rej_axes = set(range(len(original_zarr_axes))) - set(original_to_subset_axes_map.keys())
     spacing = []
     size = []
     kept_zarr_axes = []
     dask_shape = image_node.data[level].shape
     for i in original_to_subset_axes_map.keys():
         kept_zarr_axes.append(original_zarr_axes[i]["name"])
-        scale_factor = _unit_conversion(
-            original_zarr_axes[i]["unit"], scale_unit
-        )
+        scale_factor = _unit_conversion(original_zarr_axes[i]["unit"], scale_unit)
         spacing.append(scale_factor * scale[i])
         size.append(dask_shape[i])
     return image_node, rej_axes, kept_zarr_axes, spacing, size
@@ -364,9 +346,7 @@ def scaled_points_to_indices(
     - Uses only Zarr scale metadata, not ND acquisition metadata
     """
     # Get spacing from Zarr metadata (no anatomical info needed)
-    _, _, _, spacing_raw, _ = _zarr_to_scaled(
-        zarr_uri, level=0, scale_unit=scale_unit, opened_zarr=opened_zarr
-    )
+    _, _, _, spacing_raw, _ = _zarr_to_scaled(zarr_uri, level=0, scale_unit=scale_unit, opened_zarr=opened_zarr)
 
     spacing = np.array(spacing_raw)
     indices = {}
@@ -374,10 +354,7 @@ def scaled_points_to_indices(
     for layer, pts in scaled_points.items():
         pts_arr = np.asarray(pts)
         if pts_arr.ndim != 2 or pts_arr.shape[1] != 3:
-            raise ValueError(
-                f"Expected (N, 3) array for layer {layer}, "
-                f"got shape {pts_arr.shape}"
-            )
+            raise ValueError(f"Expected (N, 3) array for layer {layer}, got shape {pts_arr.shape}")
         # Convert scaled coords to indices: indices = coords / spacing
         # Keep as float (continuous indices), don't round
         indices[layer] = pts_arr / spacing
@@ -394,7 +371,7 @@ def _zarr_to_anatomical(
     opened_zarr: tuple[Node, dict] | None = None,
 ) -> tuple[Node, set[int], list[str], list[float], list[int]]:
     """
-    Extracts anatomical information from a ZARR file.
+    Extract anatomical information from a ZARR file.
 
     Parameters
     ----------
@@ -442,7 +419,7 @@ def _zarr_to_numpy_anatomical(
     ensure_native_endianness: bool = False,
 ) -> tuple[NDArray, list[str], list[float], list[int]]:
     """
-    Converts a ZARR file to a NumPy array with anatomical information.
+    Convert a ZARR file to a NumPy array with anatomical information.
 
     Parameters
     ----------
@@ -497,7 +474,7 @@ def _anatomical_to_ants(
     set_corner_lps: tuple[float, float, float] | None = None,
 ) -> ANTsImage:
     """
-    Converts anatomical data to an ANTs image.
+    Convert anatomical data to an ANTs image.
 
     Parameters
     ----------
@@ -520,9 +497,7 @@ def _anatomical_to_ants(
         and set_corner_lps, exclusive of set_origin.
     """
     dir_str = "".join(dirs)
-    dir_tup = sitk.DICOMOrientImageFilter.GetDirectionCosinesFromOrientation(
-        dir_str
-    )
+    dir_tup = sitk.DICOMOrientImageFilter.GetDirectionCosinesFromOrientation(dir_str)
     dir_mat = np.array(dir_tup).reshape((3, 3))
     origin_type = _origin_args_check(set_origin, set_corner, set_corner_lps)
     if origin_type == "origin":
@@ -530,16 +505,12 @@ def _anatomical_to_ants(
         origin = set_origin
     elif origin_type == "corner":
         assert set_corner_lps is not None and set_corner is not None
-        origin = fix_corner_compute_origin(
-            size, spacing, dir_tup, set_corner_lps, set_corner
-        )[0]
+        origin = fix_corner_compute_origin(size, spacing, dir_tup, set_corner_lps, set_corner)[0]
     elif origin_type == "none":
         origin = (0.0, 0.0, 0.0)
     else:
         raise ValueError(f"Unknown origin_type: {origin_type}")
-    ants_image = ants.from_numpy(
-        arr_data_spatial, spacing=spacing, direction=dir_mat, origin=origin
-    )
+    ants_image = ants.from_numpy(arr_data_spatial, spacing=spacing, direction=dir_mat, origin=origin)
     return ants_image
 
 
@@ -554,7 +525,7 @@ def zarr_to_ants(
     opened_zarr: tuple[Node, dict] | None = None,
 ) -> ANTsImage:
     """
-    Converts a ZARR file to an ANTs image.
+    Convert a ZARR file to an ANTs image.
 
     Parameters
     ----------
@@ -618,18 +589,14 @@ def _anatomical_to_sitk(
     dir_str = "".join(reversed(dirs))
     spacing_rev = spacing[::-1]
     size_rev = size[::-1]
-    dir_tup = sitk.DICOMOrientImageFilter.GetDirectionCosinesFromOrientation(
-        dir_str
-    )
+    dir_tup = sitk.DICOMOrientImageFilter.GetDirectionCosinesFromOrientation(dir_str)
     origin_type = _origin_args_check(set_origin, set_corner, set_corner_lps)
     if origin_type == "origin":
         assert set_origin is not None
         origin = set_origin
     elif origin_type == "corner":
         assert set_corner_lps is not None and set_corner is not None
-        origin = fix_corner_compute_origin(
-            size_rev, spacing_rev, dir_tup, set_corner_lps, set_corner
-        )[0]
+        origin = fix_corner_compute_origin(size_rev, spacing_rev, dir_tup, set_corner_lps, set_corner)[0]
     elif origin_type == "none":
         origin = (0.0, 0.0, 0.0)
     else:
@@ -652,7 +619,7 @@ def zarr_to_sitk(
     opened_zarr: tuple[Node, dict] | None = None,
 ) -> sitk.Image:
     """
-    Converts a ZARR file to a SimpleITK image.
+    Convert a ZARR file to a SimpleITK image.
 
     Parameters
     ----------
@@ -737,7 +704,7 @@ def zarr_to_sitk_stub(
     opened_zarr: tuple[Node, dict] | None = None,
 ) -> tuple[sitk.Image, tuple[int, int, int]]:
     """
-    Creates a stub SimpleITK image with the same metadata as the ZARR file.
+    Create a stub SimpleITK image with the same metadata as the ZARR file.
 
     Parameters
     ----------
@@ -790,18 +757,14 @@ def zarr_to_sitk_stub(
     dir_str = "".join(reversed(dirs))
     spacing_rev = spacing[::-1]
     size_rev = size[::-1]
-    dir_tup = sitk.DICOMOrientImageFilter.GetDirectionCosinesFromOrientation(
-        dir_str
-    )
+    dir_tup = sitk.DICOMOrientImageFilter.GetDirectionCosinesFromOrientation(dir_str)
     origin_type = _origin_args_check(set_origin, set_corner, set_corner_lps)
     if origin_type == "origin":
         assert set_origin is not None
         origin = set_origin
     elif origin_type == "corner":
         assert set_corner_lps is not None and set_corner is not None
-        origin = fix_corner_compute_origin(
-            size_rev, spacing_rev, dir_tup, set_corner_lps, set_corner
-        )[0]
+        origin = fix_corner_compute_origin(size_rev, spacing_rev, dir_tup, set_corner_lps, set_corner)[0]
     elif origin_type == "none":
         origin = (0.0, 0.0, 0.0)
     else:

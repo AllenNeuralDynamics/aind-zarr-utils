@@ -1,6 +1,4 @@
-"""
-Module for working with points in ZARR files
-"""
+"""Module for working with points in ZARR files."""
 
 from __future__ import annotations
 
@@ -13,11 +11,8 @@ from aind_anatomical_utils.sitk_volume import (
 from numpy.typing import NDArray
 
 
-def annotation_indices_to_anatomical(
-    img: SimpleITK.Image, annotations: dict[str, NDArray]
-) -> dict[str, NDArray]:
-    """
-    Transforms annotation indices from image space to anatomical space.
+def annotation_indices_to_anatomical(img: SimpleITK.Image, annotations: dict[str, NDArray]) -> dict[str, NDArray]:
+    """Transform annotation indices from image space to anatomical space.
 
     Parameters
     ----------
@@ -37,11 +32,9 @@ def annotation_indices_to_anatomical(
     anatomical_points = {}
     for annotation, indices in annotations.items():
         indices_sitk = indices[:, ::-1]  # numpy to sitk indexing
-        anatomical_points[annotation] = (
-            transform_sitk_indices_to_physical_points(
-                img,
-                indices_sitk,
-            )
+        anatomical_points[annotation] = transform_sitk_indices_to_physical_points(
+            img,
+            indices_sitk,
         )
     return anatomical_points
 
@@ -50,9 +43,7 @@ def annotations_and_descriptions_to_dict(
     annotation_points: dict[str, list[list[float]]],
     descriptions: dict[str, list[str | None]],
 ) -> dict[str, dict[str, list[float]]]:
-    """
-    Converts annotation points and descriptions to a description to point
-    dictionary.
+    """Convert annotation points and descriptions into a description-to-point dictionary.
 
     Parameters
     ----------
@@ -80,8 +71,7 @@ def annotations_and_descriptions_to_dict(
 def _pts_and_descriptions_to_pt_dict(
     points: list[list[float]], description_list: list[str | None]
 ) -> dict[str, list[float]]:
-    """
-    Converts points and their descriptions into a dictionary.
+    """Convert points and their descriptions into a dictionary.
 
     Parameters
     ----------
@@ -104,8 +94,6 @@ def _pts_and_descriptions_to_pt_dict(
             pt_description_sanitized = f"{j}"
             j += 1
         else:
-            pt_description_sanitized = re.sub(
-                r"[\r\n,]+", "", pt_description.strip()
-            )
+            pt_description_sanitized = re.sub(r"[\r\n,]+", "", pt_description.strip())
         pt_dict[pt_description_sanitized] = point
     return pt_dict

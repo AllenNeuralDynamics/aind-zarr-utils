@@ -1,0 +1,26 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: 0.1.16
+_src_path: /home/glynch/Documents/Code/aind-python-copier-template
+author_email: galen@galenlynch.com
+author_fullname: Galen Lynch
+auto_setup_repo: false
+current_year: '2026'
+github_org: AllenNeuralDynamics
+github_url: https://github.com/AllenNeuralDynamics/aind-zarr-utils
+include_claude_md: true
+include_cli: false
+include_commitizen: true
+include_docs: true
+include_notebooks: false
+include_type_hints: true
+institute_name: Allen Institute for Neural Dynamics
+license: MIT
+project_description: Utilities for working with ZARR data and AIND metadata
+project_name: AIND Zarr Utils
+project_slug: aind-zarr-utils
+publish_to_pypi: true
+python_package_import_name: aind_zarr_utils
+python_version: '3.10'
+target_python_version: '3.13'
+workflow_source: AllenNeuralDynamics/galen-uv-workflows
+workflow_version: v2

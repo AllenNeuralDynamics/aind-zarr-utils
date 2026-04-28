@@ -1,0 +1,26 @@
+name: docs (CI)
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    uses: AllenNeuralDynamics/galen-uv-workflows/.github/workflows/_docs-ci-reusable.yml@v2
+    with:
+      python-version: '3.13'
+      install-extras: '--group docs'
+      docs-path: 'docs/source'
+      output-dir: 'docs/build/html'
+      fail-on-warnings: true
+      linkcheck: false              # flip to true if you want it on PRs
+      run-apidoc: false             # set true if you generate pages each build
