@@ -48,6 +48,7 @@ docs = [
   "sphinx-autodoc-typehints",
   "sphinx-copybutton",
   "myst-parser",
+  "nbsphinx",
   "furo",
 ]
 
@@ -57,7 +58,7 @@ packages = ["src/aind_zarr_utils"]
 [tool.ruff]
 line-length = 120
 target-version = "py310"
-extend-exclude = ["scratch"]
+extend-exclude = ["scratch", "docs/build", "docs/source/api-reference/generated"]
 
 [tool.ruff.lint]
 extend-select = ["Q", "RUF100", "C90", "I", "F", "E", "W", "D", "UP", "ANN", "PYI"]
@@ -67,7 +68,7 @@ mccabe = { max-complexity = 14 }
 pydocstyle = { convention = "numpy" }
 
 [tool.codespell]
-skip = ".git,*.pdf,*.svg,./docs/build,uv.lock,scratch"
+skip = ".git,*.pdf,*.svg,./docs/build,./docs/_build,uv.lock,scratch,*searchindex.js"
 ignore-words-list = "nd"
 
 [tool.pytest.ini_options]
