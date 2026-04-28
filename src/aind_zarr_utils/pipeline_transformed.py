@@ -705,32 +705,30 @@ def apply_pipeline_overlays_to_sitk(
 
     Examples
     --------
-    Apply overlays to a level 0 image:
+    Apply overlays to a level 0 image::
 
-    ```python
-    from aind_zarr_utils.pipeline_transformed import (
-        apply_pipeline_overlays_to_sitk,
-    )
-    from aind_zarr_utils.zarr import zarr_to_sitk
+        from aind_zarr_utils.pipeline_transformed import (
+            apply_pipeline_overlays_to_sitk,
+        )
+        from aind_zarr_utils.zarr import zarr_to_sitk
 
-    # Load image and metadata
-    zarr_uri = "s3://bucket/dataset.zarr"
-    metadata = {...}  # ND metadata
-    processing_data = {...}  # Processing metadata
+        # Load image and metadata
+        zarr_uri = "s3://bucket/dataset.zarr"
+        metadata = {...}  # ND metadata
+        processing_data = {...}  # Processing metadata
 
-    # Create base image
-    img = zarr_to_sitk(zarr_uri, metadata, level=0)
+        # Create base image
+        img = zarr_to_sitk(zarr_uri, metadata, level=0)
 
-    # Apply overlays in-place
-    apply_pipeline_overlays_to_sitk(
-        img,
-        zarr_uri,
-        processing_data,
-        metadata,
-        level=0,
-    )
-    # img is now modified with pipeline corrections
-    ```
+        # Apply overlays in-place
+        apply_pipeline_overlays_to_sitk(
+            img,
+            zarr_uri,
+            processing_data,
+            metadata,
+            level=0,
+        )
+        # img is now modified with pipeline corrections
     """
     # Derive pipeline-specific parameters from zarr_uri and processing_data
     _, zarr_import_version, image_node, zarr_meta, multiscale_no = _pipeline_anatomical_check_args(
@@ -950,32 +948,30 @@ def apply_pipeline_overlays_to_ants(
 
     Examples
     --------
-    Apply overlays to a level 0 ANTs image:
+    Apply overlays to a level 0 ANTs image::
 
-    ```python
-    from aind_zarr_utils.pipeline_transformed import (
-        apply_pipeline_overlays_to_ants,
-    )
-    from aind_zarr_utils.zarr import zarr_to_ants
+        from aind_zarr_utils.pipeline_transformed import (
+            apply_pipeline_overlays_to_ants,
+        )
+        from aind_zarr_utils.zarr import zarr_to_ants
 
-    # Load image and metadata
-    zarr_uri = "s3://bucket/dataset.zarr"
-    metadata = {...}  # ND metadata
-    processing_data = {...}  # Processing metadata
+        # Load image and metadata
+        zarr_uri = "s3://bucket/dataset.zarr"
+        metadata = {...}  # ND metadata
+        processing_data = {...}  # Processing metadata
 
-    # Create base image
-    img = zarr_to_ants(zarr_uri, metadata, level=0)
+        # Create base image
+        img = zarr_to_ants(zarr_uri, metadata, level=0)
 
-    # Apply overlays in-place
-    apply_pipeline_overlays_to_ants(
-        img,
-        zarr_uri,
-        processing_data,
-        metadata,
-        level=0,
-    )
-    # img is now modified with pipeline corrections
-    ```
+        # Apply overlays in-place
+        apply_pipeline_overlays_to_ants(
+            img,
+            zarr_uri,
+            processing_data,
+            metadata,
+            level=0,
+        )
+        # img is now modified with pipeline corrections
     """
     # Derive pipeline-specific parameters from zarr_uri and processing_data
     _, zarr_import_version, image_node, zarr_meta, multiscale_no = _pipeline_anatomical_check_args(

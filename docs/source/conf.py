@@ -9,11 +9,10 @@ from datetime import date
 from os.path import abspath, dirname
 from pathlib import Path
 
-# Add the project src directory to sys.path for imports
-project_root = abspath(dirname(dirname(dirname(__file__))))
-sys.path.insert(0, str(Path(project_root) / "src"))
+# Add the project root to sys.path for imports
+sys.path.insert(0, abspath(dirname(dirname(dirname(__file__)))))
 
-from aind_zarr_utils import __version__ as package_version  # noqa:E402
+from aind_zarr_utils import __version__ as package_version
 
 INSTITUTE_NAME = "Allen Institute for Neural Dynamics"
 
@@ -22,7 +21,7 @@ current_year = date.today().year
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = "AIND Zarr Utils"
+project = Path(dirname(dirname(dirname(abspath(__file__))))).name
 copyright = f"{current_year}, {INSTITUTE_NAME}"
 author = INSTITUTE_NAME
 release = package_version
@@ -38,11 +37,12 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.intersphinx",
     "sphinx.ext.autosummary",
+    "sphinx.ext.mathjax",
     "myst_parser",
     "sphinx_autodoc_typehints",
     "sphinx_copybutton",
+    "nbsphinx",
 ]
-
 templates_path = ["_templates"]
 exclude_patterns = []
 
@@ -55,6 +55,15 @@ myst_enable_extensions = [
     "tasklist",  # Task lists
 ]
 
+# -- Intersphinx configuration ----------------------------------------------
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/", None),
+    "SimpleITK": ("https://simpleitk.readthedocs.io/en/master/", None),
+    "ants": ("https://antspy.readthedocs.io/en/latest/", None),
+}
+
 # -- Autodoc configuration --------------------------------------------------
 autodoc_default_options = {
     "members": True,
@@ -65,7 +74,12 @@ autodoc_default_options = {
 }
 
 # -- Autosummary configuration ----------------------------------------------
-autosummary_generate = True
+autosummary_generate = False  # Don't generate individual pages, just tables
+
+# Suppress unresolvable forward-reference warnings from upstream type hints
+# (e.g. aind_registration_utils.ants uses a `FloatArray` alias that isn't
+# importable at autodoc time).
+suppress_warnings = ["sphinx_autodoc_typehints.forward_reference"]
 
 # -- Napoleon configuration -------------------------------------------------
 napoleon_google_docstring = False
@@ -85,7 +99,7 @@ html_theme_options = {
     "sidebar_hide_name": True,
     "navigation_with_keys": True,
     "top_of_page_button": "edit",
-    "source_repository": "https://github.com/AllenNeuralDynamics/aind-zarr-utils",
+    "source_repository": "https://github.com/AllenNeuralDynamics/aind-zarr-utils/",
     "source_branch": "main",
     "source_directory": "docs/source/",
 }
