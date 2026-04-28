@@ -16,6 +16,7 @@ Notes
 from __future__ import annotations
 
 import os
+import warnings
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
@@ -837,7 +838,26 @@ def ccf_to_indices_auto_metadata(
     --------
     >>> ccf_pts = {"layer1": np.array([[5000, 6000, 7000]])}
     >>> indices_pts = ccf_to_indices_auto_metadata(ccf_pts, zarr_uri)
+
+    .. deprecated:: 0.15
+        Use :class:`~aind_zarr_utils.asset.Asset` instead::
+
+            asset = Asset.from_zarr(zarr_uri)
+            indices = asset.transform(
+                Points(ccf_points, Space.CCF_MM),
+                to=Space.ZARR_INDICES,
+            ).values
+
+        This shim will be removed in a future release.
     """
+    warnings.warn(
+        "ccf_to_indices_auto_metadata is deprecated; use "
+        "Asset.from_zarr(zarr_uri).transform(Points(ccf_points, Space.CCF_MM),"
+        " to=Space.ZARR_INDICES) instead. This shim will be removed in a "
+        "future release.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     alignment_zarr_uri, metadata, processing_data = alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
         a_zarr_uri=zarr_uri
     )
@@ -895,7 +915,26 @@ def neuroglancer_to_ccf_auto_metadata(
     ------
     ValueError
         If no image sources can be found in ``neuroglancer_data``.
+
+    .. deprecated:: 0.15
+        Use :class:`~aind_zarr_utils.asset.Asset` instead::
+
+            asset = Asset.from_neuroglancer(neuroglancer_data)
+            ccf = asset.transform(
+                Points.from_neuroglancer(neuroglancer_data),
+                to=Space.CCF_MM,
+            )
+
+        This shim will be removed in a future release.
     """
+    warnings.warn(
+        "neuroglancer_to_ccf_auto_metadata is deprecated; use "
+        "Asset.from_neuroglancer(ng).transform(Points.from_neuroglancer(ng),"
+        " to=Space.CCF_MM) instead. This shim will be removed in a future "
+        "release.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     if asset_uri is None:
         image_sources = get_image_sources(neuroglancer_data, remove_zarr_protocol=True)
         # Get first image source in dict
@@ -1056,7 +1095,30 @@ def swc_data_to_ccf_auto_metadata(
     -------
     dict[str, NDArray]
         Mapping neuron ID → (N, 3) array of anatomical CCF coordinates in LPS.
+
+    .. deprecated:: 0.15
+        Use :class:`~aind_zarr_utils.asset.Asset` instead::
+
+            asset = Asset.from_root(asset_uri)
+            ccf = asset.transform(
+                Points.from_swc(
+                    swc_point_dict,
+                    axis_order=swc_point_order,
+                    units=swc_point_units,
+                ),
+                to=Space.CCF_MM,
+            )
+
+        This shim will be removed in a future release.
     """
+    warnings.warn(
+        "swc_data_to_ccf_auto_metadata is deprecated; use "
+        "Asset.from_root(asset_uri).transform(Points.from_swc(swc_point_dict, "
+        "axis_order=..., units=...), to=Space.CCF_MM) instead. This shim "
+        "will be removed in a future release.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     zarr_uri, metadata, processing_data = alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
         asset_uri=asset_uri
     )
@@ -1126,7 +1188,26 @@ def indices_to_ccf_auto_metadata(
     ...     indices,
     ...     zarr_uri="s3://aind-open-data/dataset_123/image.zarr"
     ... )
+
+    .. deprecated:: 0.15
+        Use :class:`~aind_zarr_utils.asset.Asset` instead::
+
+            asset = Asset.from_zarr(zarr_uri)
+            ccf = asset.transform(
+                Points(annotation_indices, Space.ZARR_INDICES),
+                to=Space.CCF_MM,
+            )
+
+        This shim will be removed in a future release.
     """
+    warnings.warn(
+        "indices_to_ccf_auto_metadata is deprecated; use "
+        "Asset.from_zarr(zarr_uri).transform(Points(annotation_indices, "
+        "Space.ZARR_INDICES), to=Space.CCF_MM) instead. This shim will be "
+        "removed in a future release.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     alignment_zarr_uri, metadata, processing_data = alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
         a_zarr_uri=zarr_uri
     )

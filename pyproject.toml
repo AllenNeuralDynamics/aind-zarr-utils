@@ -13,7 +13,7 @@ authors = [
 ]
 classifiers = ["Programming Language :: Python :: 3"]
 readme = "README.md"
-version = "0.14.0"
+version = "0.15.0"
 
 dependencies = [
   "aind-anatomical-utils>=0.4",
@@ -73,6 +73,14 @@ ignore-words-list = "nd"
 [tool.pytest.ini_options]
 addopts = "--strict-markers --tb=short --cov=src --cov-report=term-missing --cov-fail-under=0"
 testpaths = ["tests"]
+# Suppress DeprecationWarnings emitted by our own legacy free functions —
+# the test suite still exercises them as regression coverage for the
+# 0.15 → 0.16 deprecation cycle. Drop this filter once the legacy paths
+# are removed.
+filterwarnings = [
+    "ignore::DeprecationWarning:aind_zarr_utils.pipeline_transformed",
+    "ignore::DeprecationWarning:aind_zarr_utils.zarr",
+]
 
 [tool.interrogate]
 ignore-init-method = true

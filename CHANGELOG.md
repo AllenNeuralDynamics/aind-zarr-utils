@@ -1,3 +1,68 @@
+## v0.15.0 (2026-04-28)
+
+### Feat
+
+- New asset-centric API. The package's recommended entry point is now
+  `Asset` (with `Asset.from_zarr`, `Asset.from_root`,
+  `Asset.from_neuroglancer`, plus a no-I/O `Asset(zarr_uri, metadata,
+  processing)` constructor). A single `Asset` instance opens its Zarr
+  exactly once and resolves transform-chain paths exactly once,
+  regardless of how many methods participate in a workflow.
+- `Points` + `Space` make coordinate spaces first-class. Five spaces
+  are recognised: `ZARR_INDICES`, `LS_SCALED_MM`, `LS_ANATOMICAL_MM`,
+  `LS_PIPELINE_ANATOMICAL_MM`, `CCF_MM`. `Asset.transform(points,
+  to=Space.X)` walks a small graph of named edges to project them.
+  Every previous combination of `*_to_ccf` / `ccf_to_*` /
+  `*_to_indices` is now expressible as one `transform` call.
+- `Origin` value type replaces the legacy
+  `(set_origin, set_corner, set_corner_lps)` triple on the image
+  builders: `Origin.default()`, `Origin.at(point)`,
+  `Origin.at_corner(code, lps_point)`.
+- `Points.from_neuroglancer` and `Points.from_swc` provide one-line
+  conversion from NG state and raw SWC arrays into the package's
+  canonical representation.
+
+### Refactor
+
+- The package source is reorganised into focused subpackages:
+  `io/` (Zarr opening, metadata parsing, processing-JSON parsing,
+  transform-chain resolution, URI helpers), `domain/` (overlay
+  protocol, selector, concrete overlays), `formats/` (Neuroglancer
+  and SWC readers), and the new top-level modules `asset.py`,
+  `points.py`, `image.py`, `origin.py`. The legacy modules
+  (`zarr.py`, `neuroglancer.py`, `pipeline_domain_selector.py`,
+  `pipeline_transformed.py`) keep working as re-export shims and
+  continue to pass all existing tests.
+- The SimpleITK and ANTs pipeline-overlay paths (~320 LOC of
+  duplication) collapse into a single type-dispatching
+  `apply_pipeline_overlays` plus a small pure helper
+  (`_to_ants_convention`) that encodes the level > 0 spacing-reverse
+  + opposite-corner origin recompute. The level > 0 ANTs math is now
+  pinned by dedicated regression tests.
+
+### Deprecations
+
+The following auto-discovery convenience helpers emit
+`DeprecationWarning` and will be removed in a future release. Each
+points to its `Asset`-based replacement:
+
+- `mimic_pipeline_zarr_to_anatomical_stub` (still callable but
+  superseded by `Asset(...).stub(pipeline=True)`; not warned this
+  release because of internal use).
+- `neuroglancer_to_ccf_auto_metadata` →
+  `Asset.from_neuroglancer(ng).transform(Points.from_neuroglancer(ng), to=Space.CCF_MM)`
+- `swc_data_to_ccf_auto_metadata` →
+  `Asset.from_root(uri).transform(Points.from_swc(...), to=Space.CCF_MM)`
+- `indices_to_ccf_auto_metadata` →
+  `Asset.from_zarr(uri).transform(Points(idx, Space.ZARR_INDICES), to=Space.CCF_MM)`
+- `ccf_to_indices_auto_metadata` →
+  `Asset.from_zarr(uri).transform(Points(ccf, Space.CCF_MM), to=Space.ZARR_INDICES)`
+
+The lower-level free functions in `pipeline_transformed` and `zarr`
+(e.g. `neuroglancer_to_ccf`, `ccf_to_indices`, `zarr_to_sitk`,
+`zarr_to_sitk_stub`, `mimic_pipeline_zarr_to_anatomical_stub`) are
+unchanged for now and remain part of the package surface.
+
 ## v0.14.0 (2026-02-11)
 
 ### Feat
