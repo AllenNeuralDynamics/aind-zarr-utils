@@ -240,6 +240,16 @@ def mock_overlay_selector(monkeypatch):
     def mock_apply_overlays(header, overlays, meta, multiscale_no):
         return header, []  # Return header unchanged with no applied overlays
 
+    # ``apply_overlays`` moved to ``aind_zarr_utils.domain.selector`` in
+    # commit C2. ``pipeline_transformed`` still has a re-bound name in its
+    # own namespace (because of the ``from .pipeline_domain_selector import
+    # apply_overlays`` import there), so we patch both: the original call
+    # site lookup happens in ``pipeline_transformed`` for legacy paths,
+    # but the canonical home is in ``domain.selector``.
+    monkeypatch.setattr(
+        "aind_zarr_utils.domain.selector.apply_overlays",
+        mock_apply_overlays,
+    )
     monkeypatch.setattr(
         "aind_zarr_utils.pipeline_transformed.apply_overlays",
         mock_apply_overlays,
