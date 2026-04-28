@@ -10,7 +10,7 @@ github_url: https://github.com/AllenNeuralDynamics/aind-zarr-utils
 include_claude_md: true
 include_cli: false
 include_commitizen: true
-include_docs: false
+include_docs: true
 include_notebooks: false
 include_type_hints: true
 institute_name: Allen Institute for Neural Dynamics

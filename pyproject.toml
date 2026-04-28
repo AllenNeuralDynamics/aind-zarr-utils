@@ -42,6 +42,14 @@ Changelog = "https://github.com/AllenNeuralDynamics/aind-zarr-utils/blob/main/CH
 types = ["mypy", "types-requests", "boto3-stubs[s3]"]
 dev = [{ include-group = "types" }, "codespell", "pytest", "pytest-cov", "ruff", "interrogate"]
 jupyter = [{ include-group = "dev" }, "ipykernel", "pip"]
+docs = [
+  { include-group = "dev" },
+  "sphinx>=5.0",
+  "sphinx-autodoc-typehints",
+  "sphinx-copybutton",
+  "myst-parser",
+  "furo",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/aind_zarr_utils"]
