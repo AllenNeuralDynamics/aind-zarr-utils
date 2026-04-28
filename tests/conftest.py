@@ -236,22 +236,28 @@ def mock_overlay_selector(monkeypatch):
     selector = Mock()
     selector.select = Mock(return_value=[])  # Return empty list of overlays
 
-    # Mock the apply_overlays function to bypass overlay logic entirely
-    def mock_apply_overlays(header, overlays, meta, multiscale_no):
+    # Mock the apply_overlays function to bypass overlay logic entirely.
+    # Accepts ``**kwargs`` so it tolerates the ``zarr_import_version=`` keyword
+    # the real ``apply_overlays`` takes — without this, callers that pass
+    # the keyword would crash inside the mock.
+    def mock_apply_overlays(header, overlays, meta, multiscale_no, **_kwargs):
         return header, []  # Return header unchanged with no applied overlays
 
-    # ``apply_overlays`` moved to ``aind_zarr_utils.domain.selector`` in
-    # commit C2. ``pipeline_transformed`` still has a re-bound name in its
-    # own namespace (because of the ``from .pipeline_domain_selector import
-    # apply_overlays`` import there), so we patch both: the original call
-    # site lookup happens in ``pipeline_transformed`` for legacy paths,
-    # but the canonical home is in ``domain.selector``.
+    # ``apply_overlays`` is referenced from three modules now: the canonical
+    # home (``aind_zarr_utils.domain.selector``), the legacy
+    # ``aind_zarr_utils.pipeline_transformed`` re-export (kept for tests
+    # that patch the old path), and ``aind_zarr_utils.image`` where the
+    # actual call sites in the C4 dispatcher live. Patch all three.
     monkeypatch.setattr(
         "aind_zarr_utils.domain.selector.apply_overlays",
         mock_apply_overlays,
     )
     monkeypatch.setattr(
         "aind_zarr_utils.pipeline_transformed.apply_overlays",
+        mock_apply_overlays,
+    )
+    monkeypatch.setattr(
+        "aind_zarr_utils.image.apply_overlays",
         mock_apply_overlays,
     )
 
@@ -802,8 +808,15 @@ def mock_ants_transforms(monkeypatch):
         """Mock ANTs transform application - just add 100 to coordinates."""
         return points + 100
 
+    # ``apply_ants_transforms_to_point_arr`` is called from two places after
+    # the C6 split: the legacy pipeline_transformed helpers and the new
+    # transform-graph edges in points.py. Patch both.
     monkeypatch.setattr(
         "aind_zarr_utils.pipeline_transformed.apply_ants_transforms_to_point_arr",
+        mock_apply_ants_transforms,
+    )
+    monkeypatch.setattr(
+        "aind_zarr_utils.points.apply_ants_transforms_to_point_arr",
         mock_apply_ants_transforms,
     )
 

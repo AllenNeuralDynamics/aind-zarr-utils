@@ -24,6 +24,7 @@ from .neuroglancer import (
     neuroglancer_annotations_to_indices,
 )
 from .origin import Origin
+from .points import Points, Space
 
 # Pipeline integration
 from .pipeline_transformed import (
@@ -46,6 +47,8 @@ __all__ = [
     # New asset-centric API
     "Asset",
     "Origin",
+    "Points",
+    "Space",
     # Core ZARR conversion
     "zarr_to_ants",
     "zarr_to_sitk",

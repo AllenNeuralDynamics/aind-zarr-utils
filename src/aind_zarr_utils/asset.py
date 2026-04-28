@@ -64,6 +64,8 @@ if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
     from ome_zarr.reader import Node  # type: ignore[import-untyped]
 
+    from aind_zarr_utils.points import Points, Space
+
 
 _DEFAULT_TEMPLATE = "SmartSPIM-template_2024-05-16_11-26-14"
 
@@ -450,3 +452,32 @@ class Asset:
             overlay_selector=self.overlay_selector,
             opened_zarr=self.opened_zarr,
         )
+
+    def transform(self, points: Points, *, to: Space) -> Points:
+        """Project ``points`` to coordinate space ``to``.
+
+        Walks the small transform graph defined in
+        :mod:`aind_zarr_utils.points`, applying one edge at a time. The
+        asset's cached ``opened_zarr`` and ``transforms`` are reused at
+        every hop, so a multi-hop walk performs at most one Zarr open
+        and one transform-chain download.
+
+        Parameters
+        ----------
+        points : Points
+            Source points. ``points.space`` determines the starting
+            node in the graph.
+        to : Space
+            Destination coordinate space.
+
+        Returns
+        -------
+        Points
+            New :class:`~aind_zarr_utils.points.Points` with the same
+            ``values`` keys (and per-point descriptions, if any)
+            projected to ``to``.
+        """
+        # Local import to break the points → asset cycle.
+        from aind_zarr_utils.points import transform_points
+
+        return transform_points(self, points, to=to)
