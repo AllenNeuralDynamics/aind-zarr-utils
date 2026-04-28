@@ -346,6 +346,13 @@ def mock_zarr_operations(monkeypatch):
     def mock_reader(uri):
         return MockZarrReader(UnifiedZarrNode())
 
+    # Patch the new home (``aind_zarr_utils.io.zarr``) so calls inside the io
+    # package are intercepted; also patch the legacy ``aind_zarr_utils.zarr``
+    # re-export so any caller that still resolves the names from there sees
+    # the mock too.
+    monkeypatch.setattr("aind_zarr_utils.io.zarr._open_zarr", mock_open_zarr)
+    monkeypatch.setattr("aind_zarr_utils.io.zarr.parse_url", mock_parse_url)
+    monkeypatch.setattr("aind_zarr_utils.io.zarr.Reader", mock_reader)
     monkeypatch.setattr("aind_zarr_utils.zarr._open_zarr", mock_open_zarr)
     monkeypatch.setattr("aind_zarr_utils.zarr.parse_url", mock_parse_url)
     monkeypatch.setattr("aind_zarr_utils.zarr.Reader", mock_reader)
@@ -754,8 +761,11 @@ def mock_transform_path_resolution(monkeypatch):
 
         return MockResult(mock_path)
 
+    # The transform-resolution helpers moved to ``aind_zarr_utils.io.transforms``
+    # in commit C1; that's where the call site looks up
+    # ``get_local_path_for_resource`` now.
     monkeypatch.setattr(
-        "aind_zarr_utils.pipeline_transformed.get_local_path_for_resource",
+        "aind_zarr_utils.io.transforms.get_local_path_for_resource",
         mock_get_local_path,
     )
 

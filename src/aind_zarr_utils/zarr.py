@@ -1,4 +1,12 @@
-"""Module for turning ZARRs into ants images and vice versa."""
+"""Module for turning ZARRs into ants images and vice versa.
+
+The low-level Zarr opening and metadata helpers (``_open_zarr``,
+``zarr_to_numpy``, ``_zarr_to_scaled``, ``ensure_native_endian``,
+``direction_from_*``, ``_unit_conversion``, ``_units_to_meter``) live in
+:mod:`aind_zarr_utils.io.zarr` and :mod:`aind_zarr_utils.io.metadata` and
+are re-exported here for backwards compatibility. New code should import
+them from their new homes.
+"""
 
 from __future__ import annotations
 
@@ -8,285 +16,37 @@ import SimpleITK as sitk
 from aind_anatomical_utils.anatomical_volume import fix_corner_compute_origin
 from ants.core import ANTsImage  # type: ignore[import-untyped]
 from numpy.typing import NDArray
-from ome_zarr.io import parse_url  # type: ignore[import-untyped]
-from ome_zarr.reader import Node, Reader  # type: ignore[import-untyped]
 
+# These imports are re-exported below so that test fixtures and downstream
+# consumers can continue to monkey-patch them at ``aind_zarr_utils.zarr``.
+from ome_zarr.io import parse_url as parse_url  # type: ignore[import-untyped]
+from ome_zarr.reader import Node as Node  # type: ignore[import-untyped]
+from ome_zarr.reader import Reader as Reader
 
-def ensure_native_endian(a: np.ndarray, *, inplace: bool = False) -> np.ndarray:
-    """Return ``a`` with native-endian dtype.
-
-    - View if already native or byteorder-agnostic.
-    - Copy only when endianness must change or fields are mixed.
-    - With ``inplace=True``, mutate array when it's safe.
-    """
-    a = np.asarray(a)
-    dt = a.dtype
-
-    # -------- Plain (non-structured) dtype --------
-    if dt.fields is None:
-        # Already native or endian-agnostic ('|')
-        if dt.byteorder in ("|", "="):
-            return a
-        # Needs endian fix
-        if inplace:
-            if not a.flags.writeable:
-                raise ValueError("Array is not writeable; cannot convert in-place.")
-            a.byteswap(inplace=True)
-            a.dtype = dt.newbyteorder("=")  # type: ignore[misc]
-            return a
-        return a.astype(dt.newbyteorder("="), copy=False)
-
-    # -------- Structured dtype --------
-    # Collect byteorders of endian-aware fields ('<' or '>')
-    field_orders = {subdt.byteorder for (subdt, *_) in dt.fields.values() if subdt.byteorder in ("<", ">")}
-
-    if not field_orders:
-        # Either all fields are native '=' or byteorder-agnostic '|'
-        return a
-
-    if len(field_orders) > 1:
-        # Mixed endianness across fields → let NumPy fix per-field via astype
-        # (copy)
-        return a.astype(dt.newbyteorder("="), copy=True)
-
-    # Homogeneous non-native across fields ('<' OR '>')
-    if inplace:
-        if not a.flags.writeable:
-            raise ValueError("Array is not writeable; cannot convert in-place.")
-        a.byteswap(inplace=True)
-        a.dtype = dt.newbyteorder("=")  # type: ignore[misc]
-        return a
-
-    return a.astype(dt.newbyteorder("="), copy=False)
-
-
-def direction_from_acquisition_metadata(
-    acq_metadata: dict,
-) -> tuple[NDArray, list[str], list[str]]:
-    """
-    Extract direction, axes, and dimensions from acquisition metadata.
-
-    Parameters
-    ----------
-    acq_metadata : dict
-        Acquisition metadata
-
-    Returns
-    -------
-    dimensions : ndarray
-        Sorted array of dimension names in the metadata (e.g. array[0, 1, 2]).
-    axes : list
-        List of axis names in lowercase (e.g. 'z', 'y', 'x').
-    directions : list
-        List of direction codes (e.g., 'L', 'R', etc.).
-    """
-    axes_dict = {d["dimension"]: d for d in acq_metadata["axes"]}
-    dimensions = np.sort(np.array(list(axes_dict.keys())))
-    axes = []
-    directions = []
-    for i in dimensions:
-        axes.append(axes_dict[i]["name"].lower())
-        directions.append(axes_dict[i]["direction"].split("_")[-1][0].upper())
-    return dimensions, axes, directions
-
-
-def direction_from_nd_metadata(
-    nd_metadata: dict,
-) -> tuple[NDArray, list[str], list[str]]:
-    """
-    Extract direction, axes, and dimensions from ND metadata.
-
-    Parameters
-    ----------
-    nd_metadata : dict
-        ND metadata
-
-    Returns
-    -------
-    dimensions : ndarray
-        Sorted array of dimension names in the metadata (e.g. array[0, 1, 2]).
-    axes : list
-        List of axis names in lowercase (e.g. 'z', 'y', 'x').
-    directions : list
-        List of direction codes (e.g., 'L', 'R', etc.).
-    """
-    return direction_from_acquisition_metadata(nd_metadata["acquisition"])
-
-
-def _units_to_meter(unit: str) -> float:
-    """
-    Convert a unit of length to meters.
-
-    Parameters
-    ----------
-    unit : str
-        Unit of length (e.g., 'micrometer', 'millimeter').
-
-    Returns
-    -------
-    float
-        Conversion factor to meters.
-
-    Raises
-    ------
-    ValueError
-        If the unit is unknown.
-    """
-    if unit == "micrometer":
-        return 1e-6
-    elif unit == "millimeter":
-        return 1e-3
-    elif unit == "centimeter":
-        return 1e-2
-    elif unit == "meter":
-        return 1.0
-    elif unit == "kilometer":
-        return 1e3
-    else:
-        raise ValueError(f"Unknown unit: {unit}")
-
-
-def _unit_conversion(src: str, dst: str) -> float:
-    """
-    Convert between two units of length.
-
-    Parameters
-    ----------
-    src : str
-        Source unit.
-    dst : str
-        Destination unit.
-
-    Returns
-    -------
-    float
-        Conversion factor from src to dst.
-    """
-    if src == dst:
-        return 1.0
-    src_meters = _units_to_meter(src)
-    dst_meters = _units_to_meter(dst)
-    return src_meters / dst_meters
-
-
-def _open_zarr(uri: str) -> tuple[Node, dict]:
-    """
-    Open a ZARR file and retrieve its metadata.
-
-    Parameters
-    ----------
-    uri : str
-        URI of the ZARR file.
-
-    Returns
-    -------
-    image_node : ome_zarr.reader.Node
-        The image node of the ZARR file.
-    zarr_meta : dict
-        Metadata of the ZARR file.
-    """
-    reader = Reader(parse_url(uri))
-
-    # nodes may include images, labels etc
-    nodes = list(reader())
-
-    # first node will be the image pixel data
-    image_node = nodes[0]
-    zarr_meta = image_node.metadata
-    return image_node, zarr_meta
-
-
-def zarr_to_numpy(uri: str, level: int = 3, ensure_native_endianness: bool = False) -> tuple[NDArray, dict, int]:
-    """
-    Convert a ZARR file to a NumPy array.
-
-    Parameters
-    ----------
-    uri : str
-        URI of the ZARR file.
-    level : int, optional
-        Resolution level to read, by default 3.
-    ensure_native_endianness : bool, optional
-        Whether to ensure native endianness of the returned array, by default
-        False.
-
-    Returns
-    -------
-    arr_data : ndarray
-        NumPy array of the image data.
-    zarr_meta : dict
-        Metadata of the ZARR file.
-    level : int
-        Resolution level used.
-    """
-    image_node, zarr_meta = _open_zarr(uri)
-    arr_data = image_node.data[level].compute()
-    if ensure_native_endianness:
-        arr_data = ensure_native_endian(arr_data, inplace=True)
-    return arr_data, zarr_meta, level
-
-
-def _zarr_to_scaled(
-    uri: str,
-    *,
-    level: int = 3,
-    scale_unit: str = "millimeter",
-    opened_zarr: tuple[Node, dict] | None = None,
-) -> tuple[Node, set[int], list[str], list[float], list[int]]:
-    """
-    Extract scaled coordinate information from a ZARR file.
-
-    Parameters
-    ----------
-    uri : str
-        URI of the ZARR file.
-    level : int, optional
-        Resolution level to read, by default 3.
-    scale_unit : str, optional
-        Unit for scaling, by default "millimeter".
-    opened_zarr : tuple, optional
-        Pre-opened ZARR file (image_node, zarr_meta), by default None. If
-        provided, this will be used instead of opening the ZARR file again.
-
-    Returns
-    -------
-    image_node : ome_zarr.reader.Node
-        The image node of the ZARR file.
-    rej_axes : set
-        Rejected axes indices.
-    spacing : list
-        List of spacing values.
-    size : list
-        List of size values.
-    original_to_subset_axes_map : dict
-        Mapping from original axes to subset axes.
-    """
-    # Create the zarr reader
-    if opened_zarr is None:
-        image_node, zarr_meta = _open_zarr(uri)
-    else:
-        image_node, zarr_meta = opened_zarr
-    scale = np.array(zarr_meta["coordinateTransformations"][level][0]["scale"])
-    original_zarr_axes = zarr_meta["axes"]
-    spatial_dims = set(["x", "y", "z"])
-    original_to_subset_axes_map = {}  # sorted
-    i = 0
-    for j, ax in enumerate(original_zarr_axes):
-        ax_name = ax["name"]
-        if ax_name in spatial_dims:
-            original_to_subset_axes_map[j] = i
-            i += 1
-    rej_axes = set(range(len(original_zarr_axes))) - set(original_to_subset_axes_map.keys())
-    spacing = []
-    size = []
-    kept_zarr_axes = []
-    dask_shape = image_node.data[level].shape
-    for i in original_to_subset_axes_map.keys():
-        kept_zarr_axes.append(original_zarr_axes[i]["name"])
-        scale_factor = _unit_conversion(original_zarr_axes[i]["unit"], scale_unit)
-        spacing.append(scale_factor * scale[i])
-        size.append(dask_shape[i])
-    return image_node, rej_axes, kept_zarr_axes, spacing, size
+from aind_zarr_utils.io.metadata import (
+    _unit_conversion as _unit_conversion,
+)
+from aind_zarr_utils.io.metadata import (
+    _units_to_meter as _units_to_meter,
+)
+from aind_zarr_utils.io.metadata import (
+    direction_from_acquisition_metadata as direction_from_acquisition_metadata,
+)
+from aind_zarr_utils.io.metadata import (
+    direction_from_nd_metadata as direction_from_nd_metadata,
+)
+from aind_zarr_utils.io.zarr import (
+    _open_zarr as _open_zarr,
+)
+from aind_zarr_utils.io.zarr import (
+    _zarr_to_scaled as _zarr_to_scaled,
+)
+from aind_zarr_utils.io.zarr import (
+    ensure_native_endian as ensure_native_endian,
+)
+from aind_zarr_utils.io.zarr import (
+    zarr_to_numpy as zarr_to_numpy,
+)
 
 
 def scaled_points_to_indices(
