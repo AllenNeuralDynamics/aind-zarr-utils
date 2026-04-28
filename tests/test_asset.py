@@ -10,7 +10,6 @@ import pytest
 from aind_zarr_utils.asset import Asset, TransformPaths
 from aind_zarr_utils.origin import Origin
 
-
 # ---------------------------------------------------------------- Origin ---
 
 

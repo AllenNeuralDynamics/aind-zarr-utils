@@ -24,6 +24,9 @@ from aind_anatomical_utils.anatomical_volume import (
 )
 
 from aind_zarr_utils.domain.overlays import (
+    _PIPELINE_MULTISCALE_FACTOR as _PIPELINE_MULTISCALE_FACTOR,
+)
+from aind_zarr_utils.domain.overlays import (
     FlipIndexAxesOverlay as FlipIndexAxesOverlay,
 )
 from aind_zarr_utils.domain.overlays import (
@@ -43,9 +46,6 @@ from aind_zarr_utils.domain.overlays import (
 )
 from aind_zarr_utils.domain.overlays import (
     Vec3 as Vec3,
-)
-from aind_zarr_utils.domain.overlays import (
-    _PIPELINE_MULTISCALE_FACTOR as _PIPELINE_MULTISCALE_FACTOR,
 )
 from aind_zarr_utils.domain.overlays import (
     _require_cardinal as _require_cardinal,

@@ -243,17 +243,11 @@ def mock_overlay_selector(monkeypatch):
     def mock_apply_overlays(header, overlays, meta, multiscale_no, **_kwargs):
         return header, []  # Return header unchanged with no applied overlays
 
-    # ``apply_overlays`` is referenced from three modules now: the canonical
-    # home (``aind_zarr_utils.domain.selector``), the legacy
-    # ``aind_zarr_utils.pipeline_transformed`` re-export (kept for tests
-    # that patch the old path), and ``aind_zarr_utils.image`` where the
-    # actual call sites in the C4 dispatcher live. Patch all three.
+    # ``apply_overlays`` lives at ``aind_zarr_utils.domain.selector`` (the
+    # canonical home) and is called from ``aind_zarr_utils.image`` where the
+    # C4 dispatcher routes through it. Patch both.
     monkeypatch.setattr(
         "aind_zarr_utils.domain.selector.apply_overlays",
-        mock_apply_overlays,
-    )
-    monkeypatch.setattr(
-        "aind_zarr_utils.pipeline_transformed.apply_overlays",
         mock_apply_overlays,
     )
     monkeypatch.setattr(

@@ -15,22 +15,24 @@ This module describes those chains as :class:`TransformChain` /
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from aind_s3_cache.s3_cache import (
-    get_local_path_for_resource,
-)
+from aind_s3_cache.s3_cache import get_local_path_for_resource
 from aind_s3_cache.uri_utils import as_pathlike, as_string, join_any
 
 from aind_zarr_utils.io.paths import _asset_from_zarr_pathlike
 from aind_zarr_utils.io.processing import (
+    _get_processing_pipeline_data,
     image_atlas_alignment_path_relative_from_processing,
 )
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True, frozen=True)
@@ -108,7 +110,7 @@ _PIPELINE_TEMPLATE_TRANSFORMS: dict[str, TemplatePaths] = {
     )
 }
 
-_PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS: dict[int, TransformChain] = {
+_KNOWN_INDIVIDUAL_TRANSFORM_CHAINS: dict[int, TransformChain] = {
     3: TransformChain(
         fixed="template",
         moving="individual",
@@ -124,6 +126,34 @@ _PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS: dict[int, TransformChain] = {
         reverse_chain_invert=[True, False],
     )
 }
+
+_PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS: dict[int, TransformChain] = {
+    3: _KNOWN_INDIVIDUAL_TRANSFORM_CHAINS[3],
+    4: _KNOWN_INDIVIDUAL_TRANSFORM_CHAINS[3],
+    5: _KNOWN_INDIVIDUAL_TRANSFORM_CHAINS[3],
+}
+
+
+def _resolve_individual_transform_chain(
+    pipeline_ver: int,
+) -> TransformChain:
+    """Look up the individual (LS → template) transform chain for a pipeline major version.
+
+    Falls back to the latest known chain when the version is newer than
+    anything registered.
+    """
+    chain = _PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS.get(pipeline_ver)
+    if chain is not None:
+        return chain
+    max_known = max(_PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS)
+    if pipeline_ver > max_known:
+        logger.warning(
+            f"No individual transform chain registered for pipeline "
+            f"version {pipeline_ver}; falling back to chain for version "
+            f"{max_known}. Results may not be accurate."
+        )
+        return _PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS[max_known]
+    raise ValueError(f"No individual transform chain registered for pipeline version {pipeline_ver}")
 
 
 def pipeline_transforms(
@@ -169,9 +199,12 @@ def pipeline_transforms(
         bucket,
         asset_pathlike / alignment_rel_path,
     )
+    pipeline = _get_processing_pipeline_data(processing_data)
+    pipeline_ver = int(pipeline["pipeline_version"].split(".")[0])
+    transform_chain = _resolve_individual_transform_chain(pipeline_ver)
     individual_ants_paths = TemplatePaths(
         alignment_path,
-        _PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS[3],
+        transform_chain,
     )
     if template_base:
         template_ants_paths = TemplatePaths(

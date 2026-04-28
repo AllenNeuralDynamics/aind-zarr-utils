@@ -25,7 +25,6 @@ from aind_zarr_utils.points import (
     transform_points,
 )
 
-
 # ----------------------------------------------------------- construction ---
 
 
@@ -450,9 +449,8 @@ def test_neuroglancer_to_ccf_numerical_equivalence_new_vs_legacy(
     (via ``mock_ants_transforms``) so the result is deterministic and the
     test does not depend on the registration files being available.
     """
-    from tests.conftest import create_comprehensive_processing_data
-
     from aind_zarr_utils.pipeline_transformed import neuroglancer_to_ccf
+    from tests.conftest import create_comprehensive_processing_data
 
     processing = create_comprehensive_processing_data()
 

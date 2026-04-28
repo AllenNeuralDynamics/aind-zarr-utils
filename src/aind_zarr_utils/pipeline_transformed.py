@@ -21,20 +21,35 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
 import SimpleITK as sitk
-from aind_anatomical_utils.anatomical_volume import (
-    AnatomicalHeader,
-    fix_corner_compute_origin,
-)
-from aind_anatomical_utils.coordinate_systems import _OPPOSITE_AXES
 from aind_registration_utils.ants import (
     apply_ants_transforms_to_point_arr,
 )
 from numpy.typing import NDArray
-from packaging.version import Version
 
 from aind_zarr_utils.annotations import annotation_indices_to_anatomical
 from aind_zarr_utils.formats.swc import swc_data_to_indices
-from aind_zarr_utils.io.metadata import _unit_conversion as _unit_conversion  # noqa: F401  # legacy re-export
+
+# The implementations of _pipeline_anatomical_check_args,
+# _apply_pipeline_overlays_to_header, and _mimic_pipeline_anatomical_header
+# moved to ``aind_zarr_utils.image`` in commit C4. They are re-exported here
+# (along with _build_pipeline_header, the new name for the third) so existing
+# callers and test patches keep working.
+from aind_zarr_utils.image import (
+    _apply_pipeline_overlays_to_header as _apply_pipeline_overlays_to_header,
+)
+from aind_zarr_utils.image import (
+    _build_pipeline_header as _build_pipeline_header,
+)
+from aind_zarr_utils.image import (
+    _build_pipeline_header as _mimic_pipeline_anatomical_header,
+)
+from aind_zarr_utils.image import (
+    _pipeline_anatomical_check_args as _pipeline_anatomical_check_args,
+)
+from aind_zarr_utils.image import (
+    apply_pipeline_overlays as apply_pipeline_overlays,
+)
+from aind_zarr_utils.io.metadata import _unit_conversion as _unit_conversion  # legacy re-export
 
 # Re-exported from io/* so existing test patches (and downstream imports)
 # continue to find these names at ``aind_zarr_utils.pipeline_transformed.*``.
@@ -105,14 +120,11 @@ from aind_zarr_utils.neuroglancer import (
 )
 from aind_zarr_utils.pipeline_domain_selector import (
     OverlaySelector,
-    apply_overlays,
-    estimate_pipeline_multiscale,
     get_selector,
 )
 from aind_zarr_utils.zarr import (
     zarr_to_ants,
     zarr_to_sitk,
-    zarr_to_sitk_stub,
 )
 
 if TYPE_CHECKING:
@@ -121,28 +133,6 @@ if TYPE_CHECKING:
     from ome_zarr.reader import Node  # type: ignore[import-untyped]
 
 T = TypeVar("T", int, float)
-
-
-# The implementations of _pipeline_anatomical_check_args,
-# _apply_pipeline_overlays_to_header, and _mimic_pipeline_anatomical_header
-# moved to ``aind_zarr_utils.image`` in commit C4. They are re-exported here
-# (along with _build_pipeline_header, the new name for the third) so existing
-# callers and test patches keep working.
-from aind_zarr_utils.image import (
-    _apply_pipeline_overlays_to_header as _apply_pipeline_overlays_to_header,
-)
-from aind_zarr_utils.image import (
-    _build_pipeline_header as _build_pipeline_header,
-)
-from aind_zarr_utils.image import (
-    _build_pipeline_header as _mimic_pipeline_anatomical_header,
-)
-from aind_zarr_utils.image import (
-    _pipeline_anatomical_check_args as _pipeline_anatomical_check_args,
-)
-from aind_zarr_utils.image import (
-    apply_pipeline_overlays as apply_pipeline_overlays,
-)
 
 
 def base_and_pipeline_anatomical_stub(

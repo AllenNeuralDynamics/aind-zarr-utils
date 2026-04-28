@@ -10,10 +10,14 @@ relative location of the atlas-alignment outputs).
 
 from __future__ import annotations
 
+import logging
 from pathlib import PurePosixPath
 from typing import Any
 
 from aind_zarr_utils.io.paths import _zarr_base_name_pathlike
+
+logger = logging.getLogger(__name__)
+_KNOWN_GOOD_PIPELINE_VERSIONS = {3, 4, 5}
 
 
 def _get_processing_pipeline_data(
@@ -42,8 +46,17 @@ def _get_processing_pipeline_data(
     if not ver_str:
         raise ValueError("Missing pipeline version")
     pipeline_ver = int(ver_str.split(".")[0])
-    if pipeline_ver not in set((3, 4)):
-        raise ValueError(f"Unsupported pipeline version: {pipeline_ver}")
+    if pipeline_ver not in _KNOWN_GOOD_PIPELINE_VERSIONS:
+        maxver = max(_KNOWN_GOOD_PIPELINE_VERSIONS)
+        if pipeline_ver > maxver:
+            logger.warning(
+                f"Pipeline version {pipeline_ver} is greater than max "
+                f"verified version {maxver}, results may not be accurate. "
+                "File an issue at "
+                "https://github.com/AllenNeuralDynamics/aind-zarr-utils/issues."
+            )
+        else:
+            raise ValueError(f"Unsupported pipeline version: {pipeline_ver}")
     pipeline: dict[str, Any] = processing_data.get("processing_pipeline", {})
     return pipeline
 

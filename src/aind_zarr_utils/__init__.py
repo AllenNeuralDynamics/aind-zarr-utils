@@ -24,7 +24,6 @@ from .neuroglancer import (
     neuroglancer_annotations_to_indices,
 )
 from .origin import Origin
-from .points import Points, Space
 
 # Pipeline integration
 from .pipeline_transformed import (
@@ -36,6 +35,7 @@ from .pipeline_transformed import (
     neuroglancer_to_ccf_auto_metadata,
     swc_data_to_ccf_auto_metadata,
 )
+from .points import Points, Space
 from .zarr import (
     scaled_points_to_indices,
     zarr_to_ants,

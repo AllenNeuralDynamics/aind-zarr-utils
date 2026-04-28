@@ -272,7 +272,7 @@ class Asset:
         template_used: str,
         template_base: str | os.PathLike | None,
     ) -> Asset:
-        """Internal: build an :class:`Asset` and pre-open its Zarr."""
+        """Build an :class:`Asset` and pre-open its Zarr (internal helper)."""
         kwargs: dict[str, Any] = {
             "zarr_uri": zarr_uri,
             "metadata": metadata,
