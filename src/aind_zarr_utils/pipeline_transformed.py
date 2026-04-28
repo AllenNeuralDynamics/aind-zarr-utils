@@ -32,7 +32,8 @@ from numpy.typing import NDArray
 from packaging.version import Version
 
 from aind_zarr_utils.annotations import annotation_indices_to_anatomical
-from aind_zarr_utils.io.metadata import _unit_conversion
+from aind_zarr_utils.formats.swc import swc_data_to_indices
+from aind_zarr_utils.io.metadata import _unit_conversion as _unit_conversion  # noqa: F401  # legacy re-export
 
 # Re-exported from io/* so existing test patches (and downstream imports)
 # continue to find these names at ``aind_zarr_utils.pipeline_transformed.*``.
@@ -1322,19 +1323,13 @@ def swc_data_to_zarr_indices(
         Mapping neuron ID → (N, 3) array of integer zarr indices (rounded from
         continuous coordinates).
     """
-    unit_scale = _unit_conversion(swc_point_units, "millimeter")
-    swc_point_order_lower = swc_point_order.lower()
-    swc_to_zarr_axis_order = [swc_point_order_lower.index(ax) for ax in "zyx"]
     _, _, _, spacing_raw, _ = _zarr_to_scaled(zarr_uri, level=0, opened_zarr=opened_zarr)
-
-    spacing = np.array(spacing_raw)
-    swc_zarr_indices = {}
-    for k, pts in swc_point_dict.items():
-        pts_arr = np.asarray(pts)
-        if pts_arr.ndim != 2 or pts_arr.shape[1] != 3:
-            raise ValueError(f"Expected (N, 3) array for key {k}, got shape {pts_arr.shape}")
-        swc_zarr_indices[k] = np.round((unit_scale * pts_arr[:, swc_to_zarr_axis_order]) / spacing).astype(int)
-    return swc_zarr_indices
+    return swc_data_to_indices(
+        swc_point_dict,
+        spacing_raw,
+        swc_point_order=swc_point_order,
+        swc_point_units=swc_point_units,
+    )
 
 
 def swc_data_to_ccf(

@@ -702,6 +702,18 @@ def mock_annotation_functions(monkeypatch):
         stub_img.SetDirection((1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0))
         return stub_img, (10, 10, 10)
 
+    # The Neuroglancer helpers moved to ``aind_zarr_utils.formats.neuroglancer``
+    # in commit C3. Patch both that home (where the call site looks up the
+    # names) and the legacy ``aind_zarr_utils.neuroglancer`` re-export so any
+    # caller that still resolves the names from there sees the mock too.
+    monkeypatch.setattr(
+        "aind_zarr_utils.formats.neuroglancer.annotation_indices_to_anatomical",
+        mock_annotation_indices_to_anatomical,
+    )
+    monkeypatch.setattr(
+        "aind_zarr_utils.formats.neuroglancer.zarr_to_sitk_stub",
+        mock_zarr_to_sitk_stub,
+    )
     monkeypatch.setattr(
         "aind_zarr_utils.neuroglancer.annotation_indices_to_anatomical",
         mock_annotation_indices_to_anatomical,
