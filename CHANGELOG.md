@@ -1,3 +1,9 @@
+## v0.14.1 (2026-04-28)
+
+### Fix
+
+- **pipeline_transformed**: warn on unknown pipeline versions instead of erroring
+
 ## v0.14.0 (2026-02-11)
 
 ### Feat
