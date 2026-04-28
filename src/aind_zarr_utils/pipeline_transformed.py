@@ -15,6 +15,7 @@ Notes
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import PurePath, PurePosixPath
@@ -63,7 +64,10 @@ if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
     from ome_zarr.reader import Node  # type: ignore[import-untyped]
 
+logger = logging.getLogger(__name__)
+
 T = TypeVar("T", int, float)
+_KNOWN_GOOD_PIPELINE_VERSIONS = {3, 4, 5}
 
 
 @dataclass(slots=True, frozen=True)
@@ -227,7 +231,7 @@ _PIPELINE_TEMPLATE_TRANSFORMS: dict[str, TemplatePaths] = {
     )
 }
 
-_PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS: dict[int, TransformChain] = {
+_KNOWN_INDIVIDUAL_TRANSFORM_CHAINS: dict[int, TransformChain] = {
     3: TransformChain(
         fixed="template",
         moving="individual",
@@ -243,6 +247,34 @@ _PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS: dict[int, TransformChain] = {
         reverse_chain_invert=[True, False],
     )
 }
+
+_PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS: dict[int, TransformChain] = {
+    3: _KNOWN_INDIVIDUAL_TRANSFORM_CHAINS[3],
+    4: _KNOWN_INDIVIDUAL_TRANSFORM_CHAINS[3],
+    5: _KNOWN_INDIVIDUAL_TRANSFORM_CHAINS[3],
+}
+
+
+def _resolve_individual_transform_chain(
+    pipeline_ver: int,
+) -> TransformChain:
+    """Look up the individual (LS → template) transform chain for a pipeline major version.
+
+    Falls back to the latest known chain when the version is newer than
+    anything registered.
+    """
+    chain = _PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS.get(pipeline_ver)
+    if chain is not None:
+        return chain
+    max_known = max(_PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS)
+    if pipeline_ver > max_known:
+        logger.warning(
+            f"No individual transform chain registered for pipeline "
+            f"version {pipeline_ver}; falling back to chain for version "
+            f"{max_known}. Results may not be accurate."
+        )
+        return _PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS[max_known]
+    raise ValueError(f"No individual transform chain registered for pipeline version {pipeline_ver}")
 
 
 def _get_processing_pipeline_data(
@@ -265,14 +297,25 @@ def _get_processing_pipeline_data(
     Raises
     ------
     ValueError
-        If the pipeline version is missing or the major version is not 3.
+        If the pipeline version is missing or the major version is older
+        than the minimum supported version. Newer-than-known versions emit
+        a warning instead of raising.
     """
     ver_str = processing_data.get("processing_pipeline", {}).get("pipeline_version", None)
     if not ver_str:
         raise ValueError("Missing pipeline version")
     pipeline_ver = int(ver_str.split(".")[0])
-    if pipeline_ver not in set((3, 4)):
-        raise ValueError(f"Unsupported pipeline version: {pipeline_ver}")
+    if pipeline_ver not in _KNOWN_GOOD_PIPELINE_VERSIONS:
+        maxver = max(_KNOWN_GOOD_PIPELINE_VERSIONS)
+        if pipeline_ver > maxver:
+            logger.warning(
+                f"Pipeline version {pipeline_ver} is greater than max "
+                f"verified version {maxver}, results may not be accurate. "
+                "File an issue at "
+                "https://github.com/AllenNeuralDynamics/aind-zarr-utils/issues."
+            )
+        else:
+            raise ValueError(f"Unsupported pipeline version: {pipeline_ver}")
     pipeline: dict[str, Any] = processing_data.get("processing_pipeline", {})
     return pipeline
 
@@ -1175,9 +1218,13 @@ def pipeline_transforms(
         bucket,
         asset_pathlike / alignment_rel_path,
     )
+    pipeline = _get_processing_pipeline_data(processing_data)
+    pipeline_ver = int(pipeline["pipeline_version"].split(".")[0])
+    transform_chain = _resolve_individual_transform_chain(pipeline_ver)
+
     individual_ants_paths = TemplatePaths(
         alignment_path,
-        _PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS[3],
+        transform_chain,
     )
     if template_base:
         template_ants_paths = TemplatePaths(
