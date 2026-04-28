@@ -1,9 +1,14 @@
-"""AIND ZARR Utilities
+"""AIND ZARR Utilities.
 
 Core functions for working with ZARR datasets and neuroimaging coordinates.
 """
 
-__version__ = "0.14.0"
+from importlib.metadata import PackageNotFoundError, version
+
+try:
+    __version__ = version("aind-zarr-utils")
+except PackageNotFoundError:
+    __version__ = "0.0.0.dev0"
 
 # Core ZARR conversion
 # Basic coordinate transformation

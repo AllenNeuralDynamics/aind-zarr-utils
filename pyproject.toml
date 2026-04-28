@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools", "setuptools-scm"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "aind-zarr-utils"
@@ -8,8 +8,8 @@ description = "Utilities for working with ZARR data and AIND metadata"
 license = "MIT"
 requires-python = ">=3.10"
 authors = [
-  { name = "Galen Lynch", email = "galen@galenlynch.com" },
   { name = "Allen Institute for Neural Dynamics" },
+  { name = "Galen Lynch", email = "galen@galenlynch.com" },
 ]
 classifiers = ["Programming Language :: Python :: 3"]
 readme = "README.md"
@@ -40,90 +40,31 @@ Changelog = "https://github.com/AllenNeuralDynamics/aind-zarr-utils/blob/main/CH
 
 [dependency-groups]
 types = ["mypy", "types-requests", "boto3-stubs[s3]"]
-dev = [
-  { include-group = "types" },
-  "codespell",
-  "pytest",
-  "pytest-cov",
-  "ruff",
-  "interrogate",
-]
+dev = [{ include-group = "types" }, "codespell", "pytest", "pytest-cov", "ruff", "interrogate"]
 jupyter = [{ include-group = "dev" }, "ipykernel", "pip"]
-docs = [
-  { include-group = "dev" },
-  "mkdocs",
-  "mkdocs-material",
-  "mkdocstrings[python]",
-  "pymdown-extensions",
-  "ruff",
-]
 
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.setuptools.package-data]
-"aind_zarr_utils" = ["py.typed"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/aind_zarr_utils"]
 
 [tool.ruff]
-line-length = 79
-target-version = "py311"
-
-[tool.black]
-line-length = 79
-target-version = ["py311"]
-exclude = '''
-
-(
-  /(
-      \.eggs         # exclude a few common directories in the
-    | \.git          # root of the project
-    | \.hg
-    | \.mypy_cache
-    | \.tox
-    | \.venv
-    | _build
-    | build
-    | dist
-  )/
-  | .gitignore
-)
-'''
+line-length = 120
+target-version = "py310"
+extend-exclude = ["scratch"]
 
 [tool.ruff.lint]
-extend-select = ["Q", "RUF100", "C90", "I", "F", "E", "W", "UP", "ANN", "PYI"]
-extend-ignore = ["ANN401"]
-per-file-ignores = { "tests/*.py" = [
-  "ANN",
-], "docs/**/*.py" = [
-  "ANN",
-], "notebooks/*.py" = [
-  "ANN",
-] }
+extend-select = ["Q", "RUF100", "C90", "I", "F", "E", "W", "D", "UP", "ANN", "PYI"]
+extend-ignore = ["ANN401"]  # Skip self/cls type annotations
+per-file-ignores = { "tests/*.py" = ["ANN", "D"] }
 mccabe = { max-complexity = 14 }
 pydocstyle = { convention = "numpy" }
 
 [tool.codespell]
-skip = '.git,*.pdf,*.svg,./bonsai,*.bonsai,./docs/_build,uv.lock,./doc_template,./docs/build'
+skip = ".git,*.pdf,*.svg,./docs/build,uv.lock,scratch"
 ignore-words-list = "nd"
 
 [tool.pytest.ini_options]
 addopts = "--strict-markers --tb=short --cov=src --cov-report=term-missing --cov-fail-under=0"
 testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-
-[tool.coverage.run]
-omit = ["*__init__*"]
-source = ["src"]
-
-[tool.coverage.report]
-exclude_lines = ["if __name__ == .__main__.:", "# pragma: no cover"]
-fail_under = 30
-
-[tool.isort]
-line_length = 79
-profile = "black"
 
 [tool.interrogate]
 ignore-init-method = true
@@ -135,17 +76,18 @@ exclude = [
   "tests",
   "docs",
   "build",
-  "setup.py",
   "examples",
   "site",
+  "scratch",
+  ".venv",
 ]
 
 [tool.commitizen]
 version_provider = "pep621"
-version_files = ["src/aind_zarr_utils/__init__.py:__version__"]
 update_changelog_on_bump = true
 tag_format = "v$version"
 major_version_zero = true
+
 
 [tool.mypy]
 files = ["src/aind_zarr_utils"]
@@ -163,6 +105,7 @@ warn_no_return = true
 warn_unreachable = true
 strict_equality = true
 show_error_codes = true
+exclude = ["scratch"]
 
 [[tool.mypy.overrides]]
 module = "tests.*"

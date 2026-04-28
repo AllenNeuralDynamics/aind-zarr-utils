@@ -144,9 +144,7 @@ class TestOverlays:
             mock_compute_origin,
         )
 
-        overlay = pds.ForceCornerAnchorOverlay(
-            corner_code="RAS", target_point_labeled=(5.0, 5.0, 5.0)
-        )
+        overlay = pds.ForceCornerAnchorOverlay(corner_code="RAS", target_point_labeled=(5.0, 5.0, 5.0))
 
         header = AnatomicalHeader(
             origin=(0, 0, 0),  # Will be changed
@@ -233,9 +231,7 @@ class TestOverlaySelector:
         assert len(overlays) == 1
 
         # Should not match (predicate false)
-        overlays = selector.select(
-            version="1.0.0", meta={"has_feature": False}
-        )
+        overlays = selector.select(version="1.0.0", meta={"has_feature": False})
         assert len(overlays) == 0
 
     def test_overlay_selector_priority_ordering(self):
@@ -244,15 +240,9 @@ class TestOverlaySelector:
         overlay2 = pds.FlipIndexAxesOverlay(flip_i=True, priority=10)
         overlay3 = pds.PermuteIndexAxesOverlay(order=(1, 2, 0), priority=30)
 
-        rule1 = pds.OverlayRule(
-            "rule1", SpecifierSet(">=0.0.0"), lambda m: overlay1
-        )
-        rule2 = pds.OverlayRule(
-            "rule2", SpecifierSet(">=0.0.0"), lambda m: overlay2
-        )
-        rule3 = pds.OverlayRule(
-            "rule3", SpecifierSet(">=0.0.0"), lambda m: overlay3
-        )
+        rule1 = pds.OverlayRule("rule1", SpecifierSet(">=0.0.0"), lambda m: overlay1)
+        rule2 = pds.OverlayRule("rule2", SpecifierSet(">=0.0.0"), lambda m: overlay2)
+        rule3 = pds.OverlayRule("rule3", SpecifierSet(">=0.0.0"), lambda m: overlay3)
 
         selector = pds.OverlaySelector(rules=(rule1, rule2, rule3))
         overlays = selector.select(version="1.0.0", meta={})
@@ -317,12 +307,8 @@ class TestOverlaySelector:
         # Rules are sorted by priority (highest first), so rule2 (priority 20)
         # comes before rule1 (priority 10)
         assert len(overlays) == 2
-        assert isinstance(
-            overlays[0], pds.FlipIndexAxesOverlay
-        )  # From rule2 (priority 20, stop_after=True)
-        assert isinstance(
-            overlays[1], pds.SpacingScaleOverlay
-        )  # From rule1 (priority 10)
+        assert isinstance(overlays[0], pds.FlipIndexAxesOverlay)  # From rule2 (priority 20, stop_after=True)
+        assert isinstance(overlays[1], pds.SpacingScaleOverlay)  # From rule1 (priority 10)
 
     def test_with_rule(self):
         """Test adding rules immutably."""
@@ -448,9 +434,7 @@ class TestUtilityFunctions:
             pds.FlipIndexAxesOverlay(flip_i=True, priority=20),
         ]
 
-        final_header, applied = pds.apply_overlays(
-            base_header, overlays, {}, registration_multiscale_no=0
-        )
+        final_header, applied = pds.apply_overlays(base_header, overlays, {}, registration_multiscale_no=0)
 
         # Both overlays should be applied and tracked
         assert len(applied) == 2
@@ -473,9 +457,7 @@ class TestUtilityFunctions:
         # Overlay that would double the spacing, but it's already doubled
         overlay = pds.SpacingScaleOverlay(scale=1.0, priority=10)  # No change
 
-        final_header, applied = pds.apply_overlays(
-            base_header, [overlay], {}, registration_multiscale_no=0
-        )
+        final_header, applied = pds.apply_overlays(base_header, [overlay], {}, registration_multiscale_no=0)
 
         # No changes detected, so overlay not in applied list
         assert len(applied) == 0

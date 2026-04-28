@@ -71,9 +71,7 @@ class UnifiedS3Client:
             range_match = re.match(r"bytes=(\d+)-(\d+)", Range)
             if range_match:
                 start, end = range_match.groups()
-                headers["content-range"] = (
-                    f"bytes {start}-{end}/{self.content_length}"
-                )
+                headers["content-range"] = f"bytes {start}-{end}/{self.content_length}"
 
         return {
             "Body": self,
@@ -84,9 +82,7 @@ class UnifiedS3Client:
     def head_object(self, Bucket: str, Key: str):
         """Mock S3 head_object with optional blocking simulation."""
         if self.simulate_head_blocked:
-            raise ClientError(
-                {"ResponseMetadata": {"HTTPStatusCode": 403}}, "HeadObject"
-            )
+            raise ClientError({"ResponseMetadata": {"HTTPStatusCode": 403}}, "HeadObject")
 
         if f"{Bucket}/{Key}" in self.simulate_errors:
             error_code = self.simulate_errors[f"{Bucket}/{Key}"]
@@ -292,9 +288,7 @@ class UnifiedZarrNode:
         for level in range(levels):
             scale_factor = 2**level
             scaled_shape = tuple(
-                max(1, s // scale_factor)
-                if i >= 2
-                else s  # Only scale spatial dims
+                max(1, s // scale_factor) if i >= 2 else s  # Only scale spatial dims
                 for i, s in enumerate(shape)
             )
             self.data[level] = MockZarrData(scaled_shape)
@@ -303,9 +297,7 @@ class UnifiedZarrNode:
         if coordinate_transforms is None:
             coordinate_transforms = []
             for level in range(levels):
-                scale = [1.0, 1.0] + [2.0**level] * (
-                    len(shape) - 2
-                )  # Scale spatial dims
+                scale = [1.0, 1.0] + [2.0**level] * (len(shape) - 2)  # Scale spatial dims
                 coordinate_transforms.append([{"scale": scale}])
 
         if axes is None:
@@ -403,16 +395,12 @@ def real_ome_zarr(tmp_path):
         )
 
         # Create array with incrementing values for validation
-        data = np.arange(np.prod(scaled_shape), dtype=np.float32).reshape(
-            scaled_shape
-        )
+        data = np.arange(np.prod(scaled_shape), dtype=np.float32).reshape(scaled_shape)
 
         # Write to zarr - use API compatible with both v2 and v3
         if hasattr(root, "create_array"):
             # zarr v3 API
-            root.create_array(
-                name=str(level), data=data, chunks=(1, 1, 5, 5, 5)
-            )
+            root.create_array(name=str(level), data=data, chunks=(1, 1, 5, 5, 5))
         else:
             # zarr v2 API
             # Use dimension_separator='/' for compatibility with ome-zarr
@@ -514,14 +502,9 @@ def create_processing_metadata(
             processes.append(
                 {
                     "name": "Image atlas alignment",
-                    "notes": (
-                        "Template based registration: LS -> template -> "
-                        "Allen CCFv3 Atlas"
-                    ),
+                    "notes": ("Template based registration: LS -> template -> Allen CCFv3 Atlas"),
                     "input_location": "/some/path/Ex_639_Em_667.ome.zarr",
-                    "parameters": {
-                        "template": "SmartSPIM-template_2024-05-16_11-26-14"
-                    },
+                    "parameters": {"template": "SmartSPIM-template_2024-05-16_11-26-14"},
                     "start_date_time": "2024-01-01T01:00:00",
                     "end_date_time": "2024-01-01T02:00:00",
                 }
@@ -611,9 +594,7 @@ def sample_swc_data():
     return {
         "neuron_001": np.array([[100.0, 200.0, 300.0], [110.0, 210.0, 310.0]]),
         "neuron_002": np.array([[50.0, 150.0, 250.0]]),
-        "neuron_003": np.array(
-            [[10.5, 20.5, 30.5], [15.5, 25.5, 35.5], [20.5, 30.5, 40.5]]
-        ),
+        "neuron_003": np.array([[10.5, 20.5, 30.5], [15.5, 25.5, 35.5], [20.5, 30.5, 40.5]]),
     }
 
 
@@ -752,9 +733,7 @@ def mock_transform_path_resolution(monkeypatch):
     """Mock get_local_path_for_resource for transform path testing."""
     from pathlib import Path
 
-    def mock_get_local_path(
-        uri, s3_client=None, anonymous=False, cache_dir=None
-    ):
+    def mock_get_local_path(uri, s3_client=None, anonymous=False, cache_dir=None):
         """Mock function that returns a predictable local path."""
         # Extract filename from URI
         filename = Path(uri).name
@@ -844,14 +823,9 @@ def create_comprehensive_processing_data(
         processes.append(
             {
                 "name": "Image atlas alignment",
-                "notes": (
-                    "Template based registration: LS -> template -> Allen "
-                    "CCFv3 Atlas"
-                ),
+                "notes": ("Template based registration: LS -> template -> Allen CCFv3 Atlas"),
                 "input_location": f"s3://bucket/data/{input_zarr_name}",
-                "parameters": {
-                    "template": "SmartSPIM-template_2024-05-16_11-26-14"
-                },
+                "parameters": {"template": "SmartSPIM-template_2024-05-16_11-26-14"},
             }
         )
 

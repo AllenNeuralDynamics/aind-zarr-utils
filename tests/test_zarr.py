@@ -13,9 +13,7 @@ def test_direction_from_acquisition_metadata():
             {"dimension": "2", "name": "Z", "direction": "INFERIOR_SUPERIOR"},
         ]
     }
-    dims, axes, dirs = zarr_mod.direction_from_acquisition_metadata(
-        acq_metadata
-    )
+    dims, axes, dirs = zarr_mod.direction_from_acquisition_metadata(acq_metadata)
     assert set(dims) == {"0", "1", "2"}
     assert set(axes) == {"x", "y", "z"}
     assert set(dirs) == {"R", "A", "S"}
@@ -95,9 +93,7 @@ def test_zarr_to_numpy(real_ome_zarr):
 
 def test_zarr_to_numpy_anatomical(real_ome_zarr, mock_nd_metadata):
     """Test converting OME-ZARR to anatomical numpy representation."""
-    arr, dirs, spacing, size = zarr_mod._zarr_to_numpy_anatomical(
-        real_ome_zarr, mock_nd_metadata, level=0
-    )
+    arr, dirs, spacing, size = zarr_mod._zarr_to_numpy_anatomical(real_ome_zarr, mock_nd_metadata, level=0)
     # Should extract only spatial dimensions (z, y, x)
     assert arr.shape == (10, 10, 10)
     # Verify anatomical directions from mock metadata
@@ -138,9 +134,7 @@ def test_zarr_to_ants_and_sitk(real_ome_zarr, mock_nd_metadata):
 
 def test_zarr_to_sitk_stub(real_ome_zarr, mock_nd_metadata):
     """Test creating SimpleITK stub from real OME-ZARR metadata."""
-    stub_img, size_ijk = zarr_mod.zarr_to_sitk_stub(
-        real_ome_zarr, mock_nd_metadata, level=0
-    )
+    stub_img, size_ijk = zarr_mod.zarr_to_sitk_stub(real_ome_zarr, mock_nd_metadata, level=0)
     # Test that we got a real SimpleITK image stub with expected properties
     assert isinstance(stub_img, sitk.Image)
     spacing = stub_img.GetSpacing()
@@ -161,9 +155,7 @@ def test_scaled_points_to_indices_basic(real_ome_zarr):
         "layer1": np.array([[2.0, 4.0, 6.0], [3.0, 6.0, 9.0]])  # in mm
     }
 
-    indices = zarr_mod.scaled_points_to_indices(
-        scaled_pts, real_ome_zarr, scale_unit="millimeter"
-    )
+    indices = zarr_mod.scaled_points_to_indices(scaled_pts, real_ome_zarr, scale_unit="millimeter")
 
     # Expected: [2.0/1.0, 4.0/1.0, 6.0/1.0] = [2.0, 4.0, 6.0]
     expected = np.array([[2.0, 4.0, 6.0], [3.0, 6.0, 9.0]])

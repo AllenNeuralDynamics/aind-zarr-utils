@@ -38,16 +38,12 @@ def test_process_layer_and_descriptions():
             {"point": [5, 6, 7, 8], "description": "desc2"},
         ]
     }
-    points, descs = ng._process_layer_and_descriptions(
-        layer, return_description=True
-    )
+    points, descs = ng._process_layer_and_descriptions(layer, return_description=True)
     assert points.shape == (2, 3)
     assert np.allclose(points[0], [1, 2, 3])
     assert descs[0] == "desc1"
     # With spacing
-    points2, _ = ng._process_layer_and_descriptions(
-        layer, spacing=np.array([2, 3, 4]), return_description=False
-    )
+    points2, _ = ng._process_layer_and_descriptions(layer, spacing=np.array([2, 3, 4]), return_description=False)
     assert np.allclose(points2[0], [2, 6, 12])
     # Bad shape
     bad_layer = {"annotations": [{"point": [1, 2, 3]}]}
@@ -66,14 +62,10 @@ def test_process_annotation_layers():
             "annotations": [{"point": [5, 6, 7, 8], "description": "d2"}],
         },
     ]
-    ann, desc = ng._process_annotation_layers(
-        layers, ["a", "b"], return_description=True
-    )
+    ann, desc = ng._process_annotation_layers(layers, ["a", "b"], return_description=True)
     assert set(ann.keys()) == {"a", "b"}
     assert desc["a"][0] == "d1"
-    ann2, desc2 = ng._process_annotation_layers(
-        layers, ["a"], spacing=np.array([2, 2, 2]), return_description=True
-    )
+    ann2, desc2 = ng._process_annotation_layers(layers, ["a"], spacing=np.array([2, 2, 2]), return_description=True)
     assert np.allclose(ann2["a"], [[2, 4, 6]])
 
 
@@ -107,9 +99,7 @@ def test_neuroglancer_annotations_to_indices(neuroglancer_test_data):
     assert desc["annotations_layer2"][0] == "point3"
 
 
-def test_neuroglancer_annotations_to_anatomical(
-    neuroglancer_test_data, real_ome_zarr, mock_nd_metadata
-):
+def test_neuroglancer_annotations_to_anatomical(neuroglancer_test_data, real_ome_zarr, mock_nd_metadata):
     """Test converting neuroglancer annotations to anatomical space using real
     data."""
     points, desc = ng.neuroglancer_annotations_to_anatomical(
@@ -137,9 +127,7 @@ def test_neuroglancer_annotations_to_anatomical(
 def test_neuroglancer_annotations_to_scaled(neuroglancer_test_data):
     """Test converting neuroglancer annotations to scaled coordinates using
     real data."""
-    ann, units, desc = ng.neuroglancer_annotations_to_scaled(
-        neuroglancer_test_data
-    )
+    ann, units, desc = ng.neuroglancer_annotations_to_scaled(neuroglancer_test_data)
 
     # Should have both annotation layers
     assert "annotations_layer1" in ann

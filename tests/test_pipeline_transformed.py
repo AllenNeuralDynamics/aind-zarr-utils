@@ -10,9 +10,7 @@ import pytest
 from aind_zarr_utils import pipeline_transformed as pt
 
 # Long string constant to avoid line length issues
-ATLAS_ALIGNMENT_NOTES = (
-    "Template based registration: LS -> template -> Allen CCFv3 Atlas"
-)
+ATLAS_ALIGNMENT_NOTES = "Template based registration: LS -> template -> Allen CCFv3 Atlas"
 
 
 class TestPathUtilities:
@@ -152,18 +150,14 @@ class TestProcessingDataParsing:
         data = {
             "processing_pipeline": {
                 "pipeline_version": "3.0.0",
-                "data_processes": [
-                    {"name": "Other process", "notes": "Different notes"}
-                ],
+                "data_processes": [{"name": "Other process", "notes": "Different notes"}],
             }
         }
         proc = pt._get_image_atlas_alignment_process(data)
         assert proc is None
 
     def test_image_atlas_alignment_path_relative(self, sample_processing_data):
-        rel_path = pt.image_atlas_alignment_path_relative_from_processing(
-            sample_processing_data
-        )
+        rel_path = pt.image_atlas_alignment_path_relative_from_processing(sample_processing_data)
         assert rel_path == "image_atlas_alignment/session/"
 
     def test_image_atlas_alignment_path_relative_not_found(self):
@@ -229,9 +223,7 @@ class TestPipelineTransformConstants:
 
         # Create a new TemplatePaths with the same chain but different base
         custom_base = "/local/templates/"
-        custom_template = pt.TemplatePaths(
-            base=custom_base, chain=original_chain
-        )
+        custom_template = pt.TemplatePaths(base=custom_base, chain=original_chain)
 
         # Verify they share the same chain but have different bases
         assert custom_template.chain == original_chain
@@ -239,50 +231,32 @@ class TestPipelineTransformConstants:
         assert custom_template.base != original_template.base
 
         # Verify chain properties are the same
-        assert (
-            custom_template.chain.forward_chain == original_chain.forward_chain
-        )
-        assert (
-            custom_template.chain.reverse_chain == original_chain.reverse_chain
-        )
+        assert custom_template.chain.forward_chain == original_chain.forward_chain
+        assert custom_template.chain.reverse_chain == original_chain.reverse_chain
 
     def test_forward_vs_reverse_chain_differences(self):
         """Test that forward and reverse chains are different as expected."""
         # Test template chains
-        template_chain = pt._PIPELINE_TEMPLATE_TRANSFORM_CHAINS[
-            "SmartSPIM-template_2024-05-16_11-26-14"
-        ]
+        template_chain = pt._PIPELINE_TEMPLATE_TRANSFORM_CHAINS["SmartSPIM-template_2024-05-16_11-26-14"]
 
         # Forward and reverse should have same files but different
         # order/inversion
-        assert len(template_chain.forward_chain) == len(
-            template_chain.reverse_chain
-        )
+        assert len(template_chain.forward_chain) == len(template_chain.reverse_chain)
         assert template_chain.forward_chain != template_chain.reverse_chain
-        assert (
-            template_chain.forward_chain_invert
-            != template_chain.reverse_chain_invert
-        )
+        assert template_chain.forward_chain_invert != template_chain.reverse_chain_invert
 
         # Test individual chains
         individual_chain = pt._PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS[3]
 
-        assert len(individual_chain.forward_chain) == len(
-            individual_chain.reverse_chain
-        )
+        assert len(individual_chain.forward_chain) == len(individual_chain.reverse_chain)
         assert individual_chain.forward_chain != individual_chain.reverse_chain
-        assert (
-            individual_chain.forward_chain_invert
-            != individual_chain.reverse_chain_invert
-        )
+        assert individual_chain.forward_chain_invert != individual_chain.reverse_chain_invert
 
     def test_chain_mathematical_consistency(self):
         """Test that chains have mathematically consistent inverse
         relationships."""
         # Test template chain inversion patterns
-        template_chain = pt._PIPELINE_TEMPLATE_TRANSFORM_CHAINS[
-            "SmartSPIM-template_2024-05-16_11-26-14"
-        ]
+        template_chain = pt._PIPELINE_TEMPLATE_TRANSFORM_CHAINS["SmartSPIM-template_2024-05-16_11-26-14"]
 
         # Forward: [warp, affine] with [False, False] inversion
         # Reverse: [affine, inverse_warp] with [True, False] inversion
@@ -310,12 +284,8 @@ class TestMimicPipelineStub:
                 "data_processes": [],
             }
         }
-        with pytest.raises(
-            ValueError, match="Could not find zarr import process"
-        ):
-            pt.mimic_pipeline_zarr_to_anatomical_stub(
-                "s3://bucket/session.ome.zarr", {}, processing_data
-            )
+        with pytest.raises(ValueError, match="Could not find zarr import process"):
+            pt.mimic_pipeline_zarr_to_anatomical_stub("s3://bucket/session.ome.zarr", {}, processing_data)
 
     def test_mimic_pipeline_stub_missing_code_version(self):
         processing_data = {
@@ -325,9 +295,7 @@ class TestMimicPipelineStub:
             }
         }
         with pytest.raises(ValueError, match="Zarr import version not found"):
-            pt.mimic_pipeline_zarr_to_anatomical_stub(
-                "s3://bucket/session.ome.zarr", {}, processing_data
-            )
+            pt.mimic_pipeline_zarr_to_anatomical_stub("s3://bucket/session.ome.zarr", {}, processing_data)
 
 
 class TestPipelineTransforms:
@@ -350,19 +318,12 @@ class TestPipelineTransforms:
 
     def test_pipeline_transforms_success(self, sample_processing_data):
         zarr_uri = "s3://bucket/data/acquisition/session.ome.zarr/0"
-        individual, template = pt.pipeline_transforms(
-            zarr_uri, sample_processing_data
-        )
+        individual, template = pt.pipeline_transforms(zarr_uri, sample_processing_data)
 
         assert individual.base.endswith("image_atlas_alignment/session")
         assert individual.chain == pt._PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS[3]
 
-        assert (
-            template
-            == pt._PIPELINE_TEMPLATE_TRANSFORMS[
-                "SmartSPIM-template_2024-05-16_11-26-14"
-            ]
-        )
+        assert template == pt._PIPELINE_TEMPLATE_TRANSFORMS["SmartSPIM-template_2024-05-16_11-26-14"]
 
     def test_pipeline_transforms_missing_alignment_path(self):
         processing_data = {
@@ -373,14 +334,10 @@ class TestPipelineTransforms:
         }
         zarr_uri = "s3://bucket/data/acquisition/session.ome.zarr/0"
 
-        with pytest.raises(
-            ValueError, match="Could not determine image atlas alignment path"
-        ):
+        with pytest.raises(ValueError, match="Could not determine image atlas alignment path"):
             pt.pipeline_transforms(zarr_uri, processing_data)
 
-    def test_pipeline_transforms_with_template_base(
-        self, sample_processing_data
-    ):
+    def test_pipeline_transforms_with_template_base(self, sample_processing_data):
         """Test pipeline_transforms with template_base parameter."""
         zarr_uri = "s3://bucket/data/acquisition/session.ome.zarr/0"
         custom_template_base = "/local/templates/"
@@ -396,16 +353,9 @@ class TestPipelineTransforms:
 
         # Template should use custom base
         assert template.base == custom_template_base
-        assert (
-            template.chain
-            == pt._PIPELINE_TEMPLATE_TRANSFORM_CHAINS[
-                "SmartSPIM-template_2024-05-16_11-26-14"
-            ]
-        )
+        assert template.chain == pt._PIPELINE_TEMPLATE_TRANSFORM_CHAINS["SmartSPIM-template_2024-05-16_11-26-14"]
 
-    def test_pipeline_transforms_template_used_parameter(
-        self, sample_processing_data
-    ):
+    def test_pipeline_transforms_template_used_parameter(self, sample_processing_data):
         """Test pipeline_transforms with different template_used values."""
         zarr_uri = "s3://bucket/data/acquisition/session.ome.zarr/0"
 
@@ -416,12 +366,7 @@ class TestPipelineTransforms:
             template_used="SmartSPIM-template_2024-05-16_11-26-14",
         )
 
-        assert (
-            template
-            == pt._PIPELINE_TEMPLATE_TRANSFORMS[
-                "SmartSPIM-template_2024-05-16_11-26-14"
-            ]
-        )
+        assert template == pt._PIPELINE_TEMPLATE_TRANSFORMS["SmartSPIM-template_2024-05-16_11-26-14"]
 
 
 class TestPipelineImageTransformsLocalPaths:
@@ -442,9 +387,7 @@ class TestPipelineImageTransformsLocalPaths:
             }
         }
 
-    def test_pipeline_image_transforms_local_paths(
-        self, sample_processing_data, mock_s3_client, tmp_path
-    ):
+    def test_pipeline_image_transforms_local_paths(self, sample_processing_data, mock_s3_client, tmp_path):
         """Test image transform local path resolution."""
 
         # Mock get_local_path_for_resource to return temporary paths
@@ -482,9 +425,7 @@ class TestPipelineImageTransformsLocalPaths:
         # Check inversion flags
         assert isinstance(inverted[0], bool)
 
-    def test_pipeline_image_transforms_template_base_override(
-        self, sample_processing_data, mock_s3_client, tmp_path
-    ):
+    def test_pipeline_image_transforms_template_base_override(self, sample_processing_data, mock_s3_client, tmp_path):
         """Test custom template base path override."""
         custom_template_base = "/local/templates/"
 
@@ -515,9 +456,7 @@ class TestPipelineImageTransformsLocalPaths:
         assert len(paths) == 4
         assert len(inverted) == 4
 
-    def test_pipeline_image_transforms_forward_chain_usage(
-        self, sample_processing_data, mock_s3_client, tmp_path
-    ):
+    def test_pipeline_image_transforms_forward_chain_usage(self, sample_processing_data, mock_s3_client, tmp_path):
         """Test that image transforms use forward chains."""
         paths_called = []
 
@@ -546,23 +485,12 @@ class TestPipelineImageTransformsLocalPaths:
 
         # Verify forward chain files are requested
         # Template forward chain files
-        assert any(
-            "spim_template_to_ccf_syn_1Warp_25.nii.gz" in path
-            for path in paths_called
-        )
-        assert any(
-            "spim_template_to_ccf_syn_0GenericAffine_25.mat" in path
-            for path in paths_called
-        )
+        assert any("spim_template_to_ccf_syn_1Warp_25.nii.gz" in path for path in paths_called)
+        assert any("spim_template_to_ccf_syn_0GenericAffine_25.mat" in path for path in paths_called)
 
         # Individual forward chain files
-        assert any(
-            "ls_to_template_SyN_1Warp.nii.gz" in path for path in paths_called
-        )
-        assert any(
-            "ls_to_template_SyN_0GenericAffine.mat" in path
-            for path in paths_called
-        )
+        assert any("ls_to_template_SyN_1Warp.nii.gz" in path for path in paths_called)
+        assert any("ls_to_template_SyN_0GenericAffine.mat" in path for path in paths_called)
 
 
 class TestPipelinePointTransformsLocalPaths:
@@ -583,9 +511,7 @@ class TestPipelinePointTransformsLocalPaths:
             }
         }
 
-    def test_pipeline_point_transforms_local_paths(
-        self, sample_processing_data, mock_s3_client, tmp_path
-    ):
+    def test_pipeline_point_transforms_local_paths(self, sample_processing_data, mock_s3_client, tmp_path):
         # Mock get_local_path_for_resource to return temporary paths
         def mock_get_local_path(uri, **kwargs):
             filename = Path(uri).name
@@ -621,9 +547,7 @@ class TestPipelinePointTransformsLocalPaths:
         # Check inversion flags
         assert isinstance(inverted[0], bool)
 
-    def test_pipeline_point_transforms_template_base_parameter(
-        self, sample_processing_data, mock_s3_client, tmp_path
-    ):
+    def test_pipeline_point_transforms_template_base_parameter(self, sample_processing_data, mock_s3_client, tmp_path):
         """Test that pipeline_point_transforms_local_paths accepts
         template_base."""
         custom_template_base = "/local/templates/"
@@ -675,9 +599,7 @@ class TestPipelineTransformsLocalPaths:
             }
         }
 
-    def test_pipeline_transforms_local_paths_4tuple_return(
-        self, sample_processing_data, mock_s3_client, tmp_path
-    ):
+    def test_pipeline_transforms_local_paths_4tuple_return(self, sample_processing_data, mock_s3_client, tmp_path):
         """Test that pipeline_transforms_local_paths returns 4-tuple."""
 
         def mock_get_local_path(uri, **kwargs):
@@ -722,9 +644,7 @@ class TestPipelineTransformsLocalPaths:
         for flag in pt_inverted + img_inverted:
             assert isinstance(flag, bool)
 
-    def test_pipeline_transforms_local_paths_different_chains(
-        self, sample_processing_data, mock_s3_client, tmp_path
-    ):
+    def test_pipeline_transforms_local_paths_different_chains(self, sample_processing_data, mock_s3_client, tmp_path):
         """Test that point and image transforms use different chains."""
         paths_called = []
 
@@ -744,13 +664,11 @@ class TestPipelineTransformsLocalPaths:
             "aind_zarr_utils.pipeline_transformed.get_local_path_for_resource",
             side_effect=mock_get_local_path,
         ):
-            pt_paths, pt_inverted, img_paths, img_inverted = (
-                pt.pipeline_transforms_local_paths(
-                    "s3://bucket/data/acquisition/session.ome.zarr/0",
-                    sample_processing_data,
-                    s3_client=mock_s3_client,
-                    cache_dir=tmp_path,
-                )
+            pt_paths, pt_inverted, img_paths, img_inverted = pt.pipeline_transforms_local_paths(
+                "s3://bucket/data/acquisition/session.ome.zarr/0",
+                sample_processing_data,
+                s3_client=mock_s3_client,
+                cache_dir=tmp_path,
             )
 
         # Point transforms should use reverse chains (inverse warp files)
@@ -816,9 +734,7 @@ class TestTemplateBaseParameter:
             }
         }
 
-    def test_pipeline_transforms_template_base_override(
-        self, sample_processing_data
-    ):
+    def test_pipeline_transforms_template_base_override(self, sample_processing_data):
         """Test pipeline_transforms with custom template_base."""
         zarr_uri = "s3://bucket/data/acquisition/session.ome.zarr/0"
         custom_template_base = "/local/templates/"
@@ -834,35 +750,19 @@ class TestTemplateBaseParameter:
 
         # Template should use custom base
         assert template.base == custom_template_base
-        assert (
-            template.chain
-            == pt._PIPELINE_TEMPLATE_TRANSFORM_CHAINS[
-                "SmartSPIM-template_2024-05-16_11-26-14"
-            ]
-        )
+        assert template.chain == pt._PIPELINE_TEMPLATE_TRANSFORM_CHAINS["SmartSPIM-template_2024-05-16_11-26-14"]
 
-    def test_pipeline_transforms_template_base_none_fallback(
-        self, sample_processing_data
-    ):
+    def test_pipeline_transforms_template_base_none_fallback(self, sample_processing_data):
         """Test pipeline_transforms fallback when template_base=None."""
         zarr_uri = "s3://bucket/data/acquisition/session.ome.zarr/0"
 
-        individual, template = pt.pipeline_transforms(
-            zarr_uri, sample_processing_data, template_base=None
-        )
+        individual, template = pt.pipeline_transforms(zarr_uri, sample_processing_data, template_base=None)
 
         # Template should use default from _PIPELINE_TEMPLATE_TRANSFORMS
-        assert (
-            template
-            == pt._PIPELINE_TEMPLATE_TRANSFORMS[
-                "SmartSPIM-template_2024-05-16_11-26-14"
-            ]
-        )
+        assert template == pt._PIPELINE_TEMPLATE_TRANSFORMS["SmartSPIM-template_2024-05-16_11-26-14"]
         assert template.base.startswith("s3://aind-open-data/")
 
-    def test_indices_to_ccf_template_base_forwarding(
-        self, mock_s3_client, tmp_path
-    ):
+    def test_indices_to_ccf_template_base_forwarding(self, mock_s3_client, tmp_path):
         """Test that indices_to_ccf forwards template_base parameter."""
         annotation_indices = {"layer1": np.array([[10, 20, 30], [40, 50, 60]])}
 
@@ -888,18 +788,10 @@ class TestTemplateBaseParameter:
 
         # Mock all the underlying functions to avoid complex dependencies
         with (
-            patch(
-                "aind_zarr_utils.pipeline_transformed.mimic_pipeline_zarr_to_anatomical_stub"
-            ) as mock_stub,
-            patch(
-                "aind_zarr_utils.pipeline_transformed.annotation_indices_to_anatomical"
-            ) as mock_indices,
-            patch(
-                "aind_zarr_utils.pipeline_transformed.pipeline_point_transforms_local_paths"
-            ) as mock_transforms,
-            patch(
-                "aind_zarr_utils.pipeline_transformed.apply_ants_transforms_to_point_arr"
-            ) as mock_ants,
+            patch("aind_zarr_utils.pipeline_transformed.mimic_pipeline_zarr_to_anatomical_stub") as mock_stub,
+            patch("aind_zarr_utils.pipeline_transformed.annotation_indices_to_anatomical") as mock_indices,
+            patch("aind_zarr_utils.pipeline_transformed.pipeline_point_transforms_local_paths") as mock_transforms,
+            patch("aind_zarr_utils.pipeline_transformed.apply_ants_transforms_to_point_arr") as mock_ants,
         ):
             # Set up mocks
             mock_stub.return_value = ("mock_stub", (100, 100, 100))
@@ -931,9 +823,7 @@ class TestTemplateBaseParameter:
                 {
                     "name": "annotations",
                     "type": "annotation",
-                    "annotations": [
-                        {"point": [10, 20, 30, 0], "description": "point1"}
-                    ],
+                    "annotations": [{"point": [10, 20, 30, 0], "description": "point1"}],
                 }
             ]
         }
@@ -954,20 +844,14 @@ class TestTemplateBaseParameter:
 
         # Mock underlying functions
         with (
-            patch(
-                "aind_zarr_utils.pipeline_transformed.neuroglancer_annotations_to_indices"
-            ) as mock_ng_indices,
-            patch(
-                "aind_zarr_utils.pipeline_transformed.indices_to_ccf"
-            ) as mock_indices_to_ccf,
+            patch("aind_zarr_utils.pipeline_transformed.neuroglancer_annotations_to_indices") as mock_ng_indices,
+            patch("aind_zarr_utils.pipeline_transformed.indices_to_ccf") as mock_indices_to_ccf,
         ):
             mock_ng_indices.return_value = (
                 {"layer1": np.array([[1, 2, 3]])},
                 None,
             )
-            mock_indices_to_ccf.return_value = {
-                "layer1": np.array([[10.0, 20.0, 30.0]])
-            }
+            mock_indices_to_ccf.return_value = {"layer1": np.array([[10.0, 20.0, 30.0]])}
 
             pt.neuroglancer_to_ccf(
                 sample_neuroglancer_data,
@@ -997,9 +881,7 @@ class TestIndicesTransformations:
             }
         }
 
-        with pytest.raises(
-            ValueError, match="Could not find zarr import process"
-        ):
+        with pytest.raises(ValueError, match="Could not find zarr import process"):
             pt.indices_to_ccf(
                 annotation_indices,
                 "s3://bucket/session.ome.zarr",
@@ -1018,9 +900,7 @@ class TestNeuroglancerToCCF:
                 {
                     "name": "annotations",
                     "type": "annotation",
-                    "annotations": [
-                        {"point": [10, 20, 30, 0], "description": "point1"}
-                    ],
+                    "annotations": [{"point": [10, 20, 30, 0], "description": "point1"}],
                 }
             ]
         }
@@ -1032,9 +912,7 @@ class TestNeuroglancerToCCF:
             }
         }
 
-        with pytest.raises(
-            ValueError, match="Could not find zarr import process"
-        ):
+        with pytest.raises(ValueError, match="Could not find zarr import process"):
             pt.neuroglancer_to_ccf(
                 sample_neuroglancer_data,
                 "s3://bucket/session.ome.zarr",
@@ -1046,9 +924,7 @@ class TestNeuroglancerToCCF:
 class TestSWCDataTransformations:
     """Tests for SWC coordinate transformation functions."""
 
-    def test_swc_data_to_zarr_indices_valid_input(
-        self, sample_swc_data, mock_zarr_operations
-    ):
+    def test_swc_data_to_zarr_indices_valid_input(self, sample_swc_data, mock_zarr_operations):
         """Test basic SWC to zarr indices transformation."""
         zarr_uri = "/test/session.ome.zarr"
 
@@ -1067,77 +943,53 @@ class TestSWCDataTransformations:
             assert indices.dtype == int
             assert indices.shape == sample_swc_data[neuron_id].shape
 
-    def test_swc_data_to_zarr_indices_coordinate_orders(
-        self, mock_zarr_operations
-    ):
+    def test_swc_data_to_zarr_indices_coordinate_orders(self, mock_zarr_operations):
         """Test different coordinate order handling."""
         zarr_uri = "/test/session.ome.zarr"
 
         # Use simple data where coordinate differences are clear
         test_data = {
-            "neuron_1": np.array(
-                [[100.0, 200.0, 300.0]]
-            )  # z!=x so reordering should be visible
+            "neuron_1": np.array([[100.0, 200.0, 300.0]])  # z!=x so reordering should be visible
         }
 
         # Test zyx order (default)
-        result_zyx = pt.swc_data_to_zarr_indices(
-            test_data, zarr_uri, swc_point_order="zyx"
-        )
+        result_zyx = pt.swc_data_to_zarr_indices(test_data, zarr_uri, swc_point_order="zyx")
 
         # Test xyz order - should reorder the input coordinates
-        result_xyz = pt.swc_data_to_zarr_indices(
-            test_data, zarr_uri, swc_point_order="xyz"
-        )
+        result_xyz = pt.swc_data_to_zarr_indices(test_data, zarr_uri, swc_point_order="xyz")
 
         # Both should succeed and return same shape
         assert result_zyx["neuron_1"].shape == result_xyz["neuron_1"].shape
         assert result_zyx["neuron_1"].dtype == int
         assert result_xyz["neuron_1"].dtype == int
 
-    def test_swc_data_to_zarr_indices_unit_conversion(
-        self, sample_swc_data, mock_zarr_operations
-    ):
+    def test_swc_data_to_zarr_indices_unit_conversion(self, sample_swc_data, mock_zarr_operations):
         """Test unit conversion between micrometer and millimeter."""
         zarr_uri = "/test/session.ome.zarr"
 
         # Test micrometer (should scale by 1000)
-        result_micro = pt.swc_data_to_zarr_indices(
-            sample_swc_data, zarr_uri, swc_point_units="micrometer"
-        )
+        result_micro = pt.swc_data_to_zarr_indices(sample_swc_data, zarr_uri, swc_point_units="micrometer")
 
         # Test millimeter (no scaling)
-        result_milli = pt.swc_data_to_zarr_indices(
-            sample_swc_data, zarr_uri, swc_point_units="millimeter"
-        )
+        result_milli = pt.swc_data_to_zarr_indices(sample_swc_data, zarr_uri, swc_point_units="millimeter")
 
         # Results should be different (unit conversion affects scaling)
         for neuron_id in sample_swc_data.keys():
-            assert not np.array_equal(
-                result_micro[neuron_id], result_milli[neuron_id]
-            )
+            assert not np.array_equal(result_micro[neuron_id], result_milli[neuron_id])
 
-    def test_swc_data_to_zarr_indices_invalid_shapes(
-        self, invalid_swc_data, mock_zarr_operations
-    ):
+    def test_swc_data_to_zarr_indices_invalid_shapes(self, invalid_swc_data, mock_zarr_operations):
         """Test error handling for malformed arrays."""
         zarr_uri = "/test/session.ome.zarr"
 
         # Test 1D array
         with pytest.raises(ValueError, match="Expected \\(N, 3\\) array"):
-            pt.swc_data_to_zarr_indices(
-                {"bad": invalid_swc_data["bad_shape_1d"]}, zarr_uri
-            )
+            pt.swc_data_to_zarr_indices({"bad": invalid_swc_data["bad_shape_1d"]}, zarr_uri)
 
         # Test wrong number of columns
         with pytest.raises(ValueError, match="Expected \\(N, 3\\) array"):
-            pt.swc_data_to_zarr_indices(
-                {"bad": invalid_swc_data["wrong_cols"]}, zarr_uri
-            )
+            pt.swc_data_to_zarr_indices({"bad": invalid_swc_data["wrong_cols"]}, zarr_uri)
 
-    def test_swc_data_to_ccf_full_pipeline(
-        self, sample_swc_data, mock_processing_data, mock_zarr_operations
-    ):
+    def test_swc_data_to_ccf_full_pipeline(self, sample_swc_data, mock_processing_data, mock_zarr_operations):
         """Test end-to-end SWC to CCF transformation."""
         zarr_uri = "/test/session.ome.zarr"
         metadata = {"test": "metadata"}
@@ -1150,18 +1002,14 @@ class TestSWCDataTransformations:
             "aind_zarr_utils.pipeline_transformed.indices_to_ccf",
             side_effect=mock_indices_to_ccf,
         ):
-            result = pt.swc_data_to_ccf(
-                sample_swc_data, zarr_uri, metadata, mock_processing_data
-            )
+            result = pt.swc_data_to_ccf(sample_swc_data, zarr_uri, metadata, mock_processing_data)
 
         # Should return transformed coordinates
         assert set(result.keys()) == set(sample_swc_data.keys())
         for neuron_id in sample_swc_data.keys():
             assert result[neuron_id].shape == sample_swc_data[neuron_id].shape
 
-    def test_swc_data_to_ccf_error_propagation(
-        self, sample_swc_data, mock_zarr_operations
-    ):
+    def test_swc_data_to_ccf_error_propagation(self, sample_swc_data, mock_zarr_operations):
         """Test error handling from underlying functions."""
         zarr_uri = "/test/session.ome.zarr"
         metadata = {}
@@ -1173,12 +1021,8 @@ class TestSWCDataTransformations:
             }
         }
 
-        with pytest.raises(
-            ValueError, match="Could not find zarr import process"
-        ):
-            pt.swc_data_to_ccf(
-                sample_swc_data, zarr_uri, metadata, invalid_processing_data
-            )
+        with pytest.raises(ValueError, match="Could not find zarr import process"):
+            pt.swc_data_to_ccf(sample_swc_data, zarr_uri, metadata, invalid_processing_data)
 
     def test_alignment_zarr_uri_and_metadata_resolution(self, tmp_path):
         """Test URI and metadata resolution from asset paths."""
@@ -1208,32 +1052,21 @@ class TestSWCDataTransformations:
         processing_file.write_text(json.dumps(processing_content))
 
         # Test asset URI resolution
-        result = (
-            pt.alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
-                asset_uri=str(asset_dir)
-            )
-        )
+        result = pt.alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(asset_uri=str(asset_dir))
 
         assert len(result) == 3  # zarr_uri, metadata, processing_data
         zarr_uri, metadata, processing_data = result
 
         assert "session.zarr" in zarr_uri
         assert metadata["test"] == "metadata"
-        assert (
-            processing_data["processing_pipeline"]["pipeline_version"]
-            == "3.1.0"
-        )
+        assert processing_data["processing_pipeline"]["pipeline_version"] == "3.1.0"
 
     @pytest.mark.parametrize("coordinate_order", ["zyx", "xyz", "yxz"])
-    def test_swc_coordinate_order_parameter(
-        self, sample_swc_data, mock_zarr_operations, coordinate_order
-    ):
+    def test_swc_coordinate_order_parameter(self, sample_swc_data, mock_zarr_operations, coordinate_order):
         """Test different coordinate order parameters."""
         zarr_uri = "/test/session.ome.zarr"
 
-        result = pt.swc_data_to_zarr_indices(
-            sample_swc_data, zarr_uri, swc_point_order=coordinate_order
-        )
+        result = pt.swc_data_to_zarr_indices(sample_swc_data, zarr_uri, swc_point_order=coordinate_order)
 
         # Should succeed for all valid coordinate orders
         assert set(result.keys()) == set(sample_swc_data.keys())
@@ -1242,15 +1075,11 @@ class TestSWCDataTransformations:
             assert indices.shape == sample_swc_data[neuron_id].shape
 
     @pytest.mark.parametrize("units", ["micrometer", "millimeter"])
-    def test_swc_unit_parameter(
-        self, sample_swc_data, mock_zarr_operations, units
-    ):
+    def test_swc_unit_parameter(self, sample_swc_data, mock_zarr_operations, units):
         """Test different unit parameters."""
         zarr_uri = "/test/session.ome.zarr"
 
-        result = pt.swc_data_to_zarr_indices(
-            sample_swc_data, zarr_uri, swc_point_units=units
-        )
+        result = pt.swc_data_to_zarr_indices(sample_swc_data, zarr_uri, swc_point_units=units)
 
         # Should succeed for all valid units
         assert set(result.keys()) == set(sample_swc_data.keys())
@@ -1258,9 +1087,7 @@ class TestSWCDataTransformations:
             assert indices.dtype == int
             assert indices.shape == sample_swc_data[neuron_id].shape
 
-    def test_swc_data_to_ccf_auto_metadata_missing_files(
-        self, sample_swc_data, tmp_path
-    ):
+    def test_swc_data_to_ccf_auto_metadata_missing_files(self, sample_swc_data, tmp_path):
         """Test error handling when metadata files are missing."""
         asset_dir = tmp_path / "asset"
         asset_dir.mkdir()
@@ -1280,9 +1107,7 @@ class TestSWCDataTransformations:
     def test_swc_single_point_neuron(self, mock_zarr_operations):
         """Test handling of neurons with single points."""
         zarr_uri = "/test/session.ome.zarr"
-        single_point_data = {
-            "neuron_single": np.array([[100.0, 200.0, 300.0]])
-        }
+        single_point_data = {"neuron_single": np.array([[100.0, 200.0, 300.0]])}
 
         result = pt.swc_data_to_zarr_indices(single_point_data, zarr_uri)
 
@@ -1290,9 +1115,7 @@ class TestSWCDataTransformations:
         assert result["neuron_single"].shape == (1, 3)
         assert result["neuron_single"].dtype == int
 
-    def test_swc_data_to_ccf_kwargs_forwarding(
-        self, sample_swc_data, mock_processing_data, mock_zarr_operations
-    ):
+    def test_swc_data_to_ccf_kwargs_forwarding(self, sample_swc_data, mock_processing_data, mock_zarr_operations):
         """Test that kwargs are properly forwarded to indices_to_ccf."""
         zarr_uri = "/test/session.ome.zarr"
         metadata = {"test": "metadata"}
@@ -1316,9 +1139,7 @@ class TestSWCDataTransformations:
                 test_kwarg="test_value",
             )
 
-    def test_swc_data_to_ccf_auto_metadata_integration(
-        self, sample_swc_data, tmp_path
-    ):
+    def test_swc_data_to_ccf_auto_metadata_integration(self, sample_swc_data, tmp_path):
         """Test end-to-end auto metadata SWC to CCF transformation."""
         # Create mock asset structure
         asset_dir = tmp_path / "asset"
@@ -1331,11 +1152,7 @@ class TestSWCDataTransformations:
         metadata_file = asset_dir / "metadata.nd.json"
         processing_file = asset_dir / "processing.json"
 
-        metadata_content = {
-            "acquisition": {
-                "axes": [{"name": "Z"}, {"name": "Y"}, {"name": "X"}]
-            }
-        }
+        metadata_content = {"acquisition": {"axes": [{"name": "Z"}, {"name": "Y"}, {"name": "X"}]}}
         processing_content = {
             "processing_pipeline": {
                 "pipeline_version": "3.1.0",
@@ -1365,9 +1182,7 @@ class TestSWCDataTransformations:
             "aind_zarr_utils.pipeline_transformed.swc_data_to_ccf",
             side_effect=mock_swc_data_to_ccf,
         ):
-            result = pt.swc_data_to_ccf_auto_metadata(
-                sample_swc_data, str(asset_dir)
-            )
+            result = pt.swc_data_to_ccf_auto_metadata(sample_swc_data, str(asset_dir))
 
         # Verify the transformation was applied
         assert set(result.keys()) == set(sample_swc_data.keys())
@@ -1407,18 +1222,12 @@ class TestIntegrationScenarios:
         assert asset_uri == "s3://bucket/data"
 
         # Test alignment path resolution
-        rel_path = pt.image_atlas_alignment_path_relative_from_processing(
-            complete_processing_data
-        )
+        rel_path = pt.image_atlas_alignment_path_relative_from_processing(complete_processing_data)
         assert rel_path == "image_atlas_alignment/session/"
 
         # Test transform paths
-        individual, template = pt.pipeline_transforms(
-            zarr_uri, complete_processing_data
-        )
-        assert (
-            individual.base == "s3://bucket/data/image_atlas_alignment/session"
-        )
+        individual, template = pt.pipeline_transforms(zarr_uri, complete_processing_data)
+        assert individual.base == "s3://bucket/data/image_atlas_alignment/session"
 
     def test_error_propagation(self):
         """Test that errors propagate correctly through the call chain."""
@@ -1434,12 +1243,8 @@ class TestIntegrationScenarios:
             }
         }
 
-        with pytest.raises(
-            ValueError, match="Could not find zarr import process"
-        ):
-            pt.mimic_pipeline_zarr_to_anatomical_stub(
-                "s3://bucket/session.ome.zarr", {}, incomplete_data
-            )
+        with pytest.raises(ValueError, match="Could not find zarr import process"):
+            pt.mimic_pipeline_zarr_to_anatomical_stub("s3://bucket/session.ome.zarr", {}, incomplete_data)
 
     def test_image_vs_point_transform_workflows(
         self,
@@ -1516,24 +1321,14 @@ class TestIntegrationScenarios:
 
         # Mock the underlying components to focus on parameter flow
         with (
-            patch(
-                "aind_zarr_utils.pipeline_transformed.mimic_pipeline_zarr_to_anatomical_stub"
-            ) as mock_stub,
-            patch(
-                "aind_zarr_utils.pipeline_transformed.annotation_indices_to_anatomical"
-            ) as mock_indices,
-            patch(
-                "aind_zarr_utils.pipeline_transformed.apply_ants_transforms_to_point_arr"
-            ) as mock_ants,
+            patch("aind_zarr_utils.pipeline_transformed.mimic_pipeline_zarr_to_anatomical_stub") as mock_stub,
+            patch("aind_zarr_utils.pipeline_transformed.annotation_indices_to_anatomical") as mock_indices,
+            patch("aind_zarr_utils.pipeline_transformed.apply_ants_transforms_to_point_arr") as mock_ants,
         ):
             # Set up mocks
             mock_stub.return_value = ("mock_stub", (100, 100, 100))
-            mock_indices.return_value = {
-                "layer1": np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
-            }
-            mock_ants.return_value = np.array(
-                [[100.0, 200.0, 300.0], [400.0, 500.0, 600.0]]
-            )
+            mock_indices.return_value = {"layer1": np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])}
+            mock_ants.return_value = np.array([[100.0, 200.0, 300.0], [400.0, 500.0, 600.0]])
 
             result = pt.indices_to_ccf(
                 annotation_indices,
@@ -1576,22 +1371,14 @@ class TestIntegrationScenarios:
 
         # Mock the underlying workflow components
         with (
-            patch(
-                "aind_zarr_utils.pipeline_transformed.neuroglancer_annotations_to_indices"
-            ) as mock_ng_indices,
-            patch(
-                "aind_zarr_utils.pipeline_transformed.indices_to_ccf"
-            ) as mock_indices_to_ccf,
+            patch("aind_zarr_utils.pipeline_transformed.neuroglancer_annotations_to_indices") as mock_ng_indices,
+            patch("aind_zarr_utils.pipeline_transformed.indices_to_ccf") as mock_indices_to_ccf,
         ):
             mock_ng_indices.return_value = (
                 {"annotations": np.array([[1, 2, 3], [4, 5, 6]])},
                 {"annotations": ["point1", "point2"]},
             )
-            mock_indices_to_ccf.return_value = {
-                "annotations": np.array(
-                    [[100.0, 200.0, 300.0], [400.0, 500.0, 600.0]]
-                )
-            }
+            mock_indices_to_ccf.return_value = {"annotations": np.array([[100.0, 200.0, 300.0], [400.0, 500.0, 600.0]])}
 
             points_ccf, descriptions = pt.neuroglancer_to_ccf(
                 neuroglancer_data,
@@ -1623,23 +1410,15 @@ class TestIntegrationScenarios:
         zarr_uri = "s3://bucket/data/acquisition/session.ome.zarr/0"
 
         # Get transform paths from main function
-        individual, template = pt.pipeline_transforms(
-            zarr_uri, complete_processing_data
-        )
+        individual, template = pt.pipeline_transforms(zarr_uri, complete_processing_data)
 
         # Test helper functions directly
-        img_paths, img_inverted = pt._pipeline_image_transforms_local_paths(
-            individual, template, cache_dir=tmp_path
-        )
+        img_paths, img_inverted = pt._pipeline_image_transforms_local_paths(individual, template, cache_dir=tmp_path)
 
-        pt_paths, pt_inverted = pt._pipeline_point_transforms_local_paths(
-            individual, template, cache_dir=tmp_path
-        )
+        pt_paths, pt_inverted = pt._pipeline_point_transforms_local_paths(individual, template, cache_dir=tmp_path)
 
         # Should be consistent with public API results
-        public_result = pt.pipeline_transforms_local_paths(
-            zarr_uri, complete_processing_data, cache_dir=tmp_path
-        )
+        public_result = pt.pipeline_transforms_local_paths(zarr_uri, complete_processing_data, cache_dir=tmp_path)
 
         (
             public_pt_paths,

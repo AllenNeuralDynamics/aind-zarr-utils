@@ -1,6 +1,4 @@
-"""
-Utilities to reconstruct a pipeline's spatial domain for LS → CCF mappings
-and to apply ANTs transform chains to points/annotations.
+"""Reconstruct a pipeline's spatial domain for LS → CCF mappings and apply ANTs transform chains to points/annotations.
 
 The goal is to produce a SimpleITK *stub* image (no pixels) whose header
 (origin, spacing, direction) matches what the SmartSPIM processing pipeline
@@ -189,7 +187,7 @@ def _zarr_base_name_pathlike(p: PurePath) -> str | None:
 
 def _zarr_base_name_any(base: str) -> str | None:
     """
-    Wrapper around :func:`_zarr_base_name_pathlike` for any URI style.
+    Wrap :func:`_zarr_base_name_pathlike` for any URI style.
 
     Parameters
     ----------
@@ -225,9 +223,7 @@ _PIPELINE_TEMPLATE_TRANSFORM_CHAINS: dict[str, TransformChain] = {
 _PIPELINE_TEMPLATE_TRANSFORMS: dict[str, TemplatePaths] = {
     "SmartSPIM-template_2024-05-16_11-26-14": TemplatePaths(
         base="s3://aind-open-data/SmartSPIM-template_2024-05-16_11-26-14/",
-        chain=_PIPELINE_TEMPLATE_TRANSFORM_CHAINS[
-            "SmartSPIM-template_2024-05-16_11-26-14"
-        ],
+        chain=_PIPELINE_TEMPLATE_TRANSFORM_CHAINS["SmartSPIM-template_2024-05-16_11-26-14"],
     )
 }
 
@@ -271,9 +267,7 @@ def _get_processing_pipeline_data(
     ValueError
         If the pipeline version is missing or the major version is not 3.
     """
-    ver_str = processing_data.get("processing_pipeline", {}).get(
-        "pipeline_version", None
-    )
+    ver_str = processing_data.get("processing_pipeline", {}).get("pipeline_version", None)
     if not ver_str:
         raise ValueError("Missing pipeline version")
     pipeline_ver = int(ver_str.split(".")[0])
@@ -329,16 +323,10 @@ def _get_image_atlas_alignment_process(
     """
     pipeline = _get_processing_pipeline_data(processing_data)
     want_name = "Image atlas alignment"
-    want_notes = (
-        "Template based registration: LS -> template -> Allen CCFv3 Atlas"
-    )
+    want_notes = "Template based registration: LS -> template -> Allen CCFv3 Atlas"
 
     proc = next(
-        (
-            p
-            for p in pipeline["data_processes"]
-            if p.get("name") == want_name and p.get("notes") == want_notes
-        ),
+        (p for p in pipeline["data_processes"] if p.get("name") == want_name and p.get("notes") == want_notes),
         None,
     )
     return proc
@@ -369,11 +357,7 @@ def image_atlas_alignment_path_relative_from_processing(
     """
     proc = _get_image_atlas_alignment_process(processing_data)
     input_zarr = proc.get("input_location") if proc else None
-    channel = (
-        _zarr_base_name_pathlike(PurePosixPath(input_zarr))
-        if input_zarr
-        else None
-    )
+    channel = _zarr_base_name_pathlike(PurePosixPath(input_zarr)) if input_zarr else None
     rel_path = f"image_atlas_alignment/{channel}/" if channel else None
 
     return rel_path
@@ -412,22 +396,16 @@ def _pipeline_anatomical_check_args(
     """
     proc = _get_zarr_import_process(processing_data)
     if not proc:
-        raise ValueError(
-            "Could not find zarr import process in processing data"
-        )
+        raise ValueError("Could not find zarr import process in processing data")
 
     zarr_import_version = proc.get("code_version")
     if not zarr_import_version:
-        raise ValueError(
-            "Zarr import version not found in zarr import process"
-        )
+        raise ValueError("Zarr import version not found in zarr import process")
     if opened_zarr is None:
         image_node, zarr_meta = _open_zarr(zarr_uri)
     else:
         image_node, zarr_meta = opened_zarr
-    multiscale_no = estimate_pipeline_multiscale(
-        zarr_meta, Version(zarr_import_version)
-    )
+    multiscale_no = estimate_pipeline_multiscale(zarr_meta, Version(zarr_import_version))
     return proc, zarr_import_version, image_node, zarr_meta, multiscale_no
 
 
@@ -464,9 +442,7 @@ def _apply_pipeline_overlays_to_header(
     list[str]
         List of applied overlay names.
     """
-    overlays = overlay_selector.select(
-        version=zarr_import_version, meta=metadata
-    )
+    overlays = overlay_selector.select(version=zarr_import_version, meta=metadata)
     return apply_overlays(
         base_header,
         overlays,
@@ -512,10 +488,8 @@ def _mimic_pipeline_anatomical_header(
         Base anatomical header before overlays were applied.
     """
     # Validate and extract needed metadata.
-    _, zarr_import_version, image_node, zarr_meta, multiscale_no = (
-        _pipeline_anatomical_check_args(
-            zarr_uri, processing_data, opened_zarr=opened_zarr
-        )
+    _, zarr_import_version, image_node, zarr_meta, multiscale_no = _pipeline_anatomical_check_args(
+        zarr_uri, processing_data, opened_zarr=opened_zarr
     )
 
     stub_img, size_ijk = zarr_to_sitk_stub(
@@ -592,7 +566,6 @@ def base_and_pipeline_anatomical_stub(
       corrected stub.
     - Coordinates follow ITK LPS convention and spacing is in millimeters.
     """
-
     corrected_header, _, base_header = _mimic_pipeline_anatomical_header(
         zarr_uri,
         metadata,
@@ -760,10 +733,8 @@ def apply_pipeline_overlays_to_sitk(
     ```
     """
     # Derive pipeline-specific parameters from zarr_uri and processing_data
-    _, zarr_import_version, image_node, zarr_meta, multiscale_no = (
-        _pipeline_anatomical_check_args(
-            zarr_uri, processing_data, opened_zarr=opened_zarr
-        )
+    _, zarr_import_version, image_node, zarr_meta, multiscale_no = _pipeline_anatomical_check_args(
+        zarr_uri, processing_data, opened_zarr=opened_zarr
     )
 
     if level == 0:
@@ -774,9 +745,7 @@ def apply_pipeline_overlays_to_sitk(
         base_header = AnatomicalHeader.from_sitk(img)
 
         # Select and apply overlays based on zarr import version and metadata.
-        overlays = overlay_selector.select(
-            version=zarr_import_version, meta=metadata
-        )
+        overlays = overlay_selector.select(version=zarr_import_version, meta=metadata)
         corrected_header, _ = apply_overlays(
             base_header,
             overlays,
@@ -796,9 +765,7 @@ def apply_pipeline_overlays_to_sitk(
             opened_zarr=(image_node, zarr_meta),
         )
         spacing_level_scale = 2**level
-        spacing_scaled = tuple(
-            s * spacing_level_scale for s in corrected_header.spacing
-        )
+        spacing_scaled = tuple(s * spacing_level_scale for s in corrected_header.spacing)
         img.SetSpacing(spacing_scaled)
         img.SetOrigin(corrected_header.origin)
         img.SetDirection(corrected_header.direction_tuple())
@@ -827,10 +794,8 @@ def mimic_pipeline_zarr_to_sitk(
     """
     if level < 0:
         raise ValueError("Level must be non-negative")
-    _, pipeline_version, image_node, zarr_meta, multiscale_no = (
-        _pipeline_anatomical_check_args(
-            zarr_uri, processing_data, opened_zarr=opened_zarr
-        )
+    _, pipeline_version, image_node, zarr_meta, multiscale_no = _pipeline_anatomical_check_args(
+        zarr_uri, processing_data, opened_zarr=opened_zarr
     )
 
     img = zarr_to_sitk(
@@ -876,10 +841,8 @@ def base_and_pipeline_zarr_to_sitk(
     """
     if level < 0:
         raise ValueError("Level must be non-negative")
-    _, pipeline_version, image_node, zarr_meta, multiscale_no = (
-        _pipeline_anatomical_check_args(
-            zarr_uri, processing_data, opened_zarr=opened_zarr
-        )
+    _, pipeline_version, image_node, zarr_meta, multiscale_no = _pipeline_anatomical_check_args(
+        zarr_uri, processing_data, opened_zarr=opened_zarr
     )
 
     base_img = zarr_to_sitk(
@@ -1015,10 +978,8 @@ def apply_pipeline_overlays_to_ants(
     ```
     """
     # Derive pipeline-specific parameters from zarr_uri and processing_data
-    _, zarr_import_version, image_node, zarr_meta, multiscale_no = (
-        _pipeline_anatomical_check_args(
-            zarr_uri, processing_data, opened_zarr=opened_zarr
-        )
+    _, zarr_import_version, image_node, zarr_meta, multiscale_no = _pipeline_anatomical_check_args(
+        zarr_uri, processing_data, opened_zarr=opened_zarr
     )
 
     if level == 0:
@@ -1029,9 +990,7 @@ def apply_pipeline_overlays_to_ants(
         base_header = AnatomicalHeader.from_ants(img)
 
         # Select and apply overlays based on zarr import version and metadata.
-        overlays = overlay_selector.select(
-            version=zarr_import_version, meta=metadata
-        )
+        overlays = overlay_selector.select(version=zarr_import_version, meta=metadata)
         corrected_header, _ = apply_overlays(
             base_header,
             overlays,
@@ -1058,20 +1017,14 @@ def apply_pipeline_overlays_to_ants(
         # have the same physical interpretation, their underlying array data
         # are transposed. So, to apply the SimpleITK-based header, we need to
         # reverse the spacing tuple.
-        spacing_rev_scaled = tuple(
-            s * spacing_level_scale for s in reversed(corrected_header.spacing)
-        )
+        spacing_rev_scaled = tuple(s * spacing_level_scale for s in reversed(corrected_header.spacing))
         img.set_spacing(spacing_rev_scaled)
         # The origin is also wrong, because it is a different corner of the
         # volume.
-        header_origin_code = (
-            sitk.DICOMOrientImageFilter.GetOrientationFromDirectionCosines(
-                corrected_header.direction_tuple()
-            )
+        header_origin_code = sitk.DICOMOrientImageFilter.GetOrientationFromDirectionCosines(
+            corrected_header.direction_tuple()
         )
-        header_origin_corner_code = "".join(
-            _OPPOSITE_AXES[d] for d in header_origin_code
-        )
+        header_origin_corner_code = "".join(_OPPOSITE_AXES[d] for d in header_origin_code)
         ants_origin, _, _ = fix_corner_compute_origin(
             img.shape,
             spacing_rev_scaled,
@@ -1109,10 +1062,8 @@ def base_and_pipeline_zarr_to_ants(
     """
     if level < 0:
         raise ValueError("Level must be non-negative")
-    _, pipeline_version, image_node, zarr_meta, multiscale_no = (
-        _pipeline_anatomical_check_args(
-            zarr_uri, processing_data, opened_zarr=opened_zarr
-        )
+    _, pipeline_version, image_node, zarr_meta, multiscale_no = _pipeline_anatomical_check_args(
+        zarr_uri, processing_data, opened_zarr=opened_zarr
     )
 
     base_img = zarr_to_ants(
@@ -1158,10 +1109,8 @@ def mimic_pipeline_zarr_to_ants(
     """
     if level < 0:
         raise ValueError("Level must be non-negative")
-    _, pipeline_version, image_node, zarr_meta, multiscale_no = (
-        _pipeline_anatomical_check_args(
-            zarr_uri, processing_data, opened_zarr=opened_zarr
-        )
+    _, pipeline_version, image_node, zarr_meta, multiscale_no = _pipeline_anatomical_check_args(
+        zarr_uri, processing_data, opened_zarr=opened_zarr
     )
 
     img = zarr_to_ants(
@@ -1218,14 +1167,9 @@ def pipeline_transforms(
     """
     uri_type, bucket, zarr_pathlike = as_pathlike(zarr_uri)
     asset_pathlike = _asset_from_zarr_pathlike(zarr_pathlike)
-    alignment_rel_path = image_atlas_alignment_path_relative_from_processing(
-        processing_data
-    )
+    alignment_rel_path = image_atlas_alignment_path_relative_from_processing(processing_data)
     if alignment_rel_path is None:
-        raise ValueError(
-            "Could not determine image atlas alignment path from "
-            "processing data"
-        )
+        raise ValueError("Could not determine image atlas alignment path from processing data")
     alignment_path = as_string(
         uri_type,
         bucket,
@@ -1253,12 +1197,8 @@ def _pipeline_image_transforms_local_paths(
     anonymous: bool = True,
     cache_dir: str | os.PathLike | None = None,
 ) -> tuple[list[str], list[bool]]:
-    img_transforms_individual_is_inverted = (
-        individual_ants_paths.chain.forward_chain_invert
-    )
-    img_transforms_template_is_inverted = (
-        template_ants_paths.chain.forward_chain_invert
-    )
+    img_transforms_individual_is_inverted = individual_ants_paths.chain.forward_chain_invert
+    img_transforms_template_is_inverted = template_ants_paths.chain.forward_chain_invert
 
     img_transforms_individual_paths = [
         get_local_path_for_resource(
@@ -1279,14 +1219,9 @@ def _pipeline_image_transforms_local_paths(
         for p in template_ants_paths.chain.forward_chain
     ]
 
-    img_transform_paths = (
-        img_transforms_template_paths + img_transforms_individual_paths
-    )
+    img_transform_paths = img_transforms_template_paths + img_transforms_individual_paths
     img_transform_paths_str = [str(p) for p in img_transform_paths]
-    img_transform_is_inverted = (
-        img_transforms_template_is_inverted
-        + img_transforms_individual_is_inverted
-    )
+    img_transform_is_inverted = img_transforms_template_is_inverted + img_transforms_individual_is_inverted
     return img_transform_paths_str, img_transform_is_inverted
 
 
@@ -1357,12 +1292,8 @@ def _pipeline_point_transforms_local_paths(
     anonymous: bool = True,
     cache_dir: str | os.PathLike | None = None,
 ) -> tuple[list[str], list[bool]]:
-    pt_transforms_individual_is_inverted = (
-        individual_ants_paths.chain.reverse_chain_invert
-    )
-    pt_transforms_template_is_inverted = (
-        template_ants_paths.chain.reverse_chain_invert
-    )
+    pt_transforms_individual_is_inverted = individual_ants_paths.chain.reverse_chain_invert
+    pt_transforms_template_is_inverted = template_ants_paths.chain.reverse_chain_invert
 
     pt_transforms_individual_paths = [
         get_local_path_for_resource(
@@ -1383,14 +1314,9 @@ def _pipeline_point_transforms_local_paths(
         for p in template_ants_paths.chain.reverse_chain
     ]
 
-    pt_transform_paths = (
-        pt_transforms_individual_paths + pt_transforms_template_paths
-    )
+    pt_transform_paths = pt_transforms_individual_paths + pt_transforms_template_paths
     pt_transform_paths_str = [str(p) for p in pt_transform_paths]
-    pt_transform_is_inverted = (
-        pt_transforms_individual_is_inverted
-        + pt_transforms_template_is_inverted
-    )
+    pt_transform_is_inverted = pt_transforms_individual_is_inverted + pt_transforms_template_is_inverted
     return pt_transform_paths_str, pt_transform_is_inverted
 
 
@@ -1511,23 +1437,19 @@ def pipeline_transforms_local_paths(
         template_used=template_used,
         template_base=template_base,
     )
-    pt_transform_paths_str, pt_transform_is_inverted = (
-        _pipeline_point_transforms_local_paths(
-            individual_ants_paths,
-            template_ants_paths,
-            s3_client=s3_client,
-            anonymous=anonymous,
-            cache_dir=cache_dir,
-        )
+    pt_transform_paths_str, pt_transform_is_inverted = _pipeline_point_transforms_local_paths(
+        individual_ants_paths,
+        template_ants_paths,
+        s3_client=s3_client,
+        anonymous=anonymous,
+        cache_dir=cache_dir,
     )
-    img_transform_paths_str, img_transform_is_inverted = (
-        _pipeline_image_transforms_local_paths(
-            individual_ants_paths,
-            template_ants_paths,
-            s3_client=s3_client,
-            anonymous=anonymous,
-            cache_dir=cache_dir,
-        )
+    img_transform_paths_str, img_transform_is_inverted = _pipeline_image_transforms_local_paths(
+        individual_ants_paths,
+        template_ants_paths,
+        s3_client=s3_client,
+        anonymous=anonymous,
+        cache_dir=cache_dir,
     )
     return (
         pt_transform_paths_str,
@@ -1593,16 +1515,14 @@ def indices_to_ccf(
         pipeline_stub,
         annotation_indices,
     )
-    pt_transform_paths_str, pt_transform_is_inverted = (
-        pipeline_point_transforms_local_paths(
-            zarr_uri,
-            processing_data,
-            s3_client=s3_client,
-            anonymous=anonymous,
-            cache_dir=cache_dir,
-            template_used=template_used,
-            template_base=template_base,
-        )
+    pt_transform_paths_str, pt_transform_is_inverted = pipeline_point_transforms_local_paths(
+        zarr_uri,
+        processing_data,
+        s3_client=s3_client,
+        anonymous=anonymous,
+        cache_dir=cache_dir,
+        template_used=template_used,
+        template_base=template_base,
     )
     annotation_points_ccf: dict[str, NDArray] = {}
     for layer, pts in annotation_points.items():
@@ -1757,13 +1677,11 @@ def ccf_to_indices(
     ... )
     """
     # Get image transform chains (for transforming points from CCF to pipeline)
-    img_transform_paths_str, img_transform_is_inverted = (
-        pipeline_image_transforms_local_paths(
-            alignment_zarr_uri,
-            processing_data,
-            template_used=template_used,
-            template_base=template_base,
-        )
+    img_transform_paths_str, img_transform_is_inverted = pipeline_image_transforms_local_paths(
+        alignment_zarr_uri,
+        processing_data,
+        template_used=template_used,
+        template_base=template_base,
     )
 
     # Concatenate all points from all layers for batch processing
@@ -1791,9 +1709,7 @@ def ccf_to_indices(
     start_idx = 0
     for layer_name, size in zip(layer_names, layer_sizes):
         end_idx = start_idx + size
-        pipeline_anatomical_points[layer_name] = all_pipeline_points_arr[
-            start_idx:end_idx
-        ]
+        pipeline_anatomical_points[layer_name] = all_pipeline_points_arr[start_idx:end_idx]
         start_idx = end_idx
 
     # Get both stubs at once using helper function
@@ -1815,11 +1731,7 @@ def ccf_to_indices(
             # Pipeline anatomical → continuous indices
             # Both ANTs and SimpleITK use LPS points - no conversion needed
             # Convert to numpy ordering `...[::-1]`
-            continuous_idx = (
-                pipeline_stub.TransformPhysicalPointToContinuousIndex(
-                    point_lps.astype(np.float64)
-                )
-            )[::-1]
+            continuous_idx = (pipeline_stub.TransformPhysicalPointToContinuousIndex(point_lps.astype(np.float64)))[::-1]
             ls_indices_layer.append(np.array(continuous_idx))
 
         ls_indices[layer] = np.array(ls_indices_layer)
@@ -1839,6 +1751,7 @@ def ccf_to_indices_auto_metadata(
 
     Convenience wrapper that infers and loads metadata.nd.json and
     processing.json from the asset root, then delegates to ccf_to_indices.
+
     Parameters
     ----------
     ccf_points : dict[str, NDArray]
@@ -1866,10 +1779,8 @@ def ccf_to_indices_auto_metadata(
     >>> ccf_pts = {"layer1": np.array([[5000, 6000, 7000]])}
     >>> indices_pts = ccf_to_indices_auto_metadata(ccf_pts, zarr_uri)
     """
-    alignment_zarr_uri, metadata, processing_data = (
-        alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
-            a_zarr_uri=zarr_uri
-        )
+    alignment_zarr_uri, metadata, processing_data = alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
+        a_zarr_uri=zarr_uri
     )
     return ccf_to_indices(
         ccf_points,
@@ -1924,18 +1835,11 @@ def alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
     processing_uri = as_string(uri_type, bucket, processing_pathlike)
     metadata = get_json(metadata_uri, **kwargs)
     processing_data = get_json(processing_uri, **kwargs)
-    alignment_rel_path = image_atlas_alignment_path_relative_from_processing(
-        processing_data
-    )
+    alignment_rel_path = image_atlas_alignment_path_relative_from_processing(processing_data)
     if alignment_rel_path is None:
-        raise ValueError(
-            "Could not determine image atlas alignment path from "
-            "processing data"
-        )
+        raise ValueError("Could not determine image atlas alignment path from processing data")
     channel = PurePosixPath(alignment_rel_path).stem
-    zarr_pathlike = (
-        asset_pathlike / f"image_tile_fusing/OMEZarr/{channel}.zarr"
-    )
+    zarr_pathlike = asset_pathlike / f"image_tile_fusing/OMEZarr/{channel}.zarr"
     zarr_uri = as_string(uri_type, bucket, zarr_pathlike)
     return zarr_uri, metadata, processing_data
 
@@ -1986,23 +1890,17 @@ def neuroglancer_to_ccf_auto_metadata(
         If no image sources can be found in ``neuroglancer_data``.
     """
     if asset_uri is None:
-        image_sources = get_image_sources(
-            neuroglancer_data, remove_zarr_protocol=True
-        )
+        image_sources = get_image_sources(neuroglancer_data, remove_zarr_protocol=True)
         # Get first image source in dict
         a_zarr_uri = next(iter(image_sources.values()), None)
         if a_zarr_uri is None:
             raise ValueError("No image sources found in neuroglancer data")
-        zarr_uri, metadata, processing_data = (
-            alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
-                a_zarr_uri=a_zarr_uri
-            )
+        zarr_uri, metadata, processing_data = alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
+            a_zarr_uri=a_zarr_uri
         )
     else:
-        zarr_uri, metadata, processing_data = (
-            alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
-                asset_uri=asset_uri
-            )
+        zarr_uri, metadata, processing_data = alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
+            asset_uri=asset_uri
         )
     return neuroglancer_to_ccf(
         neuroglancer_data,
@@ -2048,21 +1946,15 @@ def swc_data_to_zarr_indices(
     unit_scale = _unit_conversion(swc_point_units, "millimeter")
     swc_point_order_lower = swc_point_order.lower()
     swc_to_zarr_axis_order = [swc_point_order_lower.index(ax) for ax in "zyx"]
-    _, _, _, spacing_raw, _ = _zarr_to_scaled(
-        zarr_uri, level=0, opened_zarr=opened_zarr
-    )
+    _, _, _, spacing_raw, _ = _zarr_to_scaled(zarr_uri, level=0, opened_zarr=opened_zarr)
 
     spacing = np.array(spacing_raw)
     swc_zarr_indices = {}
     for k, pts in swc_point_dict.items():
         pts_arr = np.asarray(pts)
         if pts_arr.ndim != 2 or pts_arr.shape[1] != 3:
-            raise ValueError(
-                f"Expected (N, 3) array for key {k}, got shape {pts_arr.shape}"
-            )
-        swc_zarr_indices[k] = np.round(
-            (unit_scale * pts_arr[:, swc_to_zarr_axis_order]) / spacing
-        ).astype(int)
+            raise ValueError(f"Expected (N, 3) array for key {k}, got shape {pts_arr.shape}")
+        swc_zarr_indices[k] = np.round((unit_scale * pts_arr[:, swc_to_zarr_axis_order]) / spacing).astype(int)
     return swc_zarr_indices
 
 
@@ -2164,10 +2056,8 @@ def swc_data_to_ccf_auto_metadata(
     dict[str, NDArray]
         Mapping neuron ID → (N, 3) array of anatomical CCF coordinates in LPS.
     """
-    zarr_uri, metadata, processing_data = (
-        alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
-            asset_uri=asset_uri
-        )
+    zarr_uri, metadata, processing_data = alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
+        asset_uri=asset_uri
     )
     return swc_data_to_ccf(
         swc_point_dict,
@@ -2236,10 +2126,8 @@ def indices_to_ccf_auto_metadata(
     ...     zarr_uri="s3://aind-open-data/dataset_123/image.zarr"
     ... )
     """
-    alignment_zarr_uri, metadata, processing_data = (
-        alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
-            a_zarr_uri=zarr_uri
-        )
+    alignment_zarr_uri, metadata, processing_data = alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
+        a_zarr_uri=zarr_uri
     )
     return indices_to_ccf(
         annotation_indices,
