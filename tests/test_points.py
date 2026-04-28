@@ -427,3 +427,57 @@ def test_transform_points_freestanding_function(
     via_function = transform_points(asset, pts, to=Space.LS_ANATOMICAL_MM)
     np.testing.assert_array_equal(via_method.values["a"], via_function.values["a"])
     assert via_method.space == via_function.space
+
+
+def test_neuroglancer_to_ccf_numerical_equivalence_new_vs_legacy(
+    real_ome_zarr: str,
+    mock_nd_metadata: dict,
+    mock_overlay_selector: object,
+    mock_ants_transforms: object,
+    mock_transform_path_resolution: object,
+    neuroglancer_test_data: dict,
+) -> None:
+    """The new ``Asset.transform`` path matches the legacy ``neuroglancer_to_ccf``.
+
+    Both paths internally:
+
+    1. Convert NG → ZARR_INDICES.
+    2. Map indices → pipeline anatomical via the corrected pipeline stub.
+    3. Apply the pipeline's point ANTs chain.
+
+    With identical metadata + processing + overlay-selector, the output
+    arrays must be numerically equal. ANTs is mocked to ``points + 100``
+    (via ``mock_ants_transforms``) so the result is deterministic and the
+    test does not depend on the registration files being available.
+    """
+    from tests.conftest import create_comprehensive_processing_data
+
+    from aind_zarr_utils.pipeline_transformed import neuroglancer_to_ccf
+
+    processing = create_comprehensive_processing_data()
+
+    # New path: Asset.transform with mocked ANTs / transforms / overlays.
+    asset = Asset(zarr_uri=real_ome_zarr, metadata=mock_nd_metadata, processing=processing)
+    new_pts = asset.transform(
+        Points.from_neuroglancer(neuroglancer_test_data),
+        to=Space.CCF_MM,
+    )
+
+    # Legacy path: same inputs, same mocks (the conftest fixtures patch
+    # both the old and new module homes — see commit C6).
+    legacy_dict, _ = neuroglancer_to_ccf(
+        neuroglancer_test_data,
+        zarr_uri=real_ome_zarr,
+        metadata=mock_nd_metadata,
+        processing_data=processing,
+    )
+
+    # Same layer keys; same per-layer numerical values.
+    assert set(new_pts.values.keys()) == set(legacy_dict.keys())
+    for key in legacy_dict:
+        np.testing.assert_allclose(
+            new_pts.values[key],
+            legacy_dict[key],
+            atol=1e-10,
+            err_msg=f"layer {key!r} disagrees between Asset.transform and neuroglancer_to_ccf",
+        )

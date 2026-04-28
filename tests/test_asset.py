@@ -202,6 +202,61 @@ class TestAssetCachesAcrossCalls:
             assert mock_sitk.call_args.kwargs.get("opened_zarr") is sentinel
             assert mock_stub.call_args.kwargs.get("opened_zarr") is sentinel
 
+    def test_full_workflow_opens_once_resolves_transforms_once(self) -> None:
+        """Across image() + stub() + transform(), each S3 resource is acquired
+        at most once.
+
+        This is the cache invariant the redesign was meant to enforce: a
+        full neuroglancer-to-CCF workflow on one Asset opens the Zarr
+        exactly once and resolves the transform-chain paths exactly once,
+        regardless of how many Asset methods participate.
+        """
+        import numpy as np
+
+        from aind_zarr_utils.points import Points, Space
+
+        sentinel_zarr = ("node", {"meta": True})
+
+        with (
+            patch("aind_zarr_utils.asset._open_zarr", return_value=sentinel_zarr) as mock_open,
+            patch(
+                "aind_zarr_utils.asset.pipeline_transforms_local_paths",
+                return_value=(["pt"], [True], ["img"], [False]),
+            ) as mock_xforms,
+            patch("aind_zarr_utils.asset.zarr_to_sitk", return_value="sitk-img"),
+            patch(
+                "aind_zarr_utils.asset.zarr_to_sitk_stub",
+                return_value=("sitk-stub", (10, 20, 30)),
+            ),
+            patch(
+                "aind_zarr_utils.asset.mimic_pipeline_zarr_to_anatomical_stub",
+                return_value=("pipeline-stub", (10, 20, 30)),
+            ),
+            # The transform graph's pipeline-anat edge needs an actual sitk
+            # stub object; bypass it by mocking the pipeline path's
+            # annotation_indices_to_anatomical and the ANTs call.
+            patch(
+                "aind_zarr_utils.points.annotation_indices_to_anatomical",
+                return_value={"a": np.array([[1.0, 2.0, 3.0]])},
+            ),
+            patch(
+                "aind_zarr_utils.points.apply_ants_transforms_to_point_arr",
+                side_effect=lambda pts, **_: pts + 1,
+            ),
+        ):
+            asset = _make_explicit_asset()
+
+            asset.image(level=3, library="sitk")
+            asset.stub()
+            pts = Points(values={"a": np.array([[0.0, 0.0, 0.0]])}, space=Space.ZARR_INDICES)
+            asset.transform(pts, to=Space.CCF_MM)
+
+            # The full chain opens the Zarr exactly once across all three methods.
+            mock_open.assert_called_once_with(asset.zarr_uri)
+            # Transform-chain paths are resolved exactly once even though
+            # the transform crossed CCF.
+            mock_xforms.assert_called_once()
+
     def test_transforms_property_caches(self) -> None:
         """The transforms property is computed at most once per asset."""
         with patch(
