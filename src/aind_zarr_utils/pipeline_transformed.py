@@ -15,48 +15,116 @@ Notes
 
 from __future__ import annotations
 
-import logging
 import os
-from dataclasses import dataclass
-from pathlib import PurePath, PurePosixPath
+import warnings
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
 import SimpleITK as sitk
-from aind_anatomical_utils.anatomical_volume import (
-    AnatomicalHeader,
-    fix_corner_compute_origin,
-)
-from aind_anatomical_utils.coordinate_systems import _OPPOSITE_AXES
 from aind_registration_utils.ants import (
     apply_ants_transforms_to_point_arr,
 )
-from aind_s3_cache.json_utils import get_json
-from aind_s3_cache.s3_cache import (
-    get_local_path_for_resource,
-)
-from aind_s3_cache.uri_utils import as_pathlike, as_string, join_any
 from numpy.typing import NDArray
-from packaging.version import Version
 
 from aind_zarr_utils.annotations import annotation_indices_to_anatomical
+from aind_zarr_utils.formats.swc import swc_data_to_indices
+
+# The implementations of _pipeline_anatomical_check_args,
+# _apply_pipeline_overlays_to_header, and _mimic_pipeline_anatomical_header
+# moved to ``aind_zarr_utils.image`` in commit C4. They are re-exported here
+# (along with _build_pipeline_header, the new name for the third) so existing
+# callers and test patches keep working.
+from aind_zarr_utils.image import (
+    _apply_pipeline_overlays_to_header as _apply_pipeline_overlays_to_header,
+)
+from aind_zarr_utils.image import (
+    _build_pipeline_header as _build_pipeline_header,
+)
+from aind_zarr_utils.image import (
+    _build_pipeline_header as _mimic_pipeline_anatomical_header,
+)
+from aind_zarr_utils.image import (
+    _pipeline_anatomical_check_args as _pipeline_anatomical_check_args,
+)
+from aind_zarr_utils.image import (
+    apply_pipeline_overlays as apply_pipeline_overlays,
+)
+from aind_zarr_utils.io.metadata import _unit_conversion as _unit_conversion  # legacy re-export
+
+# Re-exported from io/* so existing test patches (and downstream imports)
+# continue to find these names at ``aind_zarr_utils.pipeline_transformed.*``.
+from aind_zarr_utils.io.paths import (
+    _asset_from_zarr_any as _asset_from_zarr_any,
+)
+from aind_zarr_utils.io.paths import (
+    _asset_from_zarr_pathlike as _asset_from_zarr_pathlike,
+)
+from aind_zarr_utils.io.paths import (
+    _zarr_base_name_any as _zarr_base_name_any,
+)
+from aind_zarr_utils.io.paths import (
+    _zarr_base_name_pathlike as _zarr_base_name_pathlike,
+)
+from aind_zarr_utils.io.paths import (
+    alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike as alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike,  # noqa: E501
+)
+from aind_zarr_utils.io.processing import (
+    _get_image_atlas_alignment_process as _get_image_atlas_alignment_process,
+)
+from aind_zarr_utils.io.processing import (
+    _get_processing_pipeline_data as _get_processing_pipeline_data,
+)
+from aind_zarr_utils.io.processing import (
+    _get_zarr_import_process as _get_zarr_import_process,
+)
+from aind_zarr_utils.io.processing import (
+    image_atlas_alignment_path_relative_from_processing as image_atlas_alignment_path_relative_from_processing,
+)
+from aind_zarr_utils.io.transforms import (
+    _PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS as _PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS,
+)
+from aind_zarr_utils.io.transforms import (
+    _PIPELINE_TEMPLATE_TRANSFORM_CHAINS as _PIPELINE_TEMPLATE_TRANSFORM_CHAINS,
+)
+from aind_zarr_utils.io.transforms import (
+    _PIPELINE_TEMPLATE_TRANSFORMS as _PIPELINE_TEMPLATE_TRANSFORMS,
+)
+from aind_zarr_utils.io.transforms import (
+    TemplatePaths as TemplatePaths,
+)
+from aind_zarr_utils.io.transforms import (
+    TransformChain as TransformChain,
+)
+from aind_zarr_utils.io.transforms import (
+    _pipeline_image_transforms_local_paths as _pipeline_image_transforms_local_paths,
+)
+from aind_zarr_utils.io.transforms import (
+    _pipeline_point_transforms_local_paths as _pipeline_point_transforms_local_paths,
+)
+from aind_zarr_utils.io.transforms import (
+    pipeline_image_transforms_local_paths as pipeline_image_transforms_local_paths,
+)
+from aind_zarr_utils.io.transforms import (
+    pipeline_point_transforms_local_paths as pipeline_point_transforms_local_paths,
+)
+from aind_zarr_utils.io.transforms import (
+    pipeline_transforms as pipeline_transforms,
+)
+from aind_zarr_utils.io.transforms import (
+    pipeline_transforms_local_paths as pipeline_transforms_local_paths,
+)
+from aind_zarr_utils.io.zarr import _open_zarr, _zarr_to_scaled
 from aind_zarr_utils.neuroglancer import (
     get_image_sources,
     neuroglancer_annotations_to_indices,
 )
 from aind_zarr_utils.pipeline_domain_selector import (
     OverlaySelector,
-    apply_overlays,
-    estimate_pipeline_multiscale,
     get_selector,
 )
 from aind_zarr_utils.zarr import (
-    _open_zarr,
-    _unit_conversion,
-    _zarr_to_scaled,
     zarr_to_ants,
     zarr_to_sitk,
-    zarr_to_sitk_stub,
 )
 
 if TYPE_CHECKING:
@@ -64,495 +132,7 @@ if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
     from ome_zarr.reader import Node  # type: ignore[import-untyped]
 
-logger = logging.getLogger(__name__)
-
 T = TypeVar("T", int, float)
-_KNOWN_GOOD_PIPELINE_VERSIONS = {3, 4, 5}
-
-
-@dataclass(slots=True, frozen=True)
-class TransformChain:
-    """
-    A pair of forward/reverse ANTs transform chains plus inversion flags.
-
-    Parameters
-    ----------
-    fixed : str
-        Name of the fixed space (e.g., ``"template"`` or ``"ccf"``).
-    moving : str
-        Name of the moving space (e.g., ``"individual"`` or ``"template"``).
-    forward_chain : list[str]
-        Paths (relative) for forward mapping ``moving → fixed``.
-    forward_chain_invert : list[bool]
-        Per-transform flags indicating inversion when applying forward map.
-    reverse_chain : list[str]
-        Paths (relative) for reverse mapping ``fixed → moving``.
-    reverse_chain_invert : list[bool]
-        Per-transform flags indicating inversion for reverse map.
-
-    Notes
-    -----
-    - Order matters: ANTs expects displacement fields/affines in the
-      sequence they were produced (usually warp then affine).
-    """
-
-    fixed: str
-    moving: str
-    forward_chain: list[str]
-    forward_chain_invert: list[bool]
-    reverse_chain: list[str]
-    reverse_chain_invert: list[bool]
-
-
-@dataclass(slots=True, frozen=True)
-class TemplatePaths:
-    """
-    Base URI for a transform set and its associated :class:`TransformChain`.
-
-    Parameters
-    ----------
-    base : str
-        Base URI/prefix containing transform files.
-    chain : TransformChain
-        Transform chain definition rooted at ``base``.
-    """
-
-    base: str
-    chain: TransformChain
-
-
-def _asset_from_zarr_pathlike(zarr_path: PurePath) -> PurePath:
-    """
-    Return the asset (dataset) root directory for a given Zarr path.
-
-    Parameters
-    ----------
-    zarr_path : Path
-        A concrete filesystem path pointing somewhere inside a ``*.zarr``
-        (or ``*.ome.zarr``) hierarchy.
-
-    Returns
-    -------
-    Path
-        The directory two levels above the provided Zarr path. For AIND
-        SmartSPIM assets this corresponds to the asset root that contains
-        processing outputs.
-    """
-    return zarr_path.parents[2]
-
-
-def _asset_from_zarr_any(zarr_uri: str) -> str:
-    """
-    Return the asset root URI (string form) for an arbitrary Zarr URI.
-
-    Parameters
-    ----------
-    zarr_uri : str
-        URI or path-like string to a location inside a Zarr store.
-
-    Returns
-    -------
-    str
-        Asset root expressed in the same URI style as the input.
-    """
-    kind, bucket, p = as_pathlike(zarr_uri)
-    return as_string(kind, bucket, _asset_from_zarr_pathlike(p))
-
-
-def _zarr_base_name_pathlike(p: PurePath) -> str | None:
-    """
-    Infer the logical base name for a Zarr / OME-Zarr hierarchy.
-
-    The base name is the directory name with all ``.ome`` / ``.zarr``
-    suffixes removed. If no ancestor contains ``".zarr"`` in its suffixes,
-    ``None`` is returned.
-
-    Parameters
-    ----------
-    p : PurePath
-        Path located at or within a Zarr hierarchy.
-
-    Returns
-    -------
-    str or None
-        Base stem without zarr/ome extensions, or ``None`` if not found.
-    """
-    # Walk up until we find a *.zarr (or *.ome.zarr) segment.
-    z = next((a for a in (p, *p.parents) if ".zarr" in a.suffixes), None)
-    if not z:
-        return None
-
-    # Strip all suffixes on that segment.
-    q = z
-    for _ in z.suffixes:
-        q = q.with_suffix("")
-    return q.name
-
-
-def _zarr_base_name_any(base: str) -> str | None:
-    """
-    Wrap :func:`_zarr_base_name_pathlike` for any URI style.
-
-    Parameters
-    ----------
-    base : str
-        URI or path pointing at / inside a Zarr hierarchy.
-
-    Returns
-    -------
-    str or None
-        Base name without suffixes, or ``None`` if not detected.
-    """
-    kind, bucket, p = as_pathlike(base)
-    return _zarr_base_name_pathlike(p)
-
-
-_PIPELINE_TEMPLATE_TRANSFORM_CHAINS: dict[str, TransformChain] = {
-    "SmartSPIM-template_2024-05-16_11-26-14": TransformChain(
-        fixed="ccf",
-        moving="template",
-        forward_chain=[
-            "spim_template_to_ccf_syn_1Warp_25.nii.gz",
-            "spim_template_to_ccf_syn_0GenericAffine_25.mat",
-        ],
-        forward_chain_invert=[False, False],
-        reverse_chain=[
-            "spim_template_to_ccf_syn_0GenericAffine_25.mat",
-            "spim_template_to_ccf_syn_1InverseWarp_25.nii.gz",
-        ],
-        reverse_chain_invert=[True, False],
-    )
-}
-
-_PIPELINE_TEMPLATE_TRANSFORMS: dict[str, TemplatePaths] = {
-    "SmartSPIM-template_2024-05-16_11-26-14": TemplatePaths(
-        base="s3://aind-open-data/SmartSPIM-template_2024-05-16_11-26-14/",
-        chain=_PIPELINE_TEMPLATE_TRANSFORM_CHAINS["SmartSPIM-template_2024-05-16_11-26-14"],
-    )
-}
-
-_KNOWN_INDIVIDUAL_TRANSFORM_CHAINS: dict[int, TransformChain] = {
-    3: TransformChain(
-        fixed="template",
-        moving="individual",
-        forward_chain=[
-            "ls_to_template_SyN_1Warp.nii.gz",
-            "ls_to_template_SyN_0GenericAffine.mat",
-        ],
-        forward_chain_invert=[False, False],
-        reverse_chain=[
-            "ls_to_template_SyN_0GenericAffine.mat",
-            "ls_to_template_SyN_1InverseWarp.nii.gz",
-        ],
-        reverse_chain_invert=[True, False],
-    )
-}
-
-_PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS: dict[int, TransformChain] = {
-    3: _KNOWN_INDIVIDUAL_TRANSFORM_CHAINS[3],
-    4: _KNOWN_INDIVIDUAL_TRANSFORM_CHAINS[3],
-    5: _KNOWN_INDIVIDUAL_TRANSFORM_CHAINS[3],
-}
-
-
-def _resolve_individual_transform_chain(
-    pipeline_ver: int,
-) -> TransformChain:
-    """Look up the individual (LS → template) transform chain for a pipeline major version.
-
-    Falls back to the latest known chain when the version is newer than
-    anything registered.
-    """
-    chain = _PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS.get(pipeline_ver)
-    if chain is not None:
-        return chain
-    max_known = max(_PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS)
-    if pipeline_ver > max_known:
-        logger.warning(
-            f"No individual transform chain registered for pipeline "
-            f"version {pipeline_ver}; falling back to chain for version "
-            f"{max_known}. Results may not be accurate."
-        )
-        return _PIPELINE_INDIVIDUAL_TRANSFORM_CHAINS[max_known]
-    raise ValueError(f"No individual transform chain registered for pipeline version {pipeline_ver}")
-
-
-def _get_processing_pipeline_data(
-    processing_data: dict[str, Any],
-) -> dict[str, Any]:
-    """
-    Return validated processing pipeline metadata.
-
-    Parameters
-    ----------
-    processing_data : dict
-        Top-level metadata (e.g. contents of ``processing.json``) expected
-        to contain a ``processing_pipeline`` key with a semantic version.
-
-    Returns
-    -------
-    dict
-        The nested ``processing_pipeline`` dictionary.
-
-    Raises
-    ------
-    ValueError
-        If the pipeline version is missing or the major version is older
-        than the minimum supported version. Newer-than-known versions emit
-        a warning instead of raising.
-    """
-    ver_str = processing_data.get("processing_pipeline", {}).get("pipeline_version", None)
-    if not ver_str:
-        raise ValueError("Missing pipeline version")
-    pipeline_ver = int(ver_str.split(".")[0])
-    if pipeline_ver not in _KNOWN_GOOD_PIPELINE_VERSIONS:
-        maxver = max(_KNOWN_GOOD_PIPELINE_VERSIONS)
-        if pipeline_ver > maxver:
-            logger.warning(
-                f"Pipeline version {pipeline_ver} is greater than max "
-                f"verified version {maxver}, results may not be accurate. "
-                "File an issue at "
-                "https://github.com/AllenNeuralDynamics/aind-zarr-utils/issues."
-            )
-        else:
-            raise ValueError(f"Unsupported pipeline version: {pipeline_ver}")
-    pipeline: dict[str, Any] = processing_data.get("processing_pipeline", {})
-    return pipeline
-
-
-def _get_zarr_import_process(
-    processing_data: dict[str, Any],
-) -> dict[str, Any] | None:
-    """
-    Locate the *Image importing* process block.
-
-    Parameters
-    ----------
-    processing_data : dict
-        Processing metadata supplying ``data_processes`` list.
-
-    Returns
-    -------
-    dict or None
-        Matching process dict or ``None`` if not present.
-    """
-    pipeline = _get_processing_pipeline_data(processing_data)
-    want_name = "Image importing"
-    proc = next(
-        (p for p in pipeline["data_processes"] if p.get("name") == want_name),
-        None,
-    )
-    return proc
-
-
-def _get_image_atlas_alignment_process(
-    processing_data: dict[str, Any],
-) -> dict[str, Any] | None:
-    """
-    Locate the *Image atlas alignment* process for SmartSPIM → CCF.
-
-    The process is uniquely identified by name plus a notes string describing
-    the LS → template → CCF chain.
-
-    Parameters
-    ----------
-    processing_data : dict
-        Processing metadata.
-
-    Returns
-    -------
-    dict or None
-        Matching process dict or ``None`` if not found.
-    """
-    pipeline = _get_processing_pipeline_data(processing_data)
-    want_name = "Image atlas alignment"
-    want_notes = "Template based registration: LS -> template -> Allen CCFv3 Atlas"
-
-    proc = next(
-        (p for p in pipeline["data_processes"] if p.get("name") == want_name and p.get("notes") == want_notes),
-        None,
-    )
-    return proc
-
-
-def image_atlas_alignment_path_relative_from_processing(
-    processing_data: dict[str, Any],
-) -> str | None:
-    """
-    Return relative path to atlas alignment outputs for a processing run.
-
-    The relative path (if determinable) has the form::
-
-        image_atlas_alignment/<channel>/
-
-    where ``<channel>`` is derived from the base name of the input LS Zarr.
-
-    Parameters
-    ----------
-    processing_data : dict
-        Processing metadata.
-
-    Returns
-    -------
-    str or None
-        Relative path or ``None`` if the required process / channel can't
-        be resolved.
-    """
-    proc = _get_image_atlas_alignment_process(processing_data)
-    input_zarr = proc.get("input_location") if proc else None
-    channel = _zarr_base_name_pathlike(PurePosixPath(input_zarr)) if input_zarr else None
-    rel_path = f"image_atlas_alignment/{channel}/" if channel else None
-
-    return rel_path
-
-
-def _pipeline_anatomical_check_args(
-    zarr_uri: str,
-    processing_data: dict[str, Any],
-    opened_zarr: tuple[Node, dict] | None = None,
-) -> tuple[dict[str, Any], str, Node, dict, int | None]:
-    """
-    Validate and extract needed metadata for pipeline anatomical header.
-
-    Parameters
-    ----------
-    zarr_uri : str
-        URI of the raw Zarr store.
-    processing_data : dict
-        Processing metadata containing version / process list.
-    opened_zarr : tuple, optional
-        Pre-opened ZARR file (image_node, zarr_meta), by default None. If
-        provided, this will be used instead of opening the ZARR file again.
-
-    Returns
-    -------
-    import_process : dict
-        The zarr import process metadata.
-    zarr_import_version : str
-        The zarr import process version string (from Image importing process).
-    image_node : Node
-        The root node of the opened Zarr image.
-    zarr_meta : dict
-        Metadata from the Zarr store.
-    multiscale_no : int or None
-        Estimated multiscale number, if determinable.
-    """
-    proc = _get_zarr_import_process(processing_data)
-    if not proc:
-        raise ValueError("Could not find zarr import process in processing data")
-
-    zarr_import_version = proc.get("code_version")
-    if not zarr_import_version:
-        raise ValueError("Zarr import version not found in zarr import process")
-    if opened_zarr is None:
-        image_node, zarr_meta = _open_zarr(zarr_uri)
-    else:
-        image_node, zarr_meta = opened_zarr
-    multiscale_no = estimate_pipeline_multiscale(zarr_meta, Version(zarr_import_version))
-    return proc, zarr_import_version, image_node, zarr_meta, multiscale_no
-
-
-def _apply_pipeline_overlays_to_header(
-    base_header: AnatomicalHeader,
-    zarr_import_version: str,
-    metadata: dict,
-    multiscale_no: int | None,
-    *,
-    overlay_selector: OverlaySelector = get_selector(),
-) -> tuple[AnatomicalHeader, list[str]]:
-    """
-    Select and apply pipeline overlays to a base anatomical header.
-
-    Parameters
-    ----------
-    base_header : AnatomicalHeader
-        The base anatomical header to modify.
-    zarr_import_version : str
-        The zarr import process version string (code_version from
-        Image importing process).
-    metadata : dict
-        ND metadata (instrument + acquisition) used by overlays.
-    multiscale_no : int or None
-        Estimated multiscale number, if determinable.
-    overlay_selector : OverlaySelector, optional
-        Selector used to obtain overlay sequence; defaults to the global
-        selector.
-
-    Returns
-    -------
-    AnatomicalHeader
-        Corrected anatomical header with overlays applied.
-    list[str]
-        List of applied overlay names.
-    """
-    overlays = overlay_selector.select(version=zarr_import_version, meta=metadata)
-    return apply_overlays(
-        base_header,
-        overlays,
-        metadata,
-        multiscale_no or 3,
-        zarr_import_version=zarr_import_version,
-    )
-
-
-def _mimic_pipeline_anatomical_header(
-    zarr_uri: str,
-    metadata: dict,
-    processing_data: dict,
-    *,
-    overlay_selector: OverlaySelector = get_selector(),
-    opened_zarr: tuple[Node, dict] | None = None,
-) -> tuple[AnatomicalHeader, list[str], AnatomicalHeader]:
-    """
-    Construct an AnatomicalHeader matching pipeline spatial corrections.
-
-    Parameters
-    ----------
-    zarr_uri : str
-        URI of the raw Zarr store.
-    metadata : dict
-        ND metadata (instrument + acquisition) used by overlays.
-    processing_data : dict
-        Processing metadata containing version / process list.
-    overlay_selector : OverlaySelector, optional
-        Selector used to obtain overlay sequence; defaults to the global
-        selector.
-    opened_zarr : tuple, optional
-        Pre-opened ZARR file (image_node, zarr_meta), by default None. If
-        provided, this will be used instead of opening the ZARR file again.
-
-    Returns
-    -------
-    AnatomicalHeader
-        Corrected anatomical header with overlays applied.
-    list[str]
-        List of applied overlay names.
-    AnatomicalHeader
-        Base anatomical header before overlays were applied.
-    """
-    # Validate and extract needed metadata.
-    _, zarr_import_version, image_node, zarr_meta, multiscale_no = _pipeline_anatomical_check_args(
-        zarr_uri, processing_data, opened_zarr=opened_zarr
-    )
-
-    stub_img, size_ijk = zarr_to_sitk_stub(
-        zarr_uri,
-        metadata,
-        opened_zarr=(image_node, zarr_meta),
-    )
-
-    # Convert stub to AnatomicalHeader for domain corrections.
-    base_header = AnatomicalHeader.from_sitk(stub_img, size_ijk)
-
-    # Select and apply overlays based on zarr import version and metadata.
-    header, applied = _apply_pipeline_overlays_to_header(
-        base_header,
-        zarr_import_version,
-        metadata,
-        multiscale_no,
-        overlay_selector=overlay_selector,
-    )
-    return header, applied, base_header
 
 
 def base_and_pipeline_anatomical_stub(
@@ -686,130 +266,24 @@ def apply_pipeline_overlays_to_sitk(
     overlay_selector: OverlaySelector = get_selector(),
     opened_zarr: tuple[Node, dict] | None = None,
 ) -> None:
+    """Apply pipeline spatial overlays to a SimpleITK image header in-place.
+
+    Thin SimpleITK-typed shim around
+    :func:`aind_zarr_utils.image.apply_pipeline_overlays`.
+
+    See :func:`aind_zarr_utils.image.apply_pipeline_overlays` for parameter
+    semantics. ``img``'s spatial header is modified in place; pixel data is
+    untouched.
     """
-    Apply pipeline spatial overlays to a SimpleITK image header in-place.
-
-    This function modifies the spatial metadata (spacing, origin, direction)
-    of a SimpleITK image to match the corrections that would have been applied
-    by the SmartSPIM processing pipeline. The correction approach differs
-    depending on the pyramid level:
-
-    - **Level 0**: Overlays are applied directly to the image header using
-      the base header and overlay selection logic.
-    - **Level > 0**: The level 0 corrected header is computed first, then
-      spacing is scaled by ``2**level`` and the origin/direction are applied
-      from the corrected header.
-
-    Parameters
-    ----------
-    img : sitk.Image
-        The SimpleITK image whose header will be modified **in-place**.
-    zarr_uri : str
-        URI of the raw Zarr store. Used to derive pipeline version and
-        metadata needed for overlay application.
-    processing_data : dict
-        Processing metadata containing pipeline version and process list.
-        Used to derive parameters for overlay application.
-    metadata : dict
-        ND metadata dictionary containing instrument and acquisition parameters
-        required by overlay selection and application logic.
-    level : int, optional
-        Pyramid level of the image. Must be non-negative. Default is 3.
-    overlay_selector : OverlaySelector, optional
-        Selector used to obtain the overlay sequence based on pipeline version
-        and metadata. Defaults to the global selector from
-        :func:`~aind_zarr_utils.pipeline_domain_selector.get_selector`.
-    opened_zarr : tuple, optional
-        Pre-opened ZARR file (image_node, zarr_meta), by default None. If
-        provided, this will be used instead of opening the ZARR file again.
-
-    Returns
-    -------
-    None
-        The function modifies ``img`` in-place and returns nothing.
-
-    See Also
-    --------
-    apply_pipeline_overlays_to_ants : Equivalent function for ANTs images.
-    mimic_pipeline_zarr_to_sitk : Create a new SimpleITK image with pipeline
-        corrections applied.
-
-    Notes
-    -----
-    - All spatial coordinates are in **ITK LPS** convention and
-      **millimeters**.
-    - For ``level > 0``, the function internally calls
-      :func:`_mimic_pipeline_anatomical_header` to obtain the corrected
-      level 0 header, then scales the spacing by ``2**level``.
-    - The image pixel data is not modified, only the spatial metadata in
-      the header.
-    - **This function mutates the input image in-place.** If you need to
-      preserve the original image, create a copy first.
-
-    Examples
-    --------
-    Apply overlays to a level 0 image::
-
-        from aind_zarr_utils.pipeline_transformed import (
-            apply_pipeline_overlays_to_sitk,
-        )
-        from aind_zarr_utils.zarr import zarr_to_sitk
-
-        # Load image and metadata
-        zarr_uri = "s3://bucket/dataset.zarr"
-        metadata = {...}  # ND metadata
-        processing_data = {...}  # Processing metadata
-
-        # Create base image
-        img = zarr_to_sitk(zarr_uri, metadata, level=0)
-
-        # Apply overlays in-place
-        apply_pipeline_overlays_to_sitk(
-            img,
-            zarr_uri,
-            processing_data,
-            metadata,
-            level=0,
-        )
-        # img is now modified with pipeline corrections
-    """
-    # Derive pipeline-specific parameters from zarr_uri and processing_data
-    _, zarr_import_version, image_node, zarr_meta, multiscale_no = _pipeline_anatomical_check_args(
-        zarr_uri, processing_data, opened_zarr=opened_zarr
+    apply_pipeline_overlays(
+        img,
+        zarr_uri,
+        processing_data,
+        metadata,
+        level=level,
+        overlay_selector=overlay_selector,
+        opened_zarr=opened_zarr,
     )
-
-    if level == 0:
-        # Overlays only work at level 0, so in this case we can work with them
-        # directly.
-
-        # Convert stub to AnatomicalHeader for domain corrections.
-        base_header = AnatomicalHeader.from_sitk(img)
-
-        # Select and apply overlays based on zarr import version and metadata.
-        overlays = overlay_selector.select(version=zarr_import_version, meta=metadata)
-        corrected_header, _ = apply_overlays(
-            base_header,
-            overlays,
-            metadata,
-            multiscale_no or 3,
-            zarr_import_version=zarr_import_version,
-        )
-        corrected_header.update_sitk(img)
-    elif level > 0:
-        # For levels > 0, we need to correct for the downsampling factor.
-        # First let's get the level 0 stub with the applied overlays.
-        corrected_header, _, _ = _mimic_pipeline_anatomical_header(
-            zarr_uri,
-            metadata,
-            processing_data,
-            overlay_selector=overlay_selector,
-            opened_zarr=(image_node, zarr_meta),
-        )
-        spacing_level_scale = 2**level
-        spacing_scaled = tuple(s * spacing_level_scale for s in corrected_header.spacing)
-        img.SetSpacing(spacing_scaled)
-        img.SetOrigin(corrected_header.origin)
-        img.SetDirection(corrected_header.direction_tuple())
 
 
 def mimic_pipeline_zarr_to_sitk(
@@ -916,164 +390,28 @@ def apply_pipeline_overlays_to_ants(
     overlay_selector: OverlaySelector = get_selector(),
     opened_zarr: tuple[Node, dict] | None = None,
 ) -> None:
+    """Apply pipeline spatial overlays to an ANTs image header in-place.
+
+    Thin ANTs-typed shim around
+    :func:`aind_zarr_utils.image.apply_pipeline_overlays`. The level > 0
+    SITK→ANTs convention conversion lives in
+    :func:`aind_zarr_utils.image._to_ants_convention`.
+
+    See :func:`aind_zarr_utils.image.apply_pipeline_overlays` for parameter
+    semantics. ``img``'s spatial header is modified in place; pixel data is
+    untouched. The direction matrix is left unchanged (the conversion
+    assumes the active overlays do not modify direction; this is true for
+    the default rule set).
     """
-    Apply pipeline spatial overlays to an ANTs image header in-place.
-
-    This function modifies the spatial metadata (spacing, origin, direction)
-    of an ANTs image to match the corrections that would have been applied
-    by the SmartSPIM processing pipeline. The correction approach differs
-    depending on the pyramid level:
-
-    - **Level 0**: Overlays are applied directly to the image header using
-      the base header and overlay selection logic.
-    - **Level > 0**: The level 0 corrected header is computed first (in
-      SimpleITK convention), then spacing is scaled by ``2**level`` and
-      coordinate system conversions are applied to account for the ANTs vs
-      SimpleITK array ordering differences.
-
-    Parameters
-    ----------
-    img : ANTsImage
-        The ANTs image whose header will be modified **in-place**.
-    zarr_uri : str
-        URI of the raw Zarr store. Used to derive pipeline version and
-        metadata needed for overlay application.
-    processing_data : dict
-        Processing metadata containing pipeline version and process list.
-        Used to derive parameters for overlay application.
-    metadata : dict
-        ND metadata dictionary containing instrument and acquisition parameters
-        required by overlay selection and application logic.
-    level : int, optional
-        Pyramid level of the image. Must be non-negative. Default is 3.
-    overlay_selector : OverlaySelector, optional
-        Selector used to obtain the overlay sequence based on pipeline version
-        and metadata. Defaults to the global selector from
-        :func:`~aind_zarr_utils.pipeline_domain_selector.get_selector`.
-    opened_zarr : tuple, optional
-        Pre-opened ZARR file (image_node, zarr_meta), by default None. If
-        provided, this will be used instead of opening the ZARR file again.
-
-    Returns
-    -------
-    None
-        The function modifies ``img`` in-place and returns nothing.
-
-    See Also
-    --------
-    apply_pipeline_overlays_to_sitk : Equivalent function for SimpleITK
-        images.
-    mimic_pipeline_zarr_to_ants : Create a new ANTs image with pipeline
-        corrections applied.
-
-    Notes
-    -----
-    - All spatial coordinates are in **ITK LPS** convention and
-      **millimeters**.
-    - For ``level > 0``, the function internally calls
-      :func:`_mimic_pipeline_anatomical_header` to obtain the corrected
-      level 0 header in SimpleITK convention, then applies coordinate
-      transformations to account for ANTs vs SimpleITK array ordering
-      differences.
-    - **ANTs vs SimpleITK ordering**: ANTs and SimpleITK interpret numpy
-      arrays differently. For the same physical volume, their underlying
-      array data are transposed relative to each other. This function handles
-      the necessary conversions:
-
-      - Spacing must be reversed
-      - Origin must be recomputed for the opposite corner of the volume
-      - Direction matrix should remain the same for known pipeline issues
-
-    - The image pixel data is not modified, only the spatial metadata in
-      the header.
-    - **This function mutates the input image in-place.** If you need to
-      preserve the original image, create a copy first.
-
-    Examples
-    --------
-    Apply overlays to a level 0 ANTs image::
-
-        from aind_zarr_utils.pipeline_transformed import (
-            apply_pipeline_overlays_to_ants,
-        )
-        from aind_zarr_utils.zarr import zarr_to_ants
-
-        # Load image and metadata
-        zarr_uri = "s3://bucket/dataset.zarr"
-        metadata = {...}  # ND metadata
-        processing_data = {...}  # Processing metadata
-
-        # Create base image
-        img = zarr_to_ants(zarr_uri, metadata, level=0)
-
-        # Apply overlays in-place
-        apply_pipeline_overlays_to_ants(
-            img,
-            zarr_uri,
-            processing_data,
-            metadata,
-            level=0,
-        )
-        # img is now modified with pipeline corrections
-    """
-    # Derive pipeline-specific parameters from zarr_uri and processing_data
-    _, zarr_import_version, image_node, zarr_meta, multiscale_no = _pipeline_anatomical_check_args(
-        zarr_uri, processing_data, opened_zarr=opened_zarr
+    apply_pipeline_overlays(
+        img,
+        zarr_uri,
+        processing_data,
+        metadata,
+        level=level,
+        overlay_selector=overlay_selector,
+        opened_zarr=opened_zarr,
     )
-
-    if level == 0:
-        # Overlays only work at level 0, so in this case we can work with them
-        # directly.
-
-        # Convert stub to AnatomicalHeader for domain corrections.
-        base_header = AnatomicalHeader.from_ants(img)
-
-        # Select and apply overlays based on zarr import version and metadata.
-        overlays = overlay_selector.select(version=zarr_import_version, meta=metadata)
-        corrected_header, _ = apply_overlays(
-            base_header,
-            overlays,
-            metadata,
-            multiscale_no or 3,
-            zarr_import_version=zarr_import_version,
-        )
-        corrected_header.update_ants(img)
-    elif level > 0:
-        # For levels > 0, we need to correct for the downsampling factor.
-        # First let's get the level 0 stub with the applied overlays.
-        corrected_header, _, _ = _mimic_pipeline_anatomical_header(
-            zarr_uri,
-            metadata,
-            processing_data,
-            overlay_selector=overlay_selector,
-            opened_zarr=(image_node, zarr_meta),
-        )
-        spacing_level_scale = 2**level
-
-        # The corrected header above is calculated based on SimpleITK ordering
-        # of the zarr data, which is the reverse of ANTs ordering due to how
-        # these libraries accept numpy arrays of data. Even though these images
-        # have the same physical interpretation, their underlying array data
-        # are transposed. So, to apply the SimpleITK-based header, we need to
-        # reverse the spacing tuple.
-        spacing_rev_scaled = tuple(s * spacing_level_scale for s in reversed(corrected_header.spacing))
-        img.set_spacing(spacing_rev_scaled)
-        # The origin is also wrong, because it is a different corner of the
-        # volume.
-        header_origin_code = sitk.DICOMOrientImageFilter.GetOrientationFromDirectionCosines(
-            corrected_header.direction_tuple()
-        )
-        header_origin_corner_code = "".join(_OPPOSITE_AXES[d] for d in header_origin_code)
-        ants_origin, _, _ = fix_corner_compute_origin(
-            img.shape,
-            spacing_rev_scaled,
-            img.direction,  # This should be the same
-            target_point=corrected_header.origin,
-            corner_code=header_origin_corner_code,
-        )
-        img.set_origin(ants_origin)
-        # The direction matrix should be the same for known pipeline issues. If
-        # not, fix
 
 
 def base_and_pipeline_zarr_to_ants(
@@ -1169,337 +507,6 @@ def mimic_pipeline_zarr_to_ants(
     )
 
     return img
-
-
-def pipeline_transforms(
-    zarr_uri: str,
-    processing_data: dict[str, Any],
-    *,
-    template_used: str = "SmartSPIM-template_2024-05-16_11-26-14",
-    template_base: str | os.PathLike | None = None,
-) -> tuple[TemplatePaths, TemplatePaths]:
-    """
-    Return individual→template and template→CCF transform path data.
-
-    Parameters
-    ----------
-    zarr_uri : str
-        URI to an LS acquisition Zarr.
-    processing_data : dict
-        Processing metadata.
-    template_used : str, optional
-        Key identifying which template transform set to apply.
-    template_base : str or PathLike, optional
-        Base path for the template transforms. If ``None``, the default from
-        :data:`_PIPELINE_TEMPLATE_TRANSFORMS` is used. Defaults to ``None``.
-
-    Returns
-    -------
-    (TemplatePaths, TemplatePaths)
-        First element: individual→template chain.
-        Second element: template→CCF chain.
-
-    Raises
-    ------
-    ValueError
-        If the alignment path cannot be inferred from processing metadata.
-    """
-    uri_type, bucket, zarr_pathlike = as_pathlike(zarr_uri)
-    asset_pathlike = _asset_from_zarr_pathlike(zarr_pathlike)
-    alignment_rel_path = image_atlas_alignment_path_relative_from_processing(processing_data)
-    if alignment_rel_path is None:
-        raise ValueError("Could not determine image atlas alignment path from processing data")
-    alignment_path = as_string(
-        uri_type,
-        bucket,
-        asset_pathlike / alignment_rel_path,
-    )
-    pipeline = _get_processing_pipeline_data(processing_data)
-    pipeline_ver = int(pipeline["pipeline_version"].split(".")[0])
-    transform_chain = _resolve_individual_transform_chain(pipeline_ver)
-
-    individual_ants_paths = TemplatePaths(
-        alignment_path,
-        transform_chain,
-    )
-    if template_base:
-        template_ants_paths = TemplatePaths(
-            str(template_base),
-            _PIPELINE_TEMPLATE_TRANSFORM_CHAINS[template_used],
-        )
-    else:
-        template_ants_paths = _PIPELINE_TEMPLATE_TRANSFORMS[template_used]
-    return individual_ants_paths, template_ants_paths
-
-
-def _pipeline_image_transforms_local_paths(
-    individual_ants_paths: TemplatePaths,
-    template_ants_paths: TemplatePaths,
-    *,
-    s3_client: S3Client | None = None,
-    anonymous: bool = True,
-    cache_dir: str | os.PathLike | None = None,
-) -> tuple[list[str], list[bool]]:
-    img_transforms_individual_is_inverted = individual_ants_paths.chain.forward_chain_invert
-    img_transforms_template_is_inverted = template_ants_paths.chain.forward_chain_invert
-
-    img_transforms_individual_paths = [
-        get_local_path_for_resource(
-            join_any(individual_ants_paths.base, p),
-            s3_client=s3_client,
-            anonymous=anonymous,
-            cache_dir=cache_dir,
-        ).path
-        for p in individual_ants_paths.chain.forward_chain
-    ]
-    img_transforms_template_paths = [
-        get_local_path_for_resource(
-            join_any(template_ants_paths.base, p),
-            s3_client=s3_client,
-            anonymous=anonymous,
-            cache_dir=cache_dir,
-        ).path
-        for p in template_ants_paths.chain.forward_chain
-    ]
-
-    img_transform_paths = img_transforms_template_paths + img_transforms_individual_paths
-    img_transform_paths_str = [str(p) for p in img_transform_paths]
-    img_transform_is_inverted = img_transforms_template_is_inverted + img_transforms_individual_is_inverted
-    return img_transform_paths_str, img_transform_is_inverted
-
-
-def pipeline_image_transforms_local_paths(
-    zarr_uri: str,
-    processing_data: dict[str, Any],
-    *,
-    s3_client: S3Client | None = None,
-    anonymous: bool = True,
-    cache_dir: str | os.PathLike | None = None,
-    template_used: str = "SmartSPIM-template_2024-05-16_11-26-14",
-    template_base: str | os.PathLike | None = None,
-) -> tuple[list[str], list[bool]]:
-    """
-    Resolve local filesystem paths to the image transform chain files.
-
-    Download (or locate in cache) all ANTs transform components needed to
-    map individual LS acquisition images into CCF space.
-
-    Parameters
-    ----------
-    zarr_uri : str
-        Acquisition Zarr URI.
-    processing_data : dict
-        Processing metadata.
-    s3_client : S3Client, optional
-        Boto3 S3 client (typed) for authenticated access.
-    anonymous : bool, optional
-        Use unsigned S3 access if ``True``.
-    cache_dir : str or PathLike, optional
-        Directory to cache downloaded resources.
-    template_used : str, optional
-        Template transform key (see
-        :data:`_PIPELINE_TEMPLATE_TRANSFORMS`).
-    template_base : str or PathLike, optional
-        Base path for the template transforms. If ``None``, the default from
-        :data:`_PIPELINE_TEMPLATE_TRANSFORMS` will be used. Defaults to
-        ``None``.
-
-    Returns
-    -------
-    list[str]
-        Paths to image transform files in the application order (forward
-        chains).
-    list[bool]
-        Flags indicating whether each transform should be inverted.
-    """
-    individual_ants_paths, template_ants_paths = pipeline_transforms(
-        zarr_uri,
-        processing_data,
-        template_used=template_used,
-        template_base=template_base,
-    )
-    return _pipeline_image_transforms_local_paths(
-        individual_ants_paths,
-        template_ants_paths,
-        s3_client=s3_client,
-        anonymous=anonymous,
-        cache_dir=cache_dir,
-    )
-
-
-def _pipeline_point_transforms_local_paths(
-    individual_ants_paths: TemplatePaths,
-    template_ants_paths: TemplatePaths,
-    *,
-    s3_client: S3Client | None = None,
-    anonymous: bool = True,
-    cache_dir: str | os.PathLike | None = None,
-) -> tuple[list[str], list[bool]]:
-    pt_transforms_individual_is_inverted = individual_ants_paths.chain.reverse_chain_invert
-    pt_transforms_template_is_inverted = template_ants_paths.chain.reverse_chain_invert
-
-    pt_transforms_individual_paths = [
-        get_local_path_for_resource(
-            join_any(individual_ants_paths.base, p),
-            s3_client=s3_client,
-            anonymous=anonymous,
-            cache_dir=cache_dir,
-        ).path
-        for p in individual_ants_paths.chain.reverse_chain
-    ]
-    pt_transforms_template_paths = [
-        get_local_path_for_resource(
-            join_any(template_ants_paths.base, p),
-            s3_client=s3_client,
-            anonymous=anonymous,
-            cache_dir=cache_dir,
-        ).path
-        for p in template_ants_paths.chain.reverse_chain
-    ]
-
-    pt_transform_paths = pt_transforms_individual_paths + pt_transforms_template_paths
-    pt_transform_paths_str = [str(p) for p in pt_transform_paths]
-    pt_transform_is_inverted = pt_transforms_individual_is_inverted + pt_transforms_template_is_inverted
-    return pt_transform_paths_str, pt_transform_is_inverted
-
-
-def pipeline_point_transforms_local_paths(
-    zarr_uri: str,
-    processing_data: dict[str, Any],
-    *,
-    s3_client: S3Client | None = None,
-    anonymous: bool = True,
-    cache_dir: str | os.PathLike | None = None,
-    template_used: str = "SmartSPIM-template_2024-05-16_11-26-14",
-    template_base: str | os.PathLike | None = None,
-) -> tuple[list[str], list[bool]]:
-    """
-    Resolve local filesystem paths to the point transform chain files.
-
-    Download (or locate in cache) all ANTs transform components needed to
-    map individual LS acquisition points into CCF space.
-
-    Parameters
-    ----------
-    zarr_uri : str
-        Acquisition Zarr URI.
-    processing_data : dict
-        Processing metadata.
-    s3_client : S3Client, optional
-        Boto3 S3 client (typed) for authenticated access.
-    anonymous : bool, optional
-        Use unsigned S3 access if ``True``.
-    cache_dir : str or PathLike, optional
-        Directory to cache downloaded resources.
-    template_used : str, optional
-        Template transform key (see
-        :data:`_PIPELINE_TEMPLATE_TRANSFORMS`).
-    template_base : str or PathLike, optional
-        Base path for the template transforms. If ``None``, the default from
-        :data:`_PIPELINE_TEMPLATE_TRANSFORMS` will be used. Defaults to
-        ``None``.
-
-    Returns
-    -------
-    list[str]
-        Paths to transform files in the application order (reverse chains).
-    list[bool]
-        Flags indicating whether each transform should be inverted.
-    """
-    individual_ants_paths, template_ants_paths = pipeline_transforms(
-        zarr_uri,
-        processing_data,
-        template_used=template_used,
-        template_base=template_base,
-    )
-    return _pipeline_point_transforms_local_paths(
-        individual_ants_paths,
-        template_ants_paths,
-        s3_client=s3_client,
-        anonymous=anonymous,
-        cache_dir=cache_dir,
-    )
-
-
-def pipeline_transforms_local_paths(
-    zarr_uri: str,
-    processing_data: dict[str, Any],
-    *,
-    s3_client: S3Client | None = None,
-    anonymous: bool = True,
-    cache_dir: str | os.PathLike | None = None,
-    template_used: str = "SmartSPIM-template_2024-05-16_11-26-14",
-    template_base: str | os.PathLike | None = None,
-) -> tuple[list[str], list[bool], list[str], list[bool]]:
-    """
-    Resolve local filesystem paths to the transform chain files.
-
-    Download (or locate in cache) all ANTs transform components needed to
-    map individual LS acquisition images and points to CCF space.
-
-    The "image" and "points" transforms are inverses of each other, so if you
-    need to map points from ccf → individual LS space, use the "image"
-    transform.
-
-    Parameters
-    ----------
-    zarr_uri : str
-        Acquisition Zarr URI.
-    processing_data : dict
-        Processing metadata.
-    s3_client : S3Client, optional
-        Boto3 S3 client (typed) for authenticated access.
-    anonymous : bool, optional
-        Use unsigned S3 access if ``True``.
-    cache_dir : str or PathLike, optional
-        Directory to cache downloaded resources.
-    template_used : str, optional
-        Template transform key (see
-        :data:`_PIPELINE_TEMPLATE_TRANSFORMS`).
-    template_base : str or PathLike, optional
-        Base path for the template transforms. If ``None``, the default from
-        :data:`_PIPELINE_TEMPLATE_TRANSFORMS` will be used. Defaults to
-        ``None``.
-
-    Returns
-    -------
-    list[str]
-        Paths to point transform files in the application order (reverse
-        chains).
-    list[bool]
-        Flags indicating whether each point transform should be inverted.
-    list[str]
-        Paths to image transform files in the application order (forward
-        chains).
-    list[bool]
-        Flags indicating whether each image transform should be inverted.
-    """
-    individual_ants_paths, template_ants_paths = pipeline_transforms(
-        zarr_uri,
-        processing_data,
-        template_used=template_used,
-        template_base=template_base,
-    )
-    pt_transform_paths_str, pt_transform_is_inverted = _pipeline_point_transforms_local_paths(
-        individual_ants_paths,
-        template_ants_paths,
-        s3_client=s3_client,
-        anonymous=anonymous,
-        cache_dir=cache_dir,
-    )
-    img_transform_paths_str, img_transform_is_inverted = _pipeline_image_transforms_local_paths(
-        individual_ants_paths,
-        template_ants_paths,
-        s3_client=s3_client,
-        anonymous=anonymous,
-        cache_dir=cache_dir,
-    )
-    return (
-        pt_transform_paths_str,
-        pt_transform_is_inverted,
-        img_transform_paths_str,
-        img_transform_is_inverted,
-    )
 
 
 def indices_to_ccf(
@@ -1821,7 +828,20 @@ def ccf_to_indices_auto_metadata(
     --------
     >>> ccf_pts = {"layer1": np.array([[5000, 6000, 7000]])}
     >>> indices_pts = ccf_to_indices_auto_metadata(ccf_pts, zarr_uri)
+
+    Deprecated
+    ----------
+    Since 0.15, prefer ``Asset.from_zarr(zarr_uri).transform(...)``.
+    This shim will be removed in a future release.
     """
+    warnings.warn(
+        "ccf_to_indices_auto_metadata is deprecated; use "
+        "Asset.from_zarr(zarr_uri).transform(Points(ccf_points, Space.CCF_MM),"
+        " to=Space.ZARR_INDICES) instead. This shim will be removed in a "
+        "future release.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     alignment_zarr_uri, metadata, processing_data = alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
         a_zarr_uri=zarr_uri
     )
@@ -1833,58 +853,6 @@ def ccf_to_indices_auto_metadata(
         template_used=template_used,
         **kwargs,
     )
-
-
-def alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
-    asset_uri: str | None = None,
-    a_zarr_uri: str | None = None,
-    **kwargs: Any,
-) -> tuple[str, dict, dict]:
-    """
-    Return the alignment uris for a given Zarr path.
-
-    Parameters
-    ----------
-    asset_uri : str, optional
-        Base URI for the asset containing the Zarr and metadata files. If
-        ``None``, the asset root is inferred from ``a_zarr_uri``.
-    a_zarr_uri : str, optional
-        URI of an acquisition Zarr within the asset. If ``None``, the asset
-        root is taken from ``asset_uri``.
-    **kwargs : Any
-        Forwarded keyword arguments accepted by :func:`get_json`. Common keys
-        include:
-        - ``s3_client`` : S3Client | None
-        - ``anonymous`` : bool
-
-    Returns
-    -------
-    tuple
-        ``(zarr_uri, metadata, processing_data)`` where ``zarr_uri`` is the
-        inferred alignment Zarr URI, ``metadata`` is the parsed
-        ``metadata.nd.json`` content, and ``processing_data`` is the parsed
-        ``processing.json`` content.
-    """
-    if asset_uri is None:
-        if a_zarr_uri is None:
-            raise ValueError("Must provide either a_zarr_uri or asset_uri")
-        uri_type, bucket, a_zarr_pathlike = as_pathlike(a_zarr_uri)
-        asset_pathlike = _asset_from_zarr_pathlike(a_zarr_pathlike)
-    else:
-        uri_type, bucket, asset_pathlike = as_pathlike(asset_uri)
-    metadata_pathlike = asset_pathlike / "metadata.nd.json"
-    processing_pathlike = asset_pathlike / "processing.json"
-    metadata_uri = as_string(uri_type, bucket, metadata_pathlike)
-    processing_uri = as_string(uri_type, bucket, processing_pathlike)
-    metadata = get_json(metadata_uri, **kwargs)
-    processing_data = get_json(processing_uri, **kwargs)
-    alignment_rel_path = image_atlas_alignment_path_relative_from_processing(processing_data)
-    if alignment_rel_path is None:
-        raise ValueError("Could not determine image atlas alignment path from processing data")
-    channel = PurePosixPath(alignment_rel_path).stem
-    zarr_pathlike = asset_pathlike / f"image_tile_fusing/OMEZarr/{channel}.zarr"
-    zarr_uri = as_string(uri_type, bucket, zarr_pathlike)
-    return zarr_uri, metadata, processing_data
 
 
 def neuroglancer_to_ccf_auto_metadata(
@@ -1910,14 +878,6 @@ def neuroglancer_to_ccf_auto_metadata(
         ``neuroglancer_data``.
     **kwargs : Any
         Forwarded keyword arguments accepted by :func:`neuroglancer_to_ccf`.
-        Common keys include:
-
-        - ``layer_names`` : str | list[str] | None
-        - ``return_description`` : bool
-        - ``s3_client`` : S3Client | None
-        - ``anonymous`` : bool
-        - ``cache_dir`` : str | os.PathLike | None
-        - ``template_used`` : str
 
     Returns
     -------
@@ -1931,7 +891,21 @@ def neuroglancer_to_ccf_auto_metadata(
     ------
     ValueError
         If no image sources can be found in ``neuroglancer_data``.
+
+    Deprecated
+    ----------
+    Since 0.15, prefer
+    ``Asset.from_neuroglancer(ng).transform(Points.from_neuroglancer(ng), to=Space.CCF_MM)``.
+    This shim will be removed in a future release.
     """
+    warnings.warn(
+        "neuroglancer_to_ccf_auto_metadata is deprecated; use "
+        "Asset.from_neuroglancer(ng).transform(Points.from_neuroglancer(ng),"
+        " to=Space.CCF_MM) instead. This shim will be removed in a future "
+        "release.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     if asset_uri is None:
         image_sources = get_image_sources(neuroglancer_data, remove_zarr_protocol=True)
         # Get first image source in dict
@@ -1986,19 +960,13 @@ def swc_data_to_zarr_indices(
         Mapping neuron ID → (N, 3) array of integer zarr indices (rounded from
         continuous coordinates).
     """
-    unit_scale = _unit_conversion(swc_point_units, "millimeter")
-    swc_point_order_lower = swc_point_order.lower()
-    swc_to_zarr_axis_order = [swc_point_order_lower.index(ax) for ax in "zyx"]
     _, _, _, spacing_raw, _ = _zarr_to_scaled(zarr_uri, level=0, opened_zarr=opened_zarr)
-
-    spacing = np.array(spacing_raw)
-    swc_zarr_indices = {}
-    for k, pts in swc_point_dict.items():
-        pts_arr = np.asarray(pts)
-        if pts_arr.ndim != 2 or pts_arr.shape[1] != 3:
-            raise ValueError(f"Expected (N, 3) array for key {k}, got shape {pts_arr.shape}")
-        swc_zarr_indices[k] = np.round((unit_scale * pts_arr[:, swc_to_zarr_axis_order]) / spacing).astype(int)
-    return swc_zarr_indices
+    return swc_data_to_indices(
+        swc_point_dict,
+        spacing_raw,
+        swc_point_order=swc_point_order,
+        swc_point_units=swc_point_units,
+    )
 
 
 def swc_data_to_ccf(
@@ -2098,7 +1066,20 @@ def swc_data_to_ccf_auto_metadata(
     -------
     dict[str, NDArray]
         Mapping neuron ID → (N, 3) array of anatomical CCF coordinates in LPS.
+
+    Deprecated
+    ----------
+    Since 0.15, prefer ``Asset.from_root(asset_uri).transform(...)``.
+    This shim will be removed in a future release.
     """
+    warnings.warn(
+        "swc_data_to_ccf_auto_metadata is deprecated; use "
+        "Asset.from_root(asset_uri).transform(Points.from_swc(swc_point_dict, "
+        "axis_order=..., units=...), to=Space.CCF_MM) instead. This shim "
+        "will be removed in a future release.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     zarr_uri, metadata, processing_data = alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
         asset_uri=asset_uri
     )
@@ -2136,14 +1117,6 @@ def indices_to_ccf_auto_metadata(
         root will be inferred from this URI to locate metadata files.
     **kwargs : Any
         Forwarded keyword arguments accepted by :func:`indices_to_ccf`.
-        Common keys include:
-
-        - ``s3_client`` : S3Client | None
-        - ``anonymous`` : bool
-        - ``cache_dir`` : str | os.PathLike | None
-        - ``template_used`` : str
-        - ``template_base`` : str | os.PathLike | None
-        - ``opened_zarr`` : tuple[Node, dict] | None
 
     Returns
     -------
@@ -2168,7 +1141,21 @@ def indices_to_ccf_auto_metadata(
     ...     indices,
     ...     zarr_uri="s3://aind-open-data/dataset_123/image.zarr"
     ... )
+
+    Deprecated
+    ----------
+    Since 0.15, prefer
+    ``Asset.from_zarr(zarr_uri).transform(Points(annotation_indices, Space.ZARR_INDICES), to=Space.CCF_MM)``.
+    This shim will be removed in a future release.
     """
+    warnings.warn(
+        "indices_to_ccf_auto_metadata is deprecated; use "
+        "Asset.from_zarr(zarr_uri).transform(Points(annotation_indices, "
+        "Space.ZARR_INDICES), to=Space.CCF_MM) instead. This shim will be "
+        "removed in a future release.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     alignment_zarr_uri, metadata, processing_data = alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
         a_zarr_uri=zarr_uri
     )

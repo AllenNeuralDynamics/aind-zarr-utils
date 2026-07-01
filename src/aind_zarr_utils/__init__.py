@@ -10,15 +10,20 @@ try:
 except PackageNotFoundError:
     __version__ = "0.0.0.dev0"
 
-# Core ZARR conversion
 # Basic coordinate transformation
 from .annotations import annotation_indices_to_anatomical
+
+# New asset-centric API (introduced in the refactor that begins at 0.15.0).
+# These will become the primary public surface; the free functions below
+# remain available and will continue to work through one minor release.
+from .asset import Asset
 
 # Neuroglancer annotation processing
 from .neuroglancer import (
     neuroglancer_annotations_to_anatomical,
     neuroglancer_annotations_to_indices,
 )
+from .origin import Origin
 
 # Pipeline integration
 from .pipeline_transformed import (
@@ -30,6 +35,7 @@ from .pipeline_transformed import (
     neuroglancer_to_ccf_auto_metadata,
     swc_data_to_ccf_auto_metadata,
 )
+from .points import Points, Space
 from .zarr import (
     scaled_points_to_indices,
     zarr_to_ants,
@@ -38,6 +44,11 @@ from .zarr import (
 )
 
 __all__ = [
+    # New asset-centric API
+    "Asset",
+    "Origin",
+    "Points",
+    "Space",
     # Core ZARR conversion
     "zarr_to_ants",
     "zarr_to_sitk",

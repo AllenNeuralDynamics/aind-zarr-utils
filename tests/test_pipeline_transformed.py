@@ -403,7 +403,7 @@ class TestPipelineImageTransformsLocalPaths:
             return MockResult(mock_path)
 
         with patch(
-            "aind_zarr_utils.pipeline_transformed.get_local_path_for_resource",
+            "aind_zarr_utils.io.transforms.get_local_path_for_resource",
             side_effect=mock_get_local_path,
         ):
             paths, inverted = pt.pipeline_image_transforms_local_paths(
@@ -441,7 +441,7 @@ class TestPipelineImageTransformsLocalPaths:
             return MockResult(mock_path)
 
         with patch(
-            "aind_zarr_utils.pipeline_transformed.get_local_path_for_resource",
+            "aind_zarr_utils.io.transforms.get_local_path_for_resource",
             side_effect=mock_get_local_path,
         ):
             paths, inverted = pt.pipeline_image_transforms_local_paths(
@@ -473,7 +473,7 @@ class TestPipelineImageTransformsLocalPaths:
             return MockResult(mock_path)
 
         with patch(
-            "aind_zarr_utils.pipeline_transformed.get_local_path_for_resource",
+            "aind_zarr_utils.io.transforms.get_local_path_for_resource",
             side_effect=mock_get_local_path,
         ):
             pt.pipeline_image_transforms_local_paths(
@@ -525,7 +525,7 @@ class TestPipelinePointTransformsLocalPaths:
             return MockResult(mock_path)
 
         with patch(
-            "aind_zarr_utils.pipeline_transformed.get_local_path_for_resource",
+            "aind_zarr_utils.io.transforms.get_local_path_for_resource",
             side_effect=mock_get_local_path,
         ):
             paths, inverted = pt.pipeline_point_transforms_local_paths(
@@ -564,7 +564,7 @@ class TestPipelinePointTransformsLocalPaths:
             return MockResult(mock_path)
 
         with patch(
-            "aind_zarr_utils.pipeline_transformed.get_local_path_for_resource",
+            "aind_zarr_utils.io.transforms.get_local_path_for_resource",
             side_effect=mock_get_local_path,
         ):
             paths, inverted = pt.pipeline_point_transforms_local_paths(
@@ -614,7 +614,7 @@ class TestPipelineTransformsLocalPaths:
             return MockResult(mock_path)
 
         with patch(
-            "aind_zarr_utils.pipeline_transformed.get_local_path_for_resource",
+            "aind_zarr_utils.io.transforms.get_local_path_for_resource",
             side_effect=mock_get_local_path,
         ):
             result = pt.pipeline_transforms_local_paths(
@@ -661,7 +661,7 @@ class TestPipelineTransformsLocalPaths:
             return MockResult(mock_path)
 
         with patch(
-            "aind_zarr_utils.pipeline_transformed.get_local_path_for_resource",
+            "aind_zarr_utils.io.transforms.get_local_path_for_resource",
             side_effect=mock_get_local_path,
         ):
             pt_paths, pt_inverted, img_paths, img_inverted = pt.pipeline_transforms_local_paths(
@@ -696,7 +696,7 @@ class TestPipelineTransformsLocalPaths:
             return MockResult(mock_path)
 
         with patch(
-            "aind_zarr_utils.pipeline_transformed.get_local_path_for_resource",
+            "aind_zarr_utils.io.transforms.get_local_path_for_resource",
             side_effect=mock_get_local_path,
         ):
             result = pt.pipeline_transforms_local_paths(

@@ -1,255 +1,105 @@
-# ZARR Conversion Guide
+# Zarr Conversion Guide
 
-This guide covers converting ZARR datasets to SimpleITK and ANTs images using aind-zarr-utils.
+This guide covers image and stub construction with the recommended
+`Asset` API. The lower-level `zarr_to_*` functions remain available for code
+that already manages metadata explicitly.
 
-## Overview
-
-ZARR files store multi-resolution image data with metadata. aind-zarr-utils provides functions to convert this data into formats suitable for analysis:
-
-- **ANTs images**: For registration, segmentation, and analysis workflows
-- **SimpleITK images**: For ITK-based processing and visualization
-- **Stub images**: Memory-efficient coordinate system representation
-
-## Basic Conversion
-
-### Prerequisites
-
-First, load your metadata:
+## Build An Asset
 
 ```python
-from aind_s3_cache.json_utils import get_json
+from aind_zarr_utils import Asset
 
-# Load ZARR metadata (required for coordinate system information)
-metadata = get_json("s3://aind-open-data/path/to/metadata.json")
-zarr_uri = "s3://aind-open-data/path/to/data.ome.zarr/0"
+asset = Asset.from_zarr("s3://aind-open-data/dataset/image.ome.zarr/0")
 ```
 
-### Convert to ANTs Image
+`Asset.from_zarr()` discovers the asset root, loads `metadata.nd.json` and
+`processing.json`, resolves the alignment-channel Zarr, and pre-opens it. Use
+`Asset.from_root()` when the asset root is already known.
 
-ANTs images are ideal for registration and analysis workflows:
+## Convert To Images
 
 ```python
-from aind_zarr_utils.zarr import zarr_to_ants
+# SimpleITK by default
+sitk_img = asset.image(level=3)
 
-# Convert ZARR to ANTs image
-ants_img = zarr_to_ants(
-    zarr_uri,
-    metadata,
-    level=3,                    # Resolution level (3 = typical working resolution)
-    scale_unit="millimeter"     # Output units
-)
-
-print(f"Image size: {ants_img.shape}")
-print(f"Spacing: {ants_img.spacing}")
-print(f"Origin: {ants_img.origin}")
+# ANTs when requested
+ants_img = asset.image(level=3, library="ants")
 ```
 
-### Convert to SimpleITK Image
+Resolution levels follow the OME-Zarr multiscale convention:
 
-SimpleITK images work with ITK-based tools and provide extensive image processing capabilities:
+- **Level 0**: full resolution
+- **Level 3**: typical working resolution
+- **Level 5+**: preview resolution
+
+## Header-Only Stubs
+
+Use stubs for coordinate transformations without loading pixel data:
 
 ```python
-from aind_zarr_utils.zarr import zarr_to_sitk
+stub_img, native_size_ijk = asset.stub(level=0)
 
-# Convert ZARR to SimpleITK image
-sitk_img = zarr_to_sitk(
-    zarr_uri,
-    metadata,
+print(stub_img.GetSize())       # (1, 1, 1)
+print(native_size_ijk)          # level-0 image dimensions
+print(stub_img.GetSpacing())
+print(stub_img.GetOrigin())
+```
+
+For pipeline-corrected coordinates:
+
+```python
+pipeline_stub, native_size_ijk = asset.stub(pipeline=True)
+```
+
+Pipeline stubs use `processing.json` to reproduce the spatial domain used by
+registration.
+
+## Origin Control
+
+Use `Origin` for explicit non-pipeline origins:
+
+```python
+from aind_zarr_utils import Origin
+
+at_origin = asset.image(level=3, origin=Origin.at((0.0, 0.0, 0.0)))
+
+ras_anchored = asset.image(
     level=3,
-    scale_unit="millimeter"
-)
-
-print(f"Image size: {sitk_img.GetSize()}")
-print(f"Spacing: {sitk_img.GetSpacing()}")
-print(f"Origin: {sitk_img.GetOrigin()}")
-```
-
-## Resolution Levels
-
-ZARR files contain multiple resolution levels (multiscale data):
-
-- **Level 0**: Full resolution (largest file size)
-- **Level 3**: Typical working resolution (balanced size/detail)
-- **Level 5+**: Preview resolution (fastest to load)
-
-```python
-# Compare different resolution levels
-for level in [0, 3, 5]:
-    ants_img = zarr_to_ants(zarr_uri, metadata, level=level)
-    print(f"Level {level}: {ants_img.shape} voxels")
-```
-
-**Choosing Resolution Levels:**
-- **Level 0**: Final analysis, publication figures
-- **Level 3**: Development, testing, most analysis workflows
-- **Level 5+**: Quick previews, coordinate system validation
-
-## Scale Units
-
-aind-zarr-utils supports automatic unit conversion:
-
-```python
-# Available scale units
-units = ["micrometer", "millimeter", "centimeter", "meter"]
-
-for unit in units:
-    ants_img = zarr_to_ants(zarr_uri, metadata, level=3, scale_unit=unit)
-    print(f"{unit}: spacing = {ants_img.spacing}")
-```
-
-**Recommended Units:**
-- **Millimeters**: Standard for medical imaging, ANTs, SimpleITK
-- **Micrometers**: Original acquisition units, detailed analysis
-
-## Memory-Efficient Workflows
-
-### Stub Images
-
-For coordinate transformations without loading pixel data:
-
-```python
-from aind_zarr_utils.zarr import zarr_to_sitk_stub
-
-# Create stub image (minimal memory usage)
-stub_img, original_size = zarr_to_sitk_stub(
-    zarr_uri,
-    metadata,
-    level=0,  # Use level 0 for full-resolution coordinate system
-    scale_unit="millimeter"
-)
-
-# Stub has same coordinate system as full image
-print(f"Stub size: {stub_img.GetSize()}")  # Always (1,1,1)
-print(f"Original size: {original_size}")   # Actual image dimensions
-print(f"Same spacing: {stub_img.GetSpacing()}")
-print(f"Same origin: {stub_img.GetOrigin()}")
-
-# Use for coordinate transformations
-physical_point = stub_img.TransformIndexToPhysicalPoint([100, 200, 50])
-print(f"Physical coordinates: {physical_point}")
-```
-
-## Advanced Features
-
-### Custom Origin Positioning
-
-Position specific image corners at known anatomical locations:
-
-```python
-# Position RAS corner at specific coordinates
-ants_img = zarr_to_ants(
-    zarr_uri,
-    metadata,
-    level=3,
-    set_corner="RAS",                    # Right-Anterior-Superior corner
-    set_corner_lps=(10.0, 5.0, 15.0)   # LPS coordinates in mm
-)
-
-# Alternative: set origin directly
-ants_img = zarr_to_ants(
-    zarr_uri,
-    metadata,
-    level=3,
-    set_origin=(0.0, 0.0, 0.0)  # LPS coordinates
+    origin=Origin.at_corner("RAS", (0.0, 0.0, 0.0)),
 )
 ```
 
-### Pre-opened ZARR Files
-
-For efficiency when processing multiple levels:
-
-```python
-from aind_zarr_utils.zarr import _open_zarr
-
-# Open ZARR once, reuse for multiple operations
-image_node, zarr_meta = _open_zarr(zarr_uri)
-
-# Create multiple stub images efficiently
-stub_level0, _ = zarr_to_sitk_stub(
-    zarr_uri, metadata, level=0, opened_zarr=(image_node, zarr_meta)
-)
-stub_level3, _ = zarr_to_sitk_stub(
-    zarr_uri, metadata, level=3, opened_zarr=(image_node, zarr_meta)
-)
-```
+`origin` is rejected when `pipeline=True`, because pipeline outputs must use the
+pipeline-corrected origin.
 
 ## Coordinate System Details
 
-### LPS Convention
+All physical coordinates are ITK LPS millimeters by default:
 
-All functions output **LPS (Left-Posterior-Superior)** coordinates:
+- **L**: left direction is positive X
+- **P**: posterior direction is positive Y
+- **S**: superior direction is positive Z
 
-- **L**: Left direction = +X
-- **P**: Posterior direction = +Y
-- **S**: Superior direction = +Z
+SimpleITK and ANTs expose image size/shape differently, but the physical domain
+represented by `asset.image(..., library="sitk")` and
+`asset.image(..., library="ants")` is the same.
 
-This matches ITK, SimpleITK, and medical imaging standards.
+## Legacy Explicit-Metadata API
 
-### SimpleITK vs ANTs Differences
-
-**Axis Ordering:**
-- **SimpleITK**: Uses Fortran-style indexing (column-major)
-- **ANTs**: Uses C-style indexing (row-major)
+If you need to pass metadata directly, the original functions remain available:
 
 ```python
-# Same coordinate system, different axis conventions
-sitk_img = zarr_to_sitk(zarr_uri, metadata, level=3)
-ants_img = zarr_to_ants(zarr_uri, metadata, level=3)
+from aind_zarr_utils.zarr import zarr_to_ants, zarr_to_sitk, zarr_to_sitk_stub
 
-# SimpleITK: [x, y, z] indexing
-sitk_size = sitk_img.GetSize()           # (nx, ny, nz)
-sitk_spacing = sitk_img.GetSpacing()     # (sx, sy, sz)
-
-# ANTs: [z, y, x] indexing
-ants_shape = ants_img.shape              # (nz, ny, nx)
-ants_spacing = ants_img.spacing          # (sz, sy, sx)
+ants_img = zarr_to_ants(zarr_uri, metadata, level=3, scale_unit="millimeter")
+sitk_img = zarr_to_sitk(zarr_uri, metadata, level=3, scale_unit="millimeter")
+stub_img, native_size_ijk = zarr_to_sitk_stub(
+    zarr_uri,
+    metadata,
+    level=0,
+    scale_unit="millimeter",
+)
 ```
 
-## Performance Tips
-
-1. **Start with Level 3**: Good balance of detail and speed
-2. **Use Stub Images**: For coordinate-only operations
-3. **Cache Metadata**: Reuse metadata objects across conversions
-4. **Choose Appropriate Units**: Millimeters for most workflows
-
-## Common Issues
-
-### Metadata Requirements
-
-Ensure metadata contains acquisition information:
-
-```python
-# Check metadata structure
-required_keys = ["acquisition"]
-if not all(key in metadata for key in required_keys):
-    raise ValueError("Metadata missing required acquisition information")
-```
-
-### Memory Considerations
-
-Large ZARR files at level 0 can exceed available memory:
-
-```python
-# Check image size before loading
-stub_img, size = zarr_to_sitk_stub(zarr_uri, metadata, level=0)
-total_voxels = size[0] * size[1] * size[2]
-memory_gb = total_voxels * 4 / (1024**3)  # Assuming 4 bytes per voxel
-
-print(f"Estimated memory: {memory_gb:.2f} GB")
-if memory_gb > 8:  # Adjust threshold based on available RAM
-    print("Consider using a higher level (lower resolution)")
-```
-
-### Coordinate System Validation
-
-Verify coordinate system correctness:
-
-```python
-# Check direction matrix
-ants_img = zarr_to_ants(zarr_uri, metadata, level=3)
-print(f"Direction matrix:\n{ants_img.direction}")
-
-# Verify expected anatomical orientation
-if not np.allclose(ants_img.direction, np.eye(3)):
-    print("Non-identity direction matrix - verify orientation")
-```
+New code should prefer `Asset` so metadata, opened Zarr state, and transform
+paths are cached in one object.

@@ -139,6 +139,15 @@ class TestOverlays:
         ):
             return (10.0, 20.0, 30.0), None, None
 
+        # ``fix_corner_compute_origin`` is called inside
+        # ``ForceCornerAnchorOverlay`` which now lives in
+        # ``aind_zarr_utils.domain.overlays``; the legacy
+        # ``pipeline_domain_selector`` path is still re-exported and is
+        # patched too in case any downstream caller resolves it from there.
+        monkeypatch.setattr(
+            "aind_zarr_utils.domain.overlays.fix_corner_compute_origin",
+            mock_compute_origin,
+        )
         monkeypatch.setattr(
             "aind_zarr_utils.pipeline_domain_selector.fix_corner_compute_origin",
             mock_compute_origin,

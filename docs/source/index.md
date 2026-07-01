@@ -1,32 +1,38 @@
 # aind-zarr-utils
 
-A Python utility library developed by Allen Institute for Neural Dynamics for
-working with ZARR files and AIND metadata. This package enables converting ZARR
-datasets to SimpleITK and ANTs images, processing neuroimaging annotation data
-from Neuroglancer, and handling anatomical coordinate transformations.
+Utilities for working with AIND Zarr assets, metadata, Neuroglancer
+annotations, and SmartSPIM pipeline coordinate transforms.
+
+The recommended API is asset-centric:
+
+```python
+from aind_zarr_utils import Asset, Points, Space
+from aind_s3_cache.json_utils import get_json
+
+ng_state = get_json("s3://aind-open-data/dataset/neuroglancer_state.json")
+asset = Asset.from_zarr("s3://aind-open-data/dataset/image.ome.zarr/0")
+
+points = Points.from_neuroglancer(ng_state)
+ccf_points = asset.transform(points, to=Space.CCF_MM)
+```
+
+`Asset` owns metadata discovery, Zarr opening, transform-chain resolution, and
+pipeline overlays. `Points` carries named `(N, 3)` arrays together with an
+explicit coordinate-space tag, so one `asset.transform(...)` call replaces the
+older family of `*_to_ccf` / `ccf_to_*` helper calls.
 
 ## Key Features
 
-- **ZARR ↔ Image Conversion**: Convert ZARR datasets to SimpleITK and ANTs images with proper coordinate system handling
-- **Neuroglancer Integration**: Process annotation layers and coordinate transforms from Neuroglancer
-- **Coordinate Transformations**: Handle point transformations from image space to anatomical space (LPS coordinates)
-- **Multi-source JSON Reading**: Unified JSON loading from local files, HTTP URLs, and S3 URIs
-- **Pipeline-specific Corrections**: Version-based spatial domain corrections for pipeline compatibility
-- **CCF Registration**: Pipeline-specific coordinate transformations and CCF registration utilities
-
-## Quick Start
-
-```python
-from aind_zarr_utils import zarr_to_ants, get_json
-
-# Convert ZARR to ANTs image
-ants_img = zarr_to_ants(zarr_uri, metadata, level=3, scale_unit="millimeter")
-
-# Load JSON from any source
-data = get_json("s3://aind-open-data/path/to/file.json")
-```
-
-## Documentation
+- **Asset discovery**: Build an `Asset` from a Zarr URI, asset root, or
+  Neuroglancer state.
+- **Image construction**: Create SimpleITK or ANTs images through
+  `Asset.image()`, with optional pipeline corrections.
+- **Header-only stubs**: Use `Asset.stub()` for coordinate operations without
+  loading image pixels.
+- **Point transforms**: Move `Points` between Zarr indices, light-sheet
+  anatomical space, pipeline-corrected anatomical space, and Allen CCF.
+- **Legacy compatibility**: Lower-level `zarr`, `neuroglancer`, and
+  `pipeline_transformed` functions remain available for explicit workflows.
 
 ```{toctree}
 :maxdepth: 2
