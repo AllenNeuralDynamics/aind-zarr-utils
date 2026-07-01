@@ -1,3 +1,155 @@
+## v0.16.0 (2026-07-01)
+
+### Refactor
+
+- **api**: introduce asset-centric API
+
+## v0.14.1 (2026-04-28)
+
+### Fix
+
+- **pipeline_transformed**: warn on unknown pipeline versions instead of erroring
+
+## v0.14.0 (2026-02-11)
+
+### Feat
+
+- allow template base to be paths, as well as strings
+
+## v0.13.2 (2025-12-10)
+
+### Fix
+
+- return numpy-ordered indices when converting from ccf
+
+## v0.13.1 (2025-12-10)
+
+### Fix
+
+- float conversion
+
+## v0.13.0 (2025-12-10)
+
+### Feat
+
+- transform CCF coordinates to zarr indices (#52)
+
+## v0.12.0 (2025-12-03)
+
+### Feat
+
+- Refactor/global to scaled (#51)
+
+## v0.11.6 (2025-12-03)
+
+### Fix
+
+- add auto-metadata indices to ccf function
+
+## v0.11.5 (2025-11-07)
+
+### Fix
+
+- sanitize zarr urls
+
+## v0.11.4 (2025-11-06)
+
+### Fix
+
+- allow image sources to be dicts
+
+## v0.11.3 (2025-11-04)
+
+### Fix
+
+- convert to native endianness before creating images
+
+## v0.11.2 (2025-10-24)
+
+### Fix
+
+- Modify existing anatomical images to be like pipeline
+
+## v0.11.1 (2025-10-21)
+
+### Fix
+
+- loosen zarr dep range
+
+## v0.11.0 (2025-10-19)
+
+### BREAKING CHANGE
+
+- Removed `Header` from `pipeline_domain_selector`
+
+### Refactor
+
+- Remove Header to aind-anatomical-utils
+
+## v0.10.4 (2025-10-14)
+
+### Fix
+
+- remove prefixes like "zarr://" from neuroglancer sources
+
+## v0.10.3 (2025-10-10)
+
+### Fix
+
+- add compat for aind-registration-utils 0.4
+
+## v0.10.2 (2025-10-09)
+
+### Fix
+
+- Add connection kwargs to metadata convenience functions
+
+## v0.10.1 (2025-10-09)
+
+### Fix
+
+- update domain selector to newest pipeline version
+
+## v0.10.0 (2025-10-09)
+
+
+- move compute_origin_for_corner to aind_anatomical_utils
+
+## v0.9.0 (2025-10-08)
+
+### Feat
+
+- return ijk size from `mimic_pipeline_zarr_to_anatomical_stub`
+
+## v0.8.0 (2025-09-29)
+
+### Feat
+
+- add pipeline sitk and ants images
+
+## v0.7.0 (2025-09-28)
+
+### Feat
+
+- add image transform accessors (#27)
+
+## v0.6.0 (2025-09-19)
+
+### BREAKING CHANGE
+
+- Rename `neuroglancer_to_ccf_pipeline_files` to
+`neuroglancer_to_ccf_auto_metadata`, as the old name was nearly uninterpretable.
+
+### Feat
+
+- Add support for SWCs (#26)
+
+## v0.5.1 (2025-09-18)
+
+### Fix
+
+- Return arrays not dicts for ccf points
+
 ## v0.15.0 (2026-07-01)
 
 ### Feat
