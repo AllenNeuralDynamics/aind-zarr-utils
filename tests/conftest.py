@@ -236,12 +236,22 @@ def mock_overlay_selector(monkeypatch):
     selector = Mock()
     selector.select = Mock(return_value=[])  # Return empty list of overlays
 
-    # Mock the apply_overlays function to bypass overlay logic entirely
-    def mock_apply_overlays(header, overlays, meta, multiscale_no):
+    # Mock the apply_overlays function to bypass overlay logic entirely.
+    # Accepts ``**kwargs`` so it tolerates the ``zarr_import_version=`` keyword
+    # the real ``apply_overlays`` takes — without this, callers that pass
+    # the keyword would crash inside the mock.
+    def mock_apply_overlays(header, overlays, meta, multiscale_no, **_kwargs):
         return header, []  # Return header unchanged with no applied overlays
 
+    # ``apply_overlays`` lives at ``aind_zarr_utils.domain.selector`` (the
+    # canonical home) and is called from ``aind_zarr_utils.image`` where the
+    # C4 dispatcher routes through it. Patch both.
     monkeypatch.setattr(
-        "aind_zarr_utils.pipeline_transformed.apply_overlays",
+        "aind_zarr_utils.domain.selector.apply_overlays",
+        mock_apply_overlays,
+    )
+    monkeypatch.setattr(
+        "aind_zarr_utils.image.apply_overlays",
         mock_apply_overlays,
     )
 
@@ -346,6 +356,13 @@ def mock_zarr_operations(monkeypatch):
     def mock_reader(uri):
         return MockZarrReader(UnifiedZarrNode())
 
+    # Patch the new home (``aind_zarr_utils.io.zarr``) so calls inside the io
+    # package are intercepted; also patch the legacy ``aind_zarr_utils.zarr``
+    # re-export so any caller that still resolves the names from there sees
+    # the mock too.
+    monkeypatch.setattr("aind_zarr_utils.io.zarr._open_zarr", mock_open_zarr)
+    monkeypatch.setattr("aind_zarr_utils.io.zarr.parse_url", mock_parse_url)
+    monkeypatch.setattr("aind_zarr_utils.io.zarr.Reader", mock_reader)
     monkeypatch.setattr("aind_zarr_utils.zarr._open_zarr", mock_open_zarr)
     monkeypatch.setattr("aind_zarr_utils.zarr.parse_url", mock_parse_url)
     monkeypatch.setattr("aind_zarr_utils.zarr.Reader", mock_reader)
@@ -685,6 +702,18 @@ def mock_annotation_functions(monkeypatch):
         stub_img.SetDirection((1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0))
         return stub_img, (10, 10, 10)
 
+    # The Neuroglancer helpers moved to ``aind_zarr_utils.formats.neuroglancer``
+    # in commit C3. Patch both that home (where the call site looks up the
+    # names) and the legacy ``aind_zarr_utils.neuroglancer`` re-export so any
+    # caller that still resolves the names from there sees the mock too.
+    monkeypatch.setattr(
+        "aind_zarr_utils.formats.neuroglancer.annotation_indices_to_anatomical",
+        mock_annotation_indices_to_anatomical,
+    )
+    monkeypatch.setattr(
+        "aind_zarr_utils.formats.neuroglancer.zarr_to_sitk_stub",
+        mock_zarr_to_sitk_stub,
+    )
     monkeypatch.setattr(
         "aind_zarr_utils.neuroglancer.annotation_indices_to_anatomical",
         mock_annotation_indices_to_anatomical,
@@ -754,8 +783,11 @@ def mock_transform_path_resolution(monkeypatch):
 
         return MockResult(mock_path)
 
+    # The transform-resolution helpers moved to ``aind_zarr_utils.io.transforms``
+    # in commit C1; that's where the call site looks up
+    # ``get_local_path_for_resource`` now.
     monkeypatch.setattr(
-        "aind_zarr_utils.pipeline_transformed.get_local_path_for_resource",
+        "aind_zarr_utils.io.transforms.get_local_path_for_resource",
         mock_get_local_path,
     )
 
@@ -770,8 +802,15 @@ def mock_ants_transforms(monkeypatch):
         """Mock ANTs transform application - just add 100 to coordinates."""
         return points + 100
 
+    # ``apply_ants_transforms_to_point_arr`` is called from two places after
+    # the C6 split: the legacy pipeline_transformed helpers and the new
+    # transform-graph edges in points.py. Patch both.
     monkeypatch.setattr(
         "aind_zarr_utils.pipeline_transformed.apply_ants_transforms_to_point_arr",
+        mock_apply_ants_transforms,
+    )
+    monkeypatch.setattr(
+        "aind_zarr_utils.points.apply_ants_transforms_to_point_arr",
         mock_apply_ants_transforms,
     )
 
