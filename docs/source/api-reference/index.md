@@ -49,6 +49,7 @@ points
 origin
 image
 zarr
+compute
 neuroglancer
 annotations
 pipeline_domain_selector
@@ -64,6 +65,7 @@ pipeline_transformed
 | **origin** | Explicit origin value type | `Origin.default`, `Origin.at`, `Origin.at_corner` |
 | **image** | Shared image and pipeline-overlay internals | `apply_pipeline_overlays` |
 | **zarr** | Legacy ZARR to image conversion | `zarr_to_ants`, `zarr_to_sitk`, `zarr_to_sitk_stub` |
+| **io.compute** | Dask compute options for pixel reads | `resolve_compute_kwargs`, `AIND_ZARR_COMPUTE_WORKERS` |
 | **neuroglancer** | Neuroglancer annotation processing | `neuroglancer_annotations_to_anatomical` |
 | **annotations** | Point coordinate transformation | `annotation_indices_to_anatomical` |
 | **pipeline_domain_selector** | Version-specific domain corrections | `estimate_pipeline_multiscale`, `apply_overlays` |

@@ -10,7 +10,8 @@ An :class:`Asset` instance carries:
 * an opened ``ome-zarr`` ``Node`` (lazily acquired, cached for the lifetime
   of the asset),
 * per-asset configuration: overlay selector, S3 client, anonymous flag,
-  cache directory, and template selection.
+  cache directory, template selection, and dask compute options for pixel
+  reads.
 
 The methods on :class:`Asset` (``image``, ``stub``, ``apply_overlays``) and
 the lazy ``transforms`` property delegate to the existing free functions in
@@ -49,6 +50,7 @@ import SimpleITK as sitk
 from aind_zarr_utils.domain.selector import OverlaySelector, get_selector
 from aind_zarr_utils.formats.neuroglancer import get_image_sources
 from aind_zarr_utils.image import apply_pipeline_overlays
+from aind_zarr_utils.io.compute import ComputeKwargs
 from aind_zarr_utils.io.paths import (
     alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike,
 )
@@ -133,6 +135,14 @@ class Asset:
     template_base : str or os.PathLike, optional
         Override base path for the template transforms (e.g. a local
         mirror). If ``None``, the canonical S3 location is used.
+    compute_kwargs : Mapping, optional
+        Default options forwarded to dask's ``compute()`` whenever this
+        asset reads pixel data, e.g.
+        ``{"scheduler": "threads", "num_workers": 16}``. Reads of S3-backed
+        Zarrs are latency-bound, so raising ``num_workers`` is usually a
+        large win. :meth:`image` accepts a per-call override. When ``None``,
+        the environment fallbacks described in
+        :mod:`aind_zarr_utils.io.compute` apply.
     """
 
     alignment_zarr_uri: str
@@ -145,6 +155,7 @@ class Asset:
     cache_dir: str | os.PathLike | None = None
     template_used: str = _DEFAULT_TEMPLATE
     template_base: str | os.PathLike | None = None
+    compute_kwargs: ComputeKwargs | None = None
 
     # Lazily-populated cache of the opened Zarr ``(Node, metadata)`` tuple.
     # Set via the :attr:`opened_zarr` property or by the eager ``from_*``
@@ -158,6 +169,8 @@ class Asset:
         """Detach top-level metadata mappings from caller-owned dictionaries."""
         object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
         object.__setattr__(self, "processing", MappingProxyType(dict(self.processing)))
+        if self.compute_kwargs is not None:
+            object.__setattr__(self, "compute_kwargs", MappingProxyType(dict(self.compute_kwargs)))
 
     # ------------------------------------------------------------------ ctors
 
@@ -172,6 +185,7 @@ class Asset:
         overlay_selector: OverlaySelector | None = None,
         template_used: str = _DEFAULT_TEMPLATE,
         template_base: str | os.PathLike | None = None,
+        compute_kwargs: ComputeKwargs | None = None,
     ) -> Asset:
         """Discover the asset's metadata + alignment Zarr from any acquisition Zarr URI.
 
@@ -197,6 +211,7 @@ class Asset:
             cache_dir=cache_dir,
             template_used=template_used,
             template_base=template_base,
+            compute_kwargs=compute_kwargs,
         )
 
     @classmethod
@@ -210,6 +225,7 @@ class Asset:
         overlay_selector: OverlaySelector | None = None,
         template_used: str = _DEFAULT_TEMPLATE,
         template_base: str | os.PathLike | None = None,
+        compute_kwargs: ComputeKwargs | None = None,
     ) -> Asset:
         """Discover the asset's metadata + alignment Zarr from the asset root URI."""
         z_uri, metadata, processing = alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
@@ -228,6 +244,7 @@ class Asset:
             cache_dir=cache_dir,
             template_used=template_used,
             template_base=template_base,
+            compute_kwargs=compute_kwargs,
         )
 
     @classmethod
@@ -242,6 +259,7 @@ class Asset:
         overlay_selector: OverlaySelector | None = None,
         template_used: str = _DEFAULT_TEMPLATE,
         template_base: str | os.PathLike | None = None,
+        compute_kwargs: ComputeKwargs | None = None,
     ) -> Asset:
         """Discover the asset from a Neuroglancer state.
 
@@ -258,6 +276,7 @@ class Asset:
                 overlay_selector=overlay_selector,
                 template_used=template_used,
                 template_base=template_base,
+                compute_kwargs=compute_kwargs,
             )
         sources = get_image_sources(ng_state, remove_zarr_protocol=True)
         a_zarr_uri = next(iter(sources.values()), None)
@@ -271,6 +290,7 @@ class Asset:
             overlay_selector=overlay_selector,
             template_used=template_used,
             template_base=template_base,
+            compute_kwargs=compute_kwargs,
         )
 
     @classmethod
@@ -287,6 +307,7 @@ class Asset:
         cache_dir: str | os.PathLike | None,
         template_used: str,
         template_base: str | os.PathLike | None,
+        compute_kwargs: ComputeKwargs | None = None,
     ) -> Asset:
         """Build an :class:`Asset` and pre-open its Zarr (internal helper)."""
         kwargs: dict[str, Any] = {
@@ -299,6 +320,7 @@ class Asset:
             "cache_dir": cache_dir,
             "template_used": template_used,
             "template_base": template_base,
+            "compute_kwargs": compute_kwargs,
         }
         if overlay_selector is not None:
             kwargs["overlay_selector"] = overlay_selector
@@ -367,6 +389,7 @@ class Asset:
         pipeline: bool = False,
         origin: Origin | None = None,
         scale_unit: str = "millimeter",
+        compute_kwargs: ComputeKwargs | None = None,
     ) -> sitk.Image | ANTsImage:
         """Build a full image from the asset's Zarr at the given pyramid level.
 
@@ -386,6 +409,12 @@ class Asset:
             corrected header's origin.
         scale_unit : str, optional
             Output spacing unit. Default ``"millimeter"``.
+        compute_kwargs : Mapping, optional
+            Options forwarded to dask's ``compute()`` when reading the pixel
+            data, e.g. ``{"scheduler": "threads", "num_workers": 16}``.
+            Replaces (does not merge with) the asset's own
+            ``compute_kwargs`` for this call. See
+            :mod:`aind_zarr_utils.io.compute`.
 
         Returns
         -------
@@ -396,6 +425,7 @@ class Asset:
         if pipeline and origin is not None:
             raise ValueError("origin cannot be used when pipeline=True")
         legacy_origin = (origin or Origin.default())._legacy_kwargs()
+        effective_compute = compute_kwargs if compute_kwargs is not None else self.compute_kwargs
         if library == "sitk":
             img: sitk.Image | ANTsImage = zarr_to_sitk(
                 self.alignment_zarr_uri,
@@ -403,6 +433,7 @@ class Asset:
                 level=level,
                 scale_unit=scale_unit,
                 opened_zarr=self.opened_zarr,
+                compute_kwargs=effective_compute,
                 **legacy_origin,
             )
         elif library == "ants":
@@ -412,6 +443,7 @@ class Asset:
                 level=level,
                 scale_unit=scale_unit,
                 opened_zarr=self.opened_zarr,
+                compute_kwargs=effective_compute,
                 **legacy_origin,
             )
         else:

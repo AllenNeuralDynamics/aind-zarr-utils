@@ -13,6 +13,7 @@ from numpy.typing import NDArray
 from ome_zarr.io import parse_url  # type: ignore[import-untyped]
 from ome_zarr.reader import Node, Reader  # type: ignore[import-untyped]
 
+from aind_zarr_utils.io.compute import ComputeKwargs, compute_dask
 from aind_zarr_utils.io.metadata import _unit_conversion
 
 
@@ -91,7 +92,13 @@ def _open_zarr(uri: str) -> tuple[Node, dict]:
     return image_node, zarr_meta
 
 
-def zarr_to_numpy(uri: str, level: int = 3, ensure_native_endianness: bool = False) -> tuple[NDArray, dict, int]:
+def zarr_to_numpy(
+    uri: str,
+    level: int = 3,
+    ensure_native_endianness: bool = False,
+    *,
+    compute_kwargs: ComputeKwargs | None = None,
+) -> tuple[NDArray, dict, int]:
     """
     Convert a ZARR file to a NumPy array.
 
@@ -104,6 +111,13 @@ def zarr_to_numpy(uri: str, level: int = 3, ensure_native_endianness: bool = Fal
     ensure_native_endianness : bool, optional
         Whether to ensure native endianness of the returned array, by default
         False.
+    compute_kwargs : Mapping, optional
+        Options forwarded to dask's ``compute()`` when materialising the
+        pixel data, e.g. ``{"scheduler": "threads", "num_workers": 16}``.
+        Defaults to the environment-derived options resolved by
+        :func:`~aind_zarr_utils.io.compute.resolve_compute_kwargs`, which is
+        dask's own default unless ``AIND_ZARR_COMPUTE_WORKERS`` /
+        ``AIND_ZARR_COMPUTE_SCHEDULER`` are set.
 
     Returns
     -------
@@ -115,7 +129,7 @@ def zarr_to_numpy(uri: str, level: int = 3, ensure_native_endianness: bool = Fal
         Resolution level used.
     """
     image_node, zarr_meta = _open_zarr(uri)
-    arr_data = image_node.data[level].compute()
+    arr_data = compute_dask(image_node.data[level], compute_kwargs)
     if ensure_native_endianness:
         arr_data = ensure_native_endian(arr_data, inplace=True)
     return arr_data, zarr_meta, level

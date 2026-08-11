@@ -32,6 +32,47 @@ Resolution levels follow the OME-Zarr multiscale convention:
 - **Level 3**: typical working resolution
 - **Level 5+**: preview resolution
 
+## Read Concurrency
+
+Reading a level from an S3-backed Zarr is one dask `compute()` call, and it is
+latency-bound: each chunk is a separate S3 request. A serial read of a large
+level can take minutes, while 16–32 workers typically cut it by an order of
+magnitude. The blosc/zstd codec releases the GIL, so threads help decompression
+too. Past ~32 workers the gains reverse.
+
+Pass `compute_kwargs` — forwarded verbatim to dask's `compute()`:
+
+```python
+# Per asset: applies to every read
+asset = Asset.from_zarr(
+    "s3://aind-open-data/dataset/image.ome.zarr/0",
+    compute_kwargs={"scheduler": "threads", "num_workers": 16},
+)
+sitk_img = asset.image(level=3)
+
+# Per call: replaces the asset-level default
+sitk_img = asset.image(level=3, compute_kwargs={"num_workers": 32})
+```
+
+`compute_kwargs` is also accepted by `zarr_to_ants`, `zarr_to_sitk`,
+`zarr_to_numpy`, and the `mimic_pipeline_zarr_to_*` /
+`base_and_pipeline_zarr_to_*` functions.
+
+Setting `num_workers` alone selects the `"threads"` scheduler, so
+`{"num_workers": 16}` is enough.
+
+Deployments that cannot edit their call sites can set the options in the
+environment instead:
+
+```bash
+export AIND_ZARR_COMPUTE_WORKERS=16      # -> num_workers, threads scheduler
+export AIND_ZARR_COMPUTE_SCHEDULER=threads
+```
+
+Explicit `compute_kwargs` always win over the environment; the variables only
+fill in keys the caller left unset. Passing nothing and setting nothing
+reproduces dask's defaults.
+
 ## Header-Only Stubs
 
 Use stubs for coordinate transformations without loading pixel data:

@@ -268,9 +268,13 @@ class MockZarrData:
 
     def __init__(self, shape: tuple[int, ...] = (10, 10, 10)):
         self.shape = shape
+        # Records the kwargs of every ``compute()`` call, so tests can assert
+        # on the options threaded down from the public API.
+        self.compute_calls: list[dict] = []
 
-    def compute(self) -> np.ndarray:
-        """Return mock numpy array data."""
+    def compute(self, **kwargs) -> np.ndarray:
+        """Return mock numpy array data, recording the compute options used."""
+        self.compute_calls.append(kwargs)
         return np.ones(self.shape, dtype=np.float32)
 
 
