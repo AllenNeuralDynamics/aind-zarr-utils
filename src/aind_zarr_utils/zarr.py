@@ -23,6 +23,7 @@ from ome_zarr.io import parse_url as parse_url  # type: ignore[import-untyped]
 from ome_zarr.reader import Node as Node  # type: ignore[import-untyped]
 from ome_zarr.reader import Reader as Reader
 
+from aind_zarr_utils.io.compute import ComputeKwargs, compute_dask
 from aind_zarr_utils.io.metadata import (
     _unit_conversion as _unit_conversion,
 )
@@ -177,6 +178,7 @@ def _zarr_to_numpy_anatomical(
     scale_unit: str = "millimeter",
     opened_zarr: tuple[Node, dict] | None = None,
     ensure_native_endianness: bool = False,
+    compute_kwargs: ComputeKwargs | None = None,
 ) -> tuple[NDArray, list[str], list[float], list[int]]:
     """
     Convert a ZARR file to a NumPy array with anatomical information.
@@ -197,6 +199,10 @@ def _zarr_to_numpy_anatomical(
     ensure_native_endianness : bool, optional
         Whether to ensure native endianness of the returned array, by default
         False.
+    compute_kwargs : Mapping, optional
+        Options forwarded to dask's ``compute()`` when materialising the
+        pixel data, e.g. ``{"scheduler": "threads", "num_workers": 16}``.
+        See :mod:`aind_zarr_utils.io.compute`.
 
     Returns
     -------
@@ -216,7 +222,7 @@ def _zarr_to_numpy_anatomical(
         scale_unit=scale_unit,
         opened_zarr=opened_zarr,
     )
-    arr_data = image_node.data[level].compute()
+    arr_data = compute_dask(image_node.data[level], compute_kwargs)
     arr_data_spatial = np.squeeze(arr_data, axis=tuple(rej_axes))
     if ensure_native_endianness:
         arr_data_spatial = ensure_native_endian(arr_data_spatial, inplace=True)
@@ -283,6 +289,8 @@ def zarr_to_ants(
     set_corner: str | None = None,
     set_corner_lps: tuple[float, float, float] | None = None,
     opened_zarr: tuple[Node, dict] | None = None,
+    *,
+    compute_kwargs: ComputeKwargs | None = None,
 ) -> ANTsImage:
     """
     Convert a ZARR file to an ANTs image.
@@ -309,6 +317,12 @@ def zarr_to_ants(
     opened_zarr : tuple, optional
         Pre-opened ZARR file (image_node, zarr_meta), by default None. If
         provided, this will be used instead of opening the ZARR file again.
+    compute_kwargs : Mapping, optional
+        Options forwarded to dask's ``compute()`` when reading the pixel
+        data, e.g. ``{"scheduler": "threads", "num_workers": 16}``. Reads of
+        S3-backed Zarrs are latency-bound, so raising ``num_workers`` is
+        usually a large win. See :mod:`aind_zarr_utils.io.compute` for the
+        ``AIND_ZARR_COMPUTE_WORKERS`` environment fallback.
 
     Returns
     -------
@@ -322,6 +336,7 @@ def zarr_to_ants(
         scale_unit=scale_unit,
         opened_zarr=opened_zarr,
         ensure_native_endianness=True,
+        compute_kwargs=compute_kwargs,
     )
 
     return _anatomical_to_ants(
@@ -377,6 +392,8 @@ def zarr_to_sitk(
     set_corner: str | None = None,
     set_corner_lps: tuple[float, float, float] | None = None,
     opened_zarr: tuple[Node, dict] | None = None,
+    *,
+    compute_kwargs: ComputeKwargs | None = None,
 ) -> sitk.Image:
     """
     Convert a ZARR file to a SimpleITK image.
@@ -403,7 +420,12 @@ def zarr_to_sitk(
     opened_zarr : tuple, optional
         Pre-opened ZARR file (image_node, zarr_meta), by default None. If
         provided, this will be used instead of opening the ZARR file again.
-
+    compute_kwargs : Mapping, optional
+        Options forwarded to dask's ``compute()`` when reading the pixel
+        data, e.g. ``{"scheduler": "threads", "num_workers": 16}``. Reads of
+        S3-backed Zarrs are latency-bound, so raising ``num_workers`` is
+        usually a large win. See :mod:`aind_zarr_utils.io.compute` for the
+        ``AIND_ZARR_COMPUTE_WORKERS`` environment fallback.
 
     Returns
     -------
@@ -422,6 +444,7 @@ def zarr_to_sitk(
         scale_unit=scale_unit,
         opened_zarr=opened_zarr,
         ensure_native_endianness=True,
+        compute_kwargs=compute_kwargs,
     )
     return _anatomical_to_sitk(
         arr_data_spatial,

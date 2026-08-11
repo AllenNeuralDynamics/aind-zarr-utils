@@ -49,6 +49,7 @@ from aind_zarr_utils.image import (
 from aind_zarr_utils.image import (
     apply_pipeline_overlays as apply_pipeline_overlays,
 )
+from aind_zarr_utils.io.compute import ComputeKwargs
 from aind_zarr_utils.io.metadata import _unit_conversion as _unit_conversion  # legacy re-export
 
 # Re-exported from io/* so existing test patches (and downstream imports)
@@ -294,6 +295,7 @@ def mimic_pipeline_zarr_to_sitk(
     level: int = 3,
     overlay_selector: OverlaySelector = get_selector(),
     opened_zarr: tuple[Node, dict] | None = None,
+    compute_kwargs: ComputeKwargs | None = None,
 ) -> sitk.Image:
     """
     Construct a SimpleITK image matching pipeline spatial corrections.
@@ -301,6 +303,12 @@ def mimic_pipeline_zarr_to_sitk(
     This fabricates a SimpleITK image that reflects the spatial domain
     (spacing, direction, origin) the SmartSPIM pipeline would have produced
     after applying registered overlays and multiscale logic.
+
+    Parameters
+    ----------
+    compute_kwargs : Mapping, optional
+        Options forwarded to dask's ``compute()`` when reading the pixel
+        data. See :mod:`aind_zarr_utils.io.compute`.
 
     Returns
     -------
@@ -318,6 +326,7 @@ def mimic_pipeline_zarr_to_sitk(
         metadata,
         level=level,
         opened_zarr=(image_node, zarr_meta),
+        compute_kwargs=compute_kwargs,
     )
     apply_pipeline_overlays_to_sitk(
         img,
@@ -339,6 +348,7 @@ def base_and_pipeline_zarr_to_sitk(
     level: int = 3,
     overlay_selector: OverlaySelector = get_selector(),
     opened_zarr: tuple[Node, dict] | None = None,
+    compute_kwargs: ComputeKwargs | None = None,
 ) -> tuple[sitk.Image, sitk.Image]:
     """
     Construct both base and pipeline-corrected ANTs images from Zarr.
@@ -346,6 +356,12 @@ def base_and_pipeline_zarr_to_sitk(
     This fabricates an ANTs image that reflects the spatial domain (spacing,
     direction, origin) the SmartSPIM pipeline would have produced after
     applying registered overlays and multiscale logic.
+
+    Parameters
+    ----------
+    compute_kwargs : Mapping, optional
+        Options forwarded to dask's ``compute()`` when reading the pixel
+        data. See :mod:`aind_zarr_utils.io.compute`.
 
     Returns
     -------
@@ -365,6 +381,7 @@ def base_and_pipeline_zarr_to_sitk(
         metadata,
         level=level,
         opened_zarr=(image_node, zarr_meta),
+        compute_kwargs=compute_kwargs,
     )
 
     pipeline_img = sitk.Image(base_img)
@@ -422,6 +439,7 @@ def base_and_pipeline_zarr_to_ants(
     level: int = 3,
     overlay_selector: OverlaySelector = get_selector(),
     opened_zarr: tuple[Node, dict] | None = None,
+    compute_kwargs: ComputeKwargs | None = None,
 ) -> tuple[ANTsImage, ANTsImage]:
     """
     Construct both base and pipeline-corrected ANTs images from Zarr.
@@ -429,6 +447,12 @@ def base_and_pipeline_zarr_to_ants(
     This fabricates an ANTs image that reflects the spatial domain (spacing,
     direction, origin) the SmartSPIM pipeline would have produced after
     applying registered overlays and multiscale logic.
+
+    Parameters
+    ----------
+    compute_kwargs : Mapping, optional
+        Options forwarded to dask's ``compute()`` when reading the pixel
+        data. See :mod:`aind_zarr_utils.io.compute`.
 
     Returns
     -------
@@ -448,6 +472,7 @@ def base_and_pipeline_zarr_to_ants(
         metadata,
         level=level,
         opened_zarr=(image_node, zarr_meta),
+        compute_kwargs=compute_kwargs,
     )
 
     pipeline_img = base_img.clone()
@@ -471,6 +496,7 @@ def mimic_pipeline_zarr_to_ants(
     level: int = 3,
     overlay_selector: OverlaySelector = get_selector(),
     opened_zarr: tuple[Node, dict] | None = None,
+    compute_kwargs: ComputeKwargs | None = None,
 ) -> ANTsImage:
     """
     Construct an ANTs image matching pipeline spatial corrections.
@@ -478,6 +504,12 @@ def mimic_pipeline_zarr_to_ants(
     This fabricates an ANTs image that reflects the spatial domain (spacing,
     direction, origin) the SmartSPIM pipeline would have produced after
     applying registered overlays and multiscale logic.
+
+    Parameters
+    ----------
+    compute_kwargs : Mapping, optional
+        Options forwarded to dask's ``compute()`` when reading the pixel
+        data. See :mod:`aind_zarr_utils.io.compute`.
 
     Returns
     -------
@@ -495,6 +527,7 @@ def mimic_pipeline_zarr_to_ants(
         metadata,
         level=level,
         opened_zarr=(image_node, zarr_meta),
+        compute_kwargs=compute_kwargs,
     )
     apply_pipeline_overlays_to_ants(
         img,
