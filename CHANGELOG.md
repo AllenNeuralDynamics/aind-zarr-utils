@@ -1,3 +1,9 @@
+## v0.17.0 (2026-08-12)
+
+### Feat
+
+- **zarr**: make dask compute options configurable by callers
+
 ## v0.16.0 (2026-07-01)
 
 ### Refactor
