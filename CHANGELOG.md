@@ -1,3 +1,9 @@
+## v0.17.1 (2026-08-18)
+
+### Fix
+
+- **neuroglancer**: read annotation points in each layer's own axis order
+
 ## v0.17.0 (2026-08-12)
 
 ### Feat
