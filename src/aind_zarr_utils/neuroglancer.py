@@ -15,6 +15,12 @@ from aind_zarr_utils.annotations import (
     annotation_indices_to_anatomical as annotation_indices_to_anatomical,
 )
 from aind_zarr_utils.formats.neuroglancer import (
+    CANONICAL_SPATIAL_ORDER as CANONICAL_SPATIAL_ORDER,
+)
+from aind_zarr_utils.formats.neuroglancer import (
+    NamedPoints as NamedPoints,
+)
+from aind_zarr_utils.formats.neuroglancer import (
     _extract_spacing as _extract_spacing,
 )
 from aind_zarr_utils.formats.neuroglancer import (
@@ -33,6 +39,9 @@ from aind_zarr_utils.formats.neuroglancer import (
     _sanitize_source_url as _sanitize_source_url,
 )
 from aind_zarr_utils.formats.neuroglancer import (
+    annotation_layer_spaces as annotation_layer_spaces,
+)
+from aind_zarr_utils.formats.neuroglancer import (
     get_image_sources as get_image_sources,
 )
 from aind_zarr_utils.formats.neuroglancer import (
@@ -40,6 +49,9 @@ from aind_zarr_utils.formats.neuroglancer import (
 )
 from aind_zarr_utils.formats.neuroglancer import (
     neuroglancer_annotations_to_indices as neuroglancer_annotations_to_indices,
+)
+from aind_zarr_utils.formats.neuroglancer import (
+    neuroglancer_annotations_to_named as neuroglancer_annotations_to_named,
 )
 from aind_zarr_utils.formats.neuroglancer import (
     neuroglancer_annotations_to_scaled as neuroglancer_annotations_to_scaled,

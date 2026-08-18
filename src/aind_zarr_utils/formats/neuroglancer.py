@@ -3,7 +3,16 @@
 These helpers parse the JSON produced by Neuroglancer's *Save state* and
 return its annotation layers as ``(N, 3)`` numpy arrays in the package's
 canonical ``(z, y, x)`` order, optionally together with the per-point
-descriptions. Two flavours are supported:
+descriptions.
+
+A layer's points are stored in the order given by its **own**
+``source.transform.outputDimensions``, which is captured when the layer is
+created and frozen thereafter. Neuroglancer matches layer space to global
+space by dimension *name*, so one state can legitimately hold layers with
+different orders, and reordering the global ``dimensions`` block does not
+touch any stored point. Every function here therefore permutes by name using
+the layer's own space, falling back to the global block only for a layer that
+declares no transform. Two flavours are supported:
 
 * :func:`neuroglancer_annotations_to_indices` — raw voxel indices.
 * :func:`neuroglancer_annotations_to_scaled` — voxel indices multiplied
@@ -17,6 +26,8 @@ The image-source URL extractor :func:`get_image_sources` is also here.
 from __future__ import annotations
 
 import re
+import warnings
+from dataclasses import dataclass
 from typing import TypeVar
 
 import numpy as np
@@ -27,6 +38,248 @@ from aind_zarr_utils.annotations import annotation_indices_to_anatomical
 from aind_zarr_utils.zarr import zarr_to_sitk_stub
 
 T = TypeVar("T", int, float)
+
+#: Order this package returns spatial points in, regardless of a layer's own.
+CANONICAL_SPATIAL_ORDER = ("z", "y", "x")
+
+
+@dataclass(frozen=True)
+class NamedPoints:
+    """Points bound to the coordinate space that gives them meaning.
+
+    ``points[:, i]`` is the coordinate along ``names[i]``. An array on its own
+    is ambiguous -- layers in one state may declare different orders -- so the
+    two always travel together.
+    """
+
+    names: tuple[str, ...]
+    scales: NDArray
+    units: tuple[str, ...]
+    points: NDArray
+    descriptions: NDArray | None = None
+
+    def to_canonical(self) -> NDArray:
+        """Return the points permuted into ``CANONICAL_SPATIAL_ORDER``."""
+        return self.points[:, list(_canonical_perm(self.names))]
+
+    def canonical_scales(self) -> NDArray:
+        """Return the scales permuted into ``CANONICAL_SPATIAL_ORDER``."""
+        return np.asarray(self.scales)[list(_canonical_perm(self.names))]
+
+    def canonical_units(self) -> tuple[str, ...]:
+        """Return the units permuted into ``CANONICAL_SPATIAL_ORDER``."""
+        return tuple(self.units[i] for i in _canonical_perm(self.names))
+
+
+def _canonical_perm(names: tuple[str, ...]) -> tuple[int, ...]:
+    """Return the indices selecting z, y, x -- in that order -- out of *names*."""
+    missing = set(CANONICAL_SPATIAL_ORDER) - set(names)
+    if missing:
+        raise ValueError(
+            f"Neuroglancer coordinate space must contain z, y, and x dimensions, "
+            f"but missing: {sorted(missing)}. Found: {list(names)}."
+        )
+    return tuple(names.index(n) for n in CANONICAL_SPATIAL_ORDER)
+
+
+@dataclass(frozen=True)
+class _Space:
+    """A Neuroglancer coordinate space: ordered names with scales and units."""
+
+    names: tuple[str, ...]
+    scales: NDArray
+    units: tuple[str, ...]
+
+    @property
+    def rank(self) -> int:
+        """Number of dimensions in the space."""
+        return len(self.names)
+
+
+def _coordinate_space(dimension_data: dict) -> _Space | None:
+    """Parse a Neuroglancer dimensions mapping, preserving its declared order.
+
+    Returns None for anything that is not a plain ``name -> (scale, unit)``
+    mapping -- notably coordinate-array dimensions, which carry no scale.
+    Units are kept verbatim rather than normalised to SI; callers compare them
+    for equality, so converting would only invent agreement that is not there.
+    """
+    if not isinstance(dimension_data, dict) or not dimension_data:
+        return None
+    names, scales, units = [], [], []
+    for name, value in dimension_data.items():
+        if not isinstance(value, (list, tuple)) or len(value) != 2:
+            return None
+        scale, unit = value
+        if not isinstance(scale, (int, float)) or not isinstance(unit, str):
+            return None
+        names.append(name)
+        scales.append(float(scale))
+        units.append(unit)
+    return _Space(tuple(names), np.asarray(scales, dtype=float), tuple(units))
+
+
+def _global_space(data: dict) -> _Space | None:
+    """Return the state's global coordinate space, if it declares a usable one."""
+    return _coordinate_space(data.get("dimensions", {}))
+
+
+def _layer_output_space(layer: dict) -> _Space | None:
+    """Return the space a layer's own points live in.
+
+    Reads the layer's ``source.transform.outputDimensions``. None means the
+    layer declares none, and the caller keeps the legacy positional z, y, x
+    reading -- every layer of a real saved state declares one, so this is the
+    hand-built-state path. :func:`_warn_on_assumed_order` covers the case where
+    that assumption is visibly wrong.
+
+    Raises
+    ------
+    ValueError
+        If the transform carries a ``matrix`` (an affine this reader does not
+        apply), or the layer's sources disagree about their output space.
+    """
+    sources = layer.get("source")
+    if sources is None:
+        return None
+    if not isinstance(sources, list):
+        sources = [sources]
+
+    spaces = []
+    for source in sources:
+        if not isinstance(source, dict):
+            continue
+        transform = source.get("transform")
+        if not isinstance(transform, dict):
+            continue
+        if transform.get("matrix") is not None:
+            raise ValueError(
+                f"Annotation layer {layer.get('name')!r} carries a transform matrix. "
+                "This reader only permutes and scales by named dimensions, so "
+                "applying it would silently drop the affine."
+            )
+        output_dimensions = transform.get("outputDimensions")
+        if not output_dimensions:
+            continue
+        parsed = _coordinate_space(output_dimensions)
+        if parsed is None:
+            raise ValueError(
+                f"Annotation layer {layer.get('name')!r} has an outputDimensions "
+                "this reader cannot interpret as name -> (scale, unit): "
+                f"{output_dimensions!r}."
+            )
+        spaces.append(parsed)
+
+    if not spaces:
+        return None
+    first = spaces[0]
+    for other in spaces[1:]:
+        if other.names != first.names or not np.allclose(other.scales, first.scales):
+            raise ValueError(
+                f"Annotation layer {layer.get('name')!r} has sources with differing output spaces; cannot choose one."
+            )
+    return first
+
+
+def annotation_layer_spaces(data: dict) -> dict[str, tuple[str, ...]]:
+    """Map each annotation layer to the dimension order it declares.
+
+    More than one distinct order in a state is legal but rare, and means any
+    reader that assumes a fixed order is wrong for some of the layers.
+    """
+    spaces = {}
+    for layer in data.get("layers", []):
+        if layer.get("type") != "annotation":
+            continue
+        space = _layer_output_space(layer)
+        spaces[layer["name"]] = tuple(space.names) if space is not None else ()
+    return spaces
+
+
+def neuroglancer_annotations_to_named(
+    data: dict,
+    layer_names: str | list[str] | None = None,
+    return_description: bool = True,
+) -> dict[str, NamedPoints]:
+    """Read annotation layers without imposing an order on them.
+
+    Each layer keeps its own declared dimension order and scales; use
+    :meth:`NamedPoints.to_canonical` to permute. This is the honest primitive
+    -- the other readers are this plus a permutation.
+
+    Parameters
+    ----------
+    data : dict
+        Parsed Neuroglancer JSON data.
+    layer_names : str or list of str or None, optional
+        Names of annotation layers to extract. If None, auto-detects all
+        annotation layers. Default is None.
+    return_description : bool, optional
+        If True, attaches annotation descriptions. Default is True.
+
+    Returns
+    -------
+    dict
+        Layer name to :class:`NamedPoints`.
+    """
+    layers = data.get("layers", [])
+    selected = _resolve_layer_names(layers, layer_names, layer_type="annotation")
+
+    result = {}
+    for layer_name in selected:
+        layer = _get_layer_by_name(layers, layer_name)
+        space = _layer_output_space(layer)
+        if space is None:
+            raise ValueError(
+                f"Annotation layer {layer_name!r} declares no coordinate space; "
+                "its points cannot be labelled without assuming an order."
+            )
+        points, descriptions = _read_layer_points(
+            layer,
+            rank=space.rank,
+            return_description=return_description,
+        )
+        result[layer_name] = NamedPoints(
+            names=tuple(space.names),
+            scales=np.asarray(space.scales),
+            units=tuple(space.units),
+            points=points,
+            descriptions=descriptions,
+        )
+    return result
+
+
+def _warn_on_assumed_order(layer_name: str, global_space: _Space | None) -> None:
+    """Warn when a transform-less layer is read as z, y, x against a state that isn't.
+
+    The silent-and-wrong combination: nothing on the layer says which order its
+    points are in, and the only order the state does declare is not the one we
+    are about to assume.
+    """
+    if global_space is None:
+        return
+    spatial = tuple(n for n in global_space.names if n in CANONICAL_SPATIAL_ORDER)
+    if spatial and spatial != CANONICAL_SPATIAL_ORDER:
+        warnings.warn(
+            f"Annotation layer {layer_name!r} declares no coordinate space, so its "
+            f"points are read as {list(CANONICAL_SPATIAL_ORDER)}, but the state's "
+            f"global dimensions are {list(global_space.names)}. If the points follow "
+            "the global order, they are being mislabelled.",
+            stacklevel=4,
+        )
+
+
+def _warn_on_mixed_spaces(spaces: dict[str, tuple[str, ...]]) -> None:
+    """Warn when one state mixes dimension orders across its layers."""
+    distinct = {names for names in spaces.values() if names}
+    if len(distinct) > 1:
+        listed = ", ".join(f"{name}={list(names)}" for name, names in sorted(spaces.items()))
+        warnings.warn(
+            "Neuroglancer state mixes annotation dimension orders: "
+            f"{sorted(list(d) for d in distinct)}. Points are permuted per layer, "
+            f"but a reader that assumes one order is wrong for some. Layers: {listed}",
+            stacklevel=3,
+        )
 
 
 def neuroglancer_annotations_to_indices(
@@ -72,6 +325,7 @@ def neuroglancer_annotations_to_indices(
         layers,
         layer_names,
         return_description=return_description,
+        global_space=_global_space(data),
     )
 
     return annotations, descriptions
@@ -93,11 +347,17 @@ def neuroglancer_annotations_to_anatomical(
 
     Notes
     -----
-    This function assumes that none of the layers have had their transform
-    altered. If any has, this will likely return incorrect values.
+    Points are permuted into z, y, x by name using each layer's own
+    ``outputDimensions``; see the module docstring.
 
-    The points in the Neuroglancer annotation layers are assumed to be in the
-    order z, y, x, t. Only the indices for z, y, x are returned, in that order.
+    They are then treated as voxel indices in the stub's grid, which holds
+    while a layer's scale equals the volume's voxel size -- true for every
+    annotation produced against a multiscale root, since Neuroglancer keeps
+    coordinates in base-resolution units. A layer sourced from one pyramid
+    level instead would need rescaling by ``layerScale / stubSpacing``, which
+    is what Neuroglancer itself applies (``baseInputScale / baseOutputScale``,
+    ``render_coordinate_transform.ts``). Nothing here checks that, because a
+    SimpleITK image carries no unit to check against.
 
     Parameters
     ----------
@@ -221,14 +481,42 @@ def neuroglancer_annotations_to_scaled(
 
     layers = data.get("layers", [])
     layer_names = _resolve_layer_names(layers, layer_names, layer_type="annotation")
+    global_space = _global_space(data)
+    _check_units_agree(layers, layer_names, global_space, units)
     annotations, descriptions = _process_annotation_layers(
         layers,
         layer_names,
         spacing=spacing,
         return_description=return_description,
+        global_space=global_space,
     )
 
     return annotations, units, descriptions
+
+
+def _check_units_agree(
+    layers: list[dict],
+    layer_names: list[str],
+    global_space: _Space | None,
+    units: list[str],
+) -> None:
+    """Refuse to report one unit list when the layers disagree with it.
+
+    The scaled reader returns a single ``units`` for every layer, which is only
+    honest while they all match.
+    """
+    for layer_name in layer_names:
+        space = _layer_output_space(_get_layer_by_name(layers, layer_name))
+        if space is None:
+            continue
+        perm = _canonical_perm(tuple(space.names))
+        layer_units = [space.units[i] for i in perm]
+        if layer_units != list(units):
+            raise ValueError(
+                f"Annotation layer {layer_name!r} is in {layer_units}, but the state's "
+                f"global dimensions are {list(units)}. Use "
+                "neuroglancer_annotations_to_named to keep each layer's own units."
+            )
 
 
 def _extract_spacing(dimension_data: dict) -> tuple[NDArray, list[str]]:
@@ -305,6 +593,7 @@ def _process_annotation_layers(
     layer_names: list[str],
     spacing: NDArray | None = None,
     return_description: bool = True,
+    global_space: _Space | None = None,
 ) -> tuple[dict[str, NDArray], dict[str, NDArray] | None]:
     """Process annotation layers to extract points and descriptions.
 
@@ -329,17 +618,29 @@ def _process_annotation_layers(
     """
     annotations = {}
     descriptions: dict[str, NDArray] | None = {} if return_description else None
+    seen_spaces: dict[str, tuple[str, ...]] = {}
     for layer_name in layer_names:
         layer = _get_layer_by_name(layers, layer_name)
+        space = _layer_output_space(layer)
+        if space is None:
+            _warn_on_assumed_order(layer_name, global_space)
+        seen_spaces[layer_name] = tuple(space.names) if space is not None else ()
+        # Scale by the layer's own values, in canonical order, not the global
+        # block's -- a pasted-in layer can carry another volume's spacing.
+        layer_spacing = spacing
+        if spacing is not None and space is not None:
+            layer_spacing = np.asarray(space.scales)[list(_canonical_perm(tuple(space.names)))]
         points, layer_descriptions = _process_layer_and_descriptions(
             layer,
-            spacing=spacing,
+            spacing=layer_spacing,
             return_description=return_description,
+            space=space,
         )
         annotations[layer_name] = points
         if descriptions is not None and layer_descriptions is not None:
             descriptions[layer_name] = layer_descriptions
 
+    _warn_on_mixed_spaces(seen_spaces)
     return annotations, descriptions
 
 
@@ -373,6 +674,7 @@ def _process_layer_and_descriptions(
     layer: dict,
     spacing: NDArray | None = None,
     return_description: bool = True,
+    space: _Space | None = None,
 ) -> tuple[NDArray, NDArray | None]:
     """Process layer points and descriptions.
 
@@ -393,23 +695,47 @@ def _process_layer_and_descriptions(
     descriptions : numpy.ndarray or None
         Descriptions, or None if not requested.
 
+    space : neuroglancer CoordinateSpace, optional
+        The layer's own space; points are permuted from its order into
+        ``CANONICAL_SPATIAL_ORDER``. If None, the points are assumed to already
+        be in z, y, x, t order.
+
     Raises
     ------
     ValueError
-        If the annotation points do not have 4 dimensions (z, y, x, t).
+        If a point's length does not match the declared dimension count.
+    """
+    rank = 4 if space is None else space.rank
+    perm = (0, 1, 2) if space is None else _canonical_perm(tuple(space.names))
+    points_arr, descriptions = _read_layer_points(
+        layer,
+        rank=rank,
+        return_description=return_description,
+    )
+    points_arr = points_arr[:, list(perm)]
+    if spacing is not None:
+        points_arr = points_arr * spacing
+    return points_arr, descriptions
+
+
+def _read_layer_points(
+    layer: dict,
+    rank: int,
+    return_description: bool = True,
+) -> tuple[NDArray, NDArray | None]:
+    """Read a layer's raw points, in the layer's own dimension order.
+
+    *rank* is the layer's declared dimension count; a point of any other length
+    means the state disagrees with itself, which is worth stopping for.
     """
     points = []
     annotations = layer.get("annotations", [])
     for annotation in annotations:
         point_arr = np.array(annotation.get("point", []), dtype=float)
-        if point_arr.shape[0] != 4:
-            raise ValueError(
-                f"Annotation points expected to have 4 dimensions (z, y, x, t), but {point_arr.shape[0]} found."
-            )
-        points.append(point_arr[:3])  # Keep only the first three dimensions
-    points_arr = np.stack(points) if points else np.empty((0, 3), dtype=float)
-    if spacing is not None:
-        points_arr = points_arr * spacing
+        if point_arr.shape[0] != rank:
+            raise ValueError(f"Annotation points expected to have {rank} dimensions, but {point_arr.shape[0]} found.")
+        points.append(point_arr)
+    points_arr = np.stack(points) if points else np.empty((0, rank), dtype=float)
 
     if return_description:
         descriptions = [annotation.get("description", None) for annotation in annotations]
