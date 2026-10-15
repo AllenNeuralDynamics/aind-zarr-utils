@@ -27,12 +27,12 @@ def ensure_native_endian(a: np.ndarray, *, inplace: bool = False) -> np.ndarray:
     a = np.asarray(a)
     dt = a.dtype
 
+    # An explicit byteorder can still be native: zarr 3 reports '<' on little-endian hosts.
+    if dt.isnative:
+        return a
+
     # -------- Plain (non-structured) dtype --------
     if dt.fields is None:
-        # Already native or endian-agnostic ('|')
-        if dt.byteorder in ("|", "="):
-            return a
-        # Needs endian fix
         if inplace:
             if not a.flags.writeable:
                 raise ValueError("Array is not writeable; cannot convert in-place.")
@@ -42,19 +42,15 @@ def ensure_native_endian(a: np.ndarray, *, inplace: bool = False) -> np.ndarray:
         return a.astype(dt.newbyteorder("="), copy=False)
 
     # -------- Structured dtype --------
-    # Collect byteorders of endian-aware fields ('<' or '>')
-    field_orders = {subdt.byteorder for (subdt, *_) in dt.fields.values() if subdt.byteorder in ("<", ">")}
-
-    if not field_orders:
-        # Either all fields are native '=' or byteorder-agnostic '|'
-        return a
-
-    if len(field_orders) > 1:
-        # Mixed endianness across fields → let NumPy fix per-field via astype
-        # (copy)
+    # A whole-array byteswap would corrupt any native field. Nested and subarray fields report '|' whatever
+    # their contents, so only flat scalar fields are trusted to be safe to swap.
+    swappable = all(
+        subdt.fields is None and subdt.subdtype is None and (not subdt.isnative or subdt.byteorder == "|")
+        for (subdt, *_) in dt.fields.values()
+    )
+    if not swappable:
         return a.astype(dt.newbyteorder("="), copy=True)
 
-    # Homogeneous non-native across fields ('<' OR '>')
     if inplace:
         if not a.flags.writeable:
             raise ValueError("Array is not writeable; cannot convert in-place.")

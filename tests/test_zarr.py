@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 import pytest
 import SimpleITK as sitk
@@ -130,6 +132,38 @@ def test_zarr_to_ants_and_sitk(real_ome_zarr, mock_nd_metadata):
     # Verify size matches expected dimensions
     size = sitk_img.GetSize()
     assert size == (10, 10, 10)
+
+    expected = zarr_mod.zarr_to_numpy(real_ome_zarr, level=0)[0][0, 0]
+    np.testing.assert_array_equal(sitk.GetArrayFromImage(sitk_img), expected)
+    np.testing.assert_array_equal(ants_img.numpy(), expected)
+
+
+@pytest.mark.parametrize("inplace", [False, True])
+@pytest.mark.parametrize("order", ["=", "<", ">"])
+def test_ensure_native_endian_preserves_values(order, inplace):
+    """Explicit byteorders, native or not, come back native with the same values."""
+    values = np.array([2114, 1, 65535], dtype=np.uint16)
+    a = values.astype(values.dtype.newbyteorder(order))
+    out = zarr_mod.ensure_native_endian(a, inplace=inplace)
+    assert out.dtype.isnative
+    np.testing.assert_array_equal(out, values)
+
+
+def test_ensure_native_endian_leaves_native_explicit_order_untouched():
+    native = "<" if sys.byteorder == "little" else ">"
+    a = np.array([2114], dtype=np.uint16).view(np.dtype(np.uint16).newbyteorder(native))
+    assert a.dtype.byteorder == native
+    assert zarr_mod.ensure_native_endian(a, inplace=True) is a
+    assert a[0] == 2114
+
+
+@pytest.mark.parametrize("inplace", [False, True])
+def test_ensure_native_endian_mixed_structured_fields(inplace):
+    dt = np.dtype([("native", "=u2"), ("swapped", np.dtype("u2").newbyteorder("S")), ("flag", "u1")])
+    a = np.array([(2114, 2114, 7)], dtype=dt)
+    out = zarr_mod.ensure_native_endian(a, inplace=inplace)
+    assert out.dtype.isnative
+    assert out.tolist() == [(2114, 2114, 7)]
 
 
 def test_zarr_to_sitk_stub(real_ome_zarr, mock_nd_metadata):
