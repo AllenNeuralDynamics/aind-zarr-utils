@@ -19,7 +19,9 @@ dependencies = [
   "aind-anatomical-utils>=0.4",
   "aind-registration-utils>=0.1",
   "aind-s3-cache>=0.1",
-  "antspyx>=0.2",
+  # 0.6.0-0.6.1 cap scipy below 1.16 but not numpy, so resolvers pair them with numpy 2.5 and backtrack to
+  # scipy and scikit-image releases that no longer build.
+  "antspyx>=0.6.2",
   # boto3
   # Package depends on boto3, but ome-zarr requires s3fs and this causes
   # pip dependency resolution issues if specified here.

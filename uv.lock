@@ -161,7 +161,7 @@ requires-dist = [
     { name = "aind-anatomical-utils", specifier = ">=0.4" },
     { name = "aind-registration-utils", specifier = ">=0.1" },
     { name = "aind-s3-cache", specifier = ">=0.1" },
-    { name = "antspyx", specifier = ">=0.2" },
+    { name = "antspyx", specifier = ">=0.6.2" },
     { name = "numpy", specifier = ">=2" },
     { name = "ome-zarr", specifier = ">=0.7" },
     { name = "requests", specifier = ">=2" },
