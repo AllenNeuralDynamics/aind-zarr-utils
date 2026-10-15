@@ -1,3 +1,9 @@
+## v0.17.2 (2026-10-15)
+
+### Fix
+
+- **zarr**: stop byteswapping arrays whose explicit byteorder is native
+
 ## v0.17.1 (2026-08-18)
 
 ### Fix
