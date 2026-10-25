@@ -1,48 +1,13 @@
-"""Tests for ``aind_zarr_utils.image``.
-
-Focused regression tests for the level > 0 ANTs convention conversion.
-The math being tested matches the inline formula that lived in
-``apply_pipeline_overlays_to_ants`` before the C4 split — these tests
-pin the algorithm so future refactors that change behaviour are caught.
-"""
+"""Tests for ``aind_zarr_utils.image``: level rescaling and the ANTs projection."""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
 import SimpleITK as sitk
-from aind_anatomical_utils.anatomical_volume import (
-    AnatomicalHeader,
-    fix_corner_compute_origin,
-)
-from aind_anatomical_utils.coordinate_systems import _OPPOSITE_AXES
+from aind_anatomical_utils.anatomical_volume import AnatomicalHeader
 
-from aind_zarr_utils.image import _to_ants_convention
-
-
-def _expected_inline(
-    header: AnatomicalHeader,
-    level: int,
-    ants_shape: tuple[int, ...],
-    ants_direction: np.ndarray,
-) -> tuple[tuple[float, ...], tuple[float, float, float]]:
-    """Compute the expected (spacing, origin) using the original inline formula.
-
-    Mirrors ``apply_pipeline_overlays_to_ants`` (level > 0 branch) before the
-    C4 split. Used as the regression oracle.
-    """
-    scale = 2**level
-    spacing_rev_scaled = tuple(s * scale for s in reversed(header.spacing))
-    origin_code = sitk.DICOMOrientImageFilter.GetOrientationFromDirectionCosines(header.direction_tuple())
-    corner_code = "".join(_OPPOSITE_AXES[d] for d in origin_code)
-    ants_origin, _, _ = fix_corner_compute_origin(
-        ants_shape,
-        spacing_rev_scaled,
-        ants_direction,
-        target_point=header.origin,
-        corner_code=corner_code,
-    )
-    return spacing_rev_scaled, ants_origin
+from aind_zarr_utils.image import _rescale_level, _to_ants_convention
 
 
 @pytest.fixture
@@ -58,96 +23,65 @@ def identity_header() -> AnatomicalHeader:
 
 @pytest.fixture
 def rpi_header() -> AnatomicalHeader:
-    """Header whose direction encodes the 'RPI' anatomical orientation.
-
-    Column 0 → (-1, 0, 0): i-axis points toward R (= -L).
-    Column 1 → ( 0, 1, 0): j-axis points toward P.
-    Column 2 → ( 0, 0,-1): k-axis points toward I (= -S).
-    """
-    direction = np.diag((-1.0, 1.0, -1.0))
+    """Header whose direction encodes the 'RPI' anatomical orientation."""
     return AnatomicalHeader(
         origin=(5.0, 10.0, -2.0),
         spacing=(0.5, 0.6, 0.7),
-        direction=direction,
-        size_ijk=(4, 8, 16),
+        direction=np.diag((-1.0, 1.0, -1.0)),
+        size_ijk=(8, 16, 24),
     )
+
+
+def _physical(header: AnatomicalHeader, index_ijk: np.ndarray) -> np.ndarray:
+    return np.asarray(header.origin) + header.direction @ (np.asarray(header.spacing) * index_ijk)
+
+
+@pytest.mark.parametrize("header_name", ["identity_header", "rpi_header"])
+@pytest.mark.parametrize("level", [1, 2, 3])
+def test_rescale_level_matches_bin_shrink(header_name: str, level: int, request: pytest.FixtureRequest) -> None:
+    """A coarser level's header equals what ``BinShrink`` gives the level-0 image."""
+    header: AnatomicalHeader = request.getfixturevalue(header_name)
+    factor = 2**level
+    image = sitk.Image(list(header.size_ijk), sitk.sitkUInt8)
+    header.update_sitk(image)
+    shrunk = sitk.BinShrink(image, [factor] * 3)
+
+    coarse = _rescale_level(header, factor, shrunk.GetSize())
+
+    assert coarse.spacing == pytest.approx(shrunk.GetSpacing())
+    assert coarse.origin == pytest.approx(shrunk.GetOrigin())
 
 
 @pytest.mark.parametrize("level", [1, 2, 3])
-def test_to_ants_convention_spacing_is_reversed_and_scaled(identity_header: AnatomicalHeader, level: int) -> None:
-    """Spacing is the reverse of the SITK spacing, then scaled by 2**level."""
-    new_spacing, _ = _to_ants_convention(
-        identity_header,
-        level=level,
-        ants_shape=(2, 4, 8),
-        ants_direction=np.eye(3),
-    )
-    expected = tuple(s * 2**level for s in reversed(identity_header.spacing))
-    assert new_spacing == pytest.approx(expected)
+def test_rescale_level_keeps_voxels_over_their_sources(rpi_header: AnatomicalHeader, level: int) -> None:
+    """A coarse voxel's center is the mean of the level-0 centers beneath it, and the round trip is exact."""
+    factor = 2**level
+    coarse = _rescale_level(rpi_header, factor, (1, 1, 1))
+    sources = np.stack([_physical(rpi_header, np.full(3, k, dtype=float)) for k in range(factor)])
+
+    assert _physical(coarse, np.zeros(3)) == pytest.approx(sources.mean(axis=0))
+    back = _rescale_level(coarse, 1 / factor, rpi_header.size_ijk)
+    assert back.origin == pytest.approx(rpi_header.origin)
+    assert back.spacing == pytest.approx(rpi_header.spacing)
 
 
-@pytest.mark.parametrize("level", [1, 2, 3])
-def test_to_ants_convention_matches_inline_formula_identity(identity_header: AnatomicalHeader, level: int) -> None:
-    """The helper output equals the original inline formula (identity direction)."""
-    ants_shape = (
-        identity_header.size_ijk[0] >> level,
-        identity_header.size_ijk[1] >> level,
-        identity_header.size_ijk[2] >> level,
-    )
-    ants_direction = np.eye(3)
-
-    new_spacing, new_origin = _to_ants_convention(identity_header, level, ants_shape, ants_direction)
-    expected_spacing, expected_origin = _expected_inline(identity_header, level, ants_shape, ants_direction)
-
-    assert new_spacing == pytest.approx(expected_spacing)
-    assert tuple(new_origin) == pytest.approx(tuple(expected_origin))
+def test_to_ants_convention_reverses_spacing(identity_header: AnatomicalHeader) -> None:
+    """Spacing comes back in ANTs (array) index order, unscaled."""
+    spacing, _ = _to_ants_convention(identity_header, ants_shape=(32, 16, 8), ants_direction=np.eye(3)[:, ::-1])
+    assert spacing == pytest.approx(tuple(reversed(identity_header.spacing)))
 
 
-@pytest.mark.parametrize("level", [1, 2, 3])
-def test_to_ants_convention_matches_inline_formula_rpi(rpi_header: AnatomicalHeader, level: int) -> None:
-    """The helper output equals the original inline formula (RPI direction)."""
-    ants_shape = (
-        rpi_header.size_ijk[0] >> level,
-        rpi_header.size_ijk[1] >> level,
-        rpi_header.size_ijk[2] >> level,
-    )
-    # The active overlays in the default rule set don't modify direction,
-    # so the ANTs image's direction matches the SITK-convention header's.
-    ants_direction = rpi_header.direction.copy()
-
-    new_spacing, new_origin = _to_ants_convention(rpi_header, level, ants_shape, ants_direction)
-    expected_spacing, expected_origin = _expected_inline(rpi_header, level, ants_shape, ants_direction)
-
-    assert new_spacing == pytest.approx(expected_spacing)
-    assert tuple(new_origin) == pytest.approx(tuple(expected_origin))
-
-
-def test_to_ants_convention_uses_opposite_corner_code(
-    identity_header: AnatomicalHeader,
+@pytest.mark.parametrize("header_name", ["identity_header", "rpi_header"])
+def test_to_ants_convention_maps_every_voxel_to_the_same_point(
+    header_name: str, request: pytest.FixtureRequest
 ) -> None:
-    """The corner code passed to fix_corner_compute_origin is the *opposite*
-    of the SITK orientation code derived from the direction matrix.
+    """An array voxel lands at the same LPS point through the SimpleITK header and its ANTs projection."""
+    header: AnatomicalHeader = request.getfixturevalue(header_name)
+    ants_shape = tuple(reversed(header.size_ijk))
+    ants_direction = header.direction[:, ::-1]
 
-    For identity direction the SITK orientation is 'LPS' and its opposite
-    'RAI'. The helper must call fix_corner_compute_origin with corner_code='RAI'.
-    """
-    sitk_code = sitk.DICOMOrientImageFilter.GetOrientationFromDirectionCosines(identity_header.direction_tuple())
-    expected_corner = "".join(_OPPOSITE_AXES[d] for d in sitk_code)
+    spacing, origin = _to_ants_convention(header, ants_shape, ants_direction)
 
-    # Run the helper and the explicit inline formula with the expected
-    # corner code; outputs must agree.
-    ants_shape = (4, 8, 16)
-    ants_direction = np.eye(3)
-    _, helper_origin = _to_ants_convention(
-        identity_header, level=1, ants_shape=ants_shape, ants_direction=ants_direction
-    )
-
-    direct_origin, _, _ = fix_corner_compute_origin(
-        ants_shape,
-        tuple(s * 2 for s in reversed(identity_header.spacing)),
-        ants_direction,
-        target_point=identity_header.origin,
-        corner_code=expected_corner,
-    )
-
-    assert tuple(helper_origin) == pytest.approx(tuple(direct_origin))
+    for array_index in [np.zeros(3), np.array([3.0, 1.0, 2.0]), np.array(ants_shape, dtype=float) - 1]:
+        ants_point = np.asarray(origin) + ants_direction @ (np.asarray(spacing) * array_index)
+        assert ants_point == pytest.approx(_physical(header, array_index[::-1]))

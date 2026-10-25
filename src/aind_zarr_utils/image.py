@@ -1,32 +1,28 @@
 """Backend-agnostic pipeline-overlay application for SimpleITK / ANTs images.
 
 This module is the single home for the math that takes a *pipeline-corrected*
-:class:`~aind_anatomical_utils.anatomical_volume.AnatomicalHeader` (built in
-SimpleITK convention from a Zarr stub at level 0) and projects it onto either
-a SimpleITK or ANTs image at an arbitrary pyramid level.
+:class:`~aind_anatomical_utils.anatomical_volume.AnatomicalHeader` (SimpleITK
+convention) and projects it onto either a SimpleITK or ANTs image at an
+arbitrary pyramid level.
 
-The two backends agree at level 0 — there it's a straightforward
-``AnatomicalHeader.from_<backend>(img) → apply_overlays → update_<backend>(img)``
-loop. They diverge at level > 0:
+The SmartSPIM CCF registration placed the pyramid level it registered, not
+level 0, so the overlays run on that level's grid: anchoring a corner of the
+level-0 grid instead misses by the level's half-voxel offset plus whatever the
+pyramid truncated at that end. Every other level, level 0 included, is derived
+from the registered level by :func:`_rescale_level`, which keeps each level's
+voxels over their level-0 sources.
 
-* **SimpleITK**: spacing scaled by ``2**level``; origin and direction copied
-  through verbatim.
-* **ANTs**: spacing reversed (because ANTs and SimpleITK transpose numpy
-  arrays relative to each other) **then** scaled by ``2**level``; origin
-  recomputed via :func:`~aind_anatomical_utils.anatomical_volume.fix_corner_compute_origin`
-  so that the *opposite* anatomical corner of the ANTs image lands at the
-  level-0 SimpleITK origin; direction left untouched (and assumed to match
-  the corrected header's direction — true for the default rule set, where
-  overlays only modify origin and spacing).
-
-The level > 0 ANTs math lives in :func:`_to_ants_convention`, a small pure
-helper that's directly testable.
+ANTs and SimpleITK transpose numpy arrays relative to each other;
+:func:`_to_ants_convention` projects a SimpleITK-convention header onto an
+ANTs image.
 """
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import SimpleITK as sitk
 from aind_anatomical_utils.anatomical_volume import (
     AnatomicalHeader,
@@ -35,7 +31,7 @@ from aind_anatomical_utils.anatomical_volume import (
 from aind_anatomical_utils.coordinate_systems import _OPPOSITE_AXES
 from packaging.version import Version
 
-from aind_zarr_utils.domain.overlays import estimate_pipeline_multiscale
+from aind_zarr_utils.domain.overlays import _PIPELINE_MULTISCALE_FACTOR, estimate_pipeline_multiscale
 from aind_zarr_utils.domain.selector import (
     OverlaySelector,
     apply_overlays,
@@ -101,7 +97,7 @@ def _apply_pipeline_overlays_to_header(
     base_header: AnatomicalHeader,
     zarr_import_version: str,
     metadata: dict,
-    multiscale_no: int | None,
+    multiscale_no: int,
     *,
     overlay_selector: OverlaySelector = get_selector(),
 ) -> tuple[AnatomicalHeader, list[str]]:
@@ -117,8 +113,9 @@ def _apply_pipeline_overlays_to_header(
         Image importing process).
     metadata : dict
         ND metadata (instrument + acquisition) used by overlays.
-    multiscale_no : int or None
-        Estimated multiscale number, if determinable.
+    multiscale_no : int
+        Pyramid level the registration used, relative to ``base_header``'s
+        level; 0 when ``base_header`` is that level.
     overlay_selector : OverlaySelector, optional
         Selector used to obtain overlay sequence; defaults to the global
         selector.
@@ -135,9 +132,37 @@ def _apply_pipeline_overlays_to_header(
         base_header,
         overlays,
         metadata,
-        multiscale_no or 3,
+        multiscale_no,
         zarr_import_version=zarr_import_version,
     )
+
+
+def _rescale_level(header: AnatomicalHeader, factor: float, size_ijk: tuple[int, int, int]) -> AnatomicalHeader:
+    """Header of the pyramid level whose spacing is ``factor`` times ``header``'s, in the same frame.
+
+    A coarse voxel is the mean of the fine voxels beneath it, so the first centers of two levels sit half a voxel
+    of each apart; ``factor < 1`` goes towards level 0.
+
+    Parameters
+    ----------
+    header : AnatomicalHeader
+        A level's header, SimpleITK convention.
+    factor : float
+        Spacing ratio of the target level to ``header``'s level.
+    size_ijk : tuple of int
+        Size of the target level.
+
+    Returns
+    -------
+    AnatomicalHeader
+        The target level's header.
+    """
+    spacing = np.asarray(header.spacing, dtype=float)
+    target_spacing = spacing * factor
+    origin = np.asarray(header.origin, dtype=float) + header.direction @ ((target_spacing - spacing) / 2)
+    ox, oy, oz = (float(v) for v in origin)
+    sx, sy, sz = (float(v) for v in target_spacing)
+    return replace(header, origin=(ox, oy, oz), spacing=(sx, sy, sz), size_ijk=size_ijk)
 
 
 def _build_pipeline_header(
@@ -151,10 +176,12 @@ def _build_pipeline_header(
     """
     Construct an AnatomicalHeader matching pipeline spatial corrections.
 
-    The returned ``corrected`` header is in **SimpleITK convention**: its
-    ``spacing`` is in SITK index order (= reversed compared to ANTs), and
-    its ``direction`` matrix's columns correspond to SITK index axes. Use
-    :func:`_to_ants_convention` to project it onto an ANTs image.
+    The returned ``corrected`` header describes level 0 in the frame the
+    registration placed its level in, and is in **SimpleITK convention**:
+    its ``spacing`` is in SITK index order (= reversed compared to ANTs),
+    and its ``direction`` matrix's columns correspond to SITK index axes.
+    Derive other levels with :func:`_rescale_level`, and use
+    :func:`_to_ants_convention` to project onto an ANTs image.
 
     Parameters
     ----------
@@ -174,7 +201,7 @@ def _build_pipeline_header(
     Returns
     -------
     corrected : AnatomicalHeader
-        Corrected anatomical header with overlays applied (SITK convention).
+        Corrected level-0 anatomical header (SITK convention).
     applied : list[str]
         Names of overlays that actually changed the header.
     base : AnatomicalHeader
@@ -184,37 +211,41 @@ def _build_pipeline_header(
         zarr_uri, processing_data, opened_zarr=opened_zarr
     )
 
+    registration_level = 3 if multiscale_no is None else multiscale_no
     stub_img, size_ijk = zarr_to_sitk_stub(
         zarr_uri,
         metadata,
         opened_zarr=(image_node, zarr_meta),
     )
-
     base_header = AnatomicalHeader.from_sitk(stub_img, size_ijk)
-    header, applied = _apply_pipeline_overlays_to_header(
-        base_header,
+    registered_stub, registered_size = zarr_to_sitk_stub(
+        zarr_uri,
+        metadata,
+        level=registration_level,
+        opened_zarr=(image_node, zarr_meta),
+    )
+    registered, applied = _apply_pipeline_overlays_to_header(
+        AnatomicalHeader.from_sitk(registered_stub, registered_size),
         zarr_import_version,
         metadata,
-        multiscale_no,
+        0,
         overlay_selector=overlay_selector,
     )
+    header = _rescale_level(registered, _PIPELINE_MULTISCALE_FACTOR**-registration_level, size_ijk)
     return header, applied, base_header
 
 
 def _to_ants_convention(
     corrected_header_sitk: AnatomicalHeader,
-    level: int,
     ants_shape: tuple[int, ...],
     ants_direction: NDArray,
 ) -> tuple[tuple[float, ...], tuple[float, float, float]]:
-    """Project a SITK-convention level-0 header onto ANTs spacing/origin at ``level``.
+    """Project a SITK-convention header onto the spacing/origin of an ANTs image of the same level.
 
     Parameters
     ----------
     corrected_header_sitk : AnatomicalHeader
-        Header in SimpleITK convention (built from a level-0 Zarr stub).
-    level : int
-        Pyramid level of the destination ANTs image.
+        Header in SimpleITK convention, at the destination image's level.
     ants_shape : tuple of int
         Shape of the destination ANTs image (in ANTs index order).
     ants_direction : numpy.ndarray
@@ -226,16 +257,14 @@ def _to_ants_convention(
     Returns
     -------
     spacing : tuple of float
-        Spacing in ANTs index order (= reversed of ``corrected_header_sitk.spacing``)
-        scaled by ``2**level``.
+        Spacing in ANTs index order (= reversed of ``corrected_header_sitk.spacing``).
     origin : tuple of float
         ANTs image origin (LPS) recomputed so that the anatomical corner
         opposite to the SITK origin lands at ``corrected_header_sitk.origin``.
     """
-    spacing_level_scale = 2**level
     # ANTs and SimpleITK transpose numpy arrays relative to each other; the
     # SITK-convention spacing must be reversed before being applied to ANTs.
-    spacing_rev_scaled = tuple(s * spacing_level_scale for s in reversed(corrected_header_sitk.spacing))
+    spacing_rev = tuple(reversed(corrected_header_sitk.spacing))
 
     # The SITK origin sits at the anatomical corner described by the
     # orientation code derived from the SITK direction matrix. The ANTs
@@ -248,12 +277,12 @@ def _to_ants_convention(
     header_origin_corner_code = "".join(_OPPOSITE_AXES[d] for d in header_origin_code)
     ants_origin, _, _ = fix_corner_compute_origin(
         ants_shape,
-        spacing_rev_scaled,
+        spacing_rev,
         ants_direction,
         target_point=corrected_header_sitk.origin,
         corner_code=header_origin_corner_code,
     )
-    return spacing_rev_scaled, ants_origin
+    return spacing_rev, ants_origin
 
 
 def apply_pipeline_overlays(
@@ -268,18 +297,9 @@ def apply_pipeline_overlays(
 ) -> None:
     """Apply pipeline overlay corrections in-place to ``img``.
 
-    Type-dispatches on ``img`` to handle SimpleITK and ANTs:
-
-    * **SimpleITK + level=0** — build a base header from ``img`` via
-      ``AnatomicalHeader.from_sitk``, run overlays, write back via
-      ``update_sitk``.
-    * **SimpleITK + level>0** — fetch the level-0 corrected header via
-      :func:`_build_pipeline_header`, scale spacing by ``2**level``, copy
-      origin/direction through.
-    * **ANTs + level=0** — same as SITK but using ``from_ants`` /
-      ``update_ants``.
-    * **ANTs + level>0** — fetch the level-0 SITK-convention corrected
-      header, then project to ANTs via :func:`_to_ants_convention`.
+    The corrected level-0 header from :func:`_build_pipeline_header` is
+    rescaled to ``level`` by :func:`_rescale_level` and written to ``img``;
+    an ANTs image goes through :func:`_to_ants_convention` first.
 
     Parameters
     ----------
@@ -306,54 +326,26 @@ def apply_pipeline_overlays(
     # Defer the ANTs import — antspyx is heavy.
     from ants.core import ANTsImage
 
-    _, zarr_import_version, image_node, zarr_meta, multiscale_no = _pipeline_anatomical_check_args(
-        zarr_uri, processing_data, opened_zarr=opened_zarr
+    # Negative levels are a no-op; the orchestration functions reject them at their own boundary.
+    if level < 0:
+        return
+    if not isinstance(img, (sitk.Image, ANTsImage)):
+        raise TypeError(f"Unsupported image type: {type(img).__name__}")
+    corrected, _, _ = _build_pipeline_header(
+        zarr_uri,
+        metadata,
+        processing_data,
+        overlay_selector=overlay_selector,
+        opened_zarr=opened_zarr,
     )
-
-    if level == 0:
-        if isinstance(img, sitk.Image):
-            base_header = AnatomicalHeader.from_sitk(img)
-        elif isinstance(img, ANTsImage):
-            base_header = AnatomicalHeader.from_ants(img)
-        else:
-            raise TypeError(f"Unsupported image type: {type(img).__name__}")
-
-        overlays = overlay_selector.select(version=zarr_import_version, meta=metadata)
-        corrected, _ = apply_overlays(
-            base_header,
-            overlays,
-            metadata,
-            multiscale_no or 3,
-            zarr_import_version=zarr_import_version,
-        )
-
-        if isinstance(img, sitk.Image):
-            corrected.update_sitk(img)
-        else:
-            corrected.update_ants(img)
-    elif level > 0:
-        corrected, _, _ = _build_pipeline_header(
-            zarr_uri,
-            metadata,
-            processing_data,
-            overlay_selector=overlay_selector,
-            opened_zarr=(image_node, zarr_meta),
-        )
-        if isinstance(img, sitk.Image):
-            spacing_level_scale = 2**level
-            spacing_scaled = tuple(s * spacing_level_scale for s in corrected.spacing)
-            img.SetSpacing(spacing_scaled)
-            img.SetOrigin(corrected.origin)
-            img.SetDirection(corrected.direction_tuple())
-        elif isinstance(img, ANTsImage):
-            new_spacing, new_origin = _to_ants_convention(corrected, level, img.shape, img.direction)
-            img.set_spacing(new_spacing)
-            img.set_origin(new_origin)
-            # Direction is intentionally left unchanged: for the default
-            # rule set the overlays only modify origin/spacing, so the
-            # ANTs direction already matches the corrected header.
-        else:
-            raise TypeError(f"Unsupported image type: {type(img).__name__}")
-    # NOTE: level < 0 is silently a no-op, matching the historical behaviour
-    # of apply_pipeline_overlays_to_sitk / _to_ants. The orchestration
-    # functions reject negative levels at their own boundary.
+    if isinstance(img, sitk.Image):
+        si, sj, sk = img.GetSize()
+        _rescale_level(corrected, _PIPELINE_MULTISCALE_FACTOR**level, (si, sj, sk)).update_sitk(img)
+    else:
+        ai, aj, ak = img.shape
+        header = _rescale_level(corrected, _PIPELINE_MULTISCALE_FACTOR**level, (ak, aj, ai))
+        new_spacing, new_origin = _to_ants_convention(header, img.shape, img.direction)
+        img.set_spacing(new_spacing)
+        img.set_origin(new_origin)
+        # Direction is intentionally left unchanged: for the default rule set the overlays only modify origin and
+        # spacing, so the ANTs direction already matches the corrected header.

@@ -233,11 +233,7 @@ def _anatomical_to_ants(
     arr_data_spatial: NDArray,
     dirs: list[str],
     spacing: list[float],
-    size: list[int],
-    *,
-    set_origin: tuple[float, float, float] | None = None,
-    set_corner: str | None = None,
-    set_corner_lps: tuple[float, float, float] | None = None,
+    origin: tuple[float, float, float],
 ) -> ANTsImage:
     """
     Convert anatomical data to an ANTs image.
@@ -250,32 +246,12 @@ def _anatomical_to_ants(
         List of direction codes.
     spacing : list
         List of spacing values.
-    size : list
-        List of size values.
-    set_origin : tuple, optional
-        Origin of the image, by default None. Exclusive of set_corner and
-        set_corner_lps.
-    set_corner : str, optional
-        Which corner to use, by default None. If set, must specify both
-        set_corner and set_corner_lps, exclusive of set_origin.
-    set_corner_lps: tuple, optional
-        Coordinates of the corner in LPS. If set, must specify both set_corner
-        and set_corner_lps, exclusive of set_origin.
+    origin : tuple
+        LPS origin of the image.
     """
     dir_str = "".join(dirs)
     dir_tup = sitk.DICOMOrientImageFilter.GetDirectionCosinesFromOrientation(dir_str)
     dir_mat = np.array(dir_tup).reshape((3, 3))
-    origin_type = _origin_args_check(set_origin, set_corner, set_corner_lps)
-    if origin_type == "origin":
-        assert set_origin is not None
-        origin = set_origin
-    elif origin_type == "corner":
-        assert set_corner_lps is not None and set_corner is not None
-        origin = fix_corner_compute_origin(size, spacing, dir_tup, set_corner_lps, set_corner)[0]
-    elif origin_type == "none":
-        origin = (0.0, 0.0, 0.0)
-    else:
-        raise ValueError(f"Unknown origin_type: {origin_type}")
     ants_image = ants.from_numpy(arr_data_spatial, spacing=spacing, direction=dir_mat, origin=origin)
     return ants_image
 
@@ -306,14 +282,15 @@ def zarr_to_ants(
     scale_unit : str, optional
         Unit for scaling, by default "millimeter".
     set_origin : tuple, optional
-        Origin of the image, by default None. Exclusive of set_corner and
-        set_corner_lps.
+        LPS position of the first full-resolution voxel's center, by default
+        ``(0, 0, 0)``. Exclusive of set_corner and set_corner_lps.
     set_corner : str, optional
-        Which corner to use, by default None. If set, must specify both
-        set_corner and set_corner_lps, exclusive of set_origin.
+        Which corner of the full-resolution grid to anchor, by default None.
+        If set, must specify both set_corner and set_corner_lps, exclusive of
+        set_origin.
     set_corner_lps: tuple, optional
-        Coordinates of the corner in LPS. If set, must specify both set_corner
-        and set_corner_lps, exclusive of set_origin.
+        LPS coordinates of that corner voxel's center. If set, must specify
+        both set_corner and set_corner_lps, exclusive of set_origin.
     opened_zarr : tuple, optional
         Pre-opened ZARR file (image_node, zarr_meta), by default None. If
         provided, this will be used instead of opening the ZARR file again.
@@ -328,8 +305,15 @@ def zarr_to_ants(
     -------
     ants.core.ANTsImage
         ANTs image object.
+
+    Notes
+    -----
+    The origin arguments describe the full-resolution grid, whatever
+    ``level`` is read: a level is placed where its voxels' level-0 sources
+    lie, so a physical point means the same tissue at every level.
     """
-    (arr_data_spatial, dirs, spacing, size) = _zarr_to_numpy_anatomical(
+    opened_zarr = opened_zarr or _open_zarr(uri)
+    (arr_data_spatial, dirs, spacing, _) = _zarr_to_numpy_anatomical(
         uri,
         nd_metadata,
         level=level,
@@ -343,10 +327,16 @@ def zarr_to_ants(
         arr_data_spatial,
         dirs,
         spacing,
-        size,
-        set_origin=set_origin,
-        set_corner=set_corner,
-        set_corner_lps=set_corner_lps,
+        origin=_level_origin(
+            uri,
+            dirs,
+            spacing,
+            scale_unit=scale_unit,
+            opened_zarr=opened_zarr,
+            set_origin=set_origin,
+            set_corner=set_corner,
+            set_corner_lps=set_corner_lps,
+        ),
     )
 
 
@@ -354,28 +344,13 @@ def _anatomical_to_sitk(
     arr_data_spatial: np.ndarray,
     dirs: list[str],
     spacing: list[float],
-    size: list[int],
-    set_origin: tuple[float, float, float] | None,
-    set_corner: str | None,
-    set_corner_lps: tuple[float, float, float] | None,
+    origin: tuple[float, float, float],
 ) -> sitk.Image:
     # SimpleITK uses fortran-style arrays, not C-style, so we need to reverse
     # the order of the axes
     dir_str = "".join(reversed(dirs))
     spacing_rev = spacing[::-1]
-    size_rev = size[::-1]
     dir_tup = sitk.DICOMOrientImageFilter.GetDirectionCosinesFromOrientation(dir_str)
-    origin_type = _origin_args_check(set_origin, set_corner, set_corner_lps)
-    if origin_type == "origin":
-        assert set_origin is not None
-        origin = set_origin
-    elif origin_type == "corner":
-        assert set_corner_lps is not None and set_corner is not None
-        origin = fix_corner_compute_origin(size_rev, spacing_rev, dir_tup, set_corner_lps, set_corner)[0]
-    elif origin_type == "none":
-        origin = (0.0, 0.0, 0.0)
-    else:
-        raise ValueError(f"Unknown origin_type: {origin_type}")
     sitk_image = sitk.GetImageFromArray(arr_data_spatial)
     sitk_image.SetSpacing(tuple(spacing_rev))
     sitk_image.SetOrigin(origin)
@@ -409,14 +384,15 @@ def zarr_to_sitk(
     scale_unit : str, optional
         Unit for scaling, by default "millimeter".
     set_origin : tuple, optional
-        Origin of the image, by default None. Exclusive of set_corner and
-        set_corner_lps.
+        LPS position of the first full-resolution voxel's center, by default
+        ``(0, 0, 0)``. Exclusive of set_corner and set_corner_lps.
     set_corner : str, optional
-        Which corner to use, by default None. If set, must specify both
-        set_corner and set_corner_lps, exclusive of set_origin.
+        Which corner of the full-resolution grid to anchor, by default None.
+        If set, must specify both set_corner and set_corner_lps, exclusive of
+        set_origin.
     set_corner_lps: tuple, optional
-        Coordinates of the corner in LPS. If set, must specify both set_corner
-        and set_corner_lps, exclusive of set_origin.
+        LPS coordinates of that corner voxel's center. If set, must specify
+        both set_corner and set_corner_lps, exclusive of set_origin.
     opened_zarr : tuple, optional
         Pre-opened ZARR file (image_node, zarr_meta), by default None. If
         provided, this will be used instead of opening the ZARR file again.
@@ -431,12 +407,19 @@ def zarr_to_sitk(
     -------
     sitk.Image
         SimpleITK image object.
+
+    Notes
+    -----
+    The origin arguments describe the full-resolution grid, whatever
+    ``level`` is read: a level is placed where its voxels' level-0 sources
+    lie, so a physical point means the same tissue at every level.
     """
+    opened_zarr = opened_zarr or _open_zarr(uri)
     (
         arr_data_spatial,
         dirs,
         spacing,
-        size,
+        _,
     ) = _zarr_to_numpy_anatomical(
         uri,
         nd_metadata,
@@ -450,10 +433,16 @@ def zarr_to_sitk(
         arr_data_spatial,
         dirs,
         spacing,
-        size,
-        set_origin=set_origin,
-        set_corner=set_corner,
-        set_corner_lps=set_corner_lps,
+        origin=_level_origin(
+            uri,
+            dirs,
+            spacing,
+            scale_unit=scale_unit,
+            opened_zarr=opened_zarr,
+            set_origin=set_origin,
+            set_corner=set_corner,
+            set_corner_lps=set_corner_lps,
+        ),
     )
 
 
@@ -474,6 +463,40 @@ def _origin_args_check(
     if have_corner:
         return "corner"
     return "none"
+
+
+def _level_origin(
+    uri: str,
+    dirs: list[str],
+    spacing: list[float],
+    *,
+    scale_unit: str,
+    opened_zarr: tuple[Node, dict],
+    set_origin: tuple[float, float, float] | None,
+    set_corner: str | None,
+    set_corner_lps: tuple[float, float, float] | None,
+) -> tuple[float, float, float]:
+    """LPS origin of a level whose ``spacing`` (array order) is given, in the frame the origin arguments set.
+
+    The arguments place the full-resolution grid. A level voxel is the mean of the level-0 voxels beneath it, so its
+    first center lies half a level voxel less half a level-0 voxel past the first level-0 center.
+    """
+    _, _, _, spacing_0, size_0 = _zarr_to_scaled(uri, level=0, scale_unit=scale_unit, opened_zarr=opened_zarr)
+    dir_tup = sitk.DICOMOrientImageFilter.GetDirectionCosinesFromOrientation("".join(dirs))
+    origin_type = _origin_args_check(set_origin, set_corner, set_corner_lps)
+    if origin_type == "origin":
+        assert set_origin is not None
+        origin_0 = np.asarray(set_origin, dtype=float)
+    elif origin_type == "corner":
+        assert set_corner_lps is not None and set_corner is not None
+        origin_0 = np.asarray(
+            fix_corner_compute_origin(size_0, spacing_0, dir_tup, set_corner_lps, set_corner)[0], dtype=float
+        )
+    else:
+        origin_0 = np.zeros(3)
+    shift = np.reshape(dir_tup, (3, 3)) @ ((np.asarray(spacing, dtype=float) - np.asarray(spacing_0, dtype=float)) / 2)
+    ox, oy, oz = (float(v) for v in origin_0 + shift)
+    return ox, oy, oz
 
 
 def zarr_to_sitk_stub(
@@ -500,14 +523,15 @@ def zarr_to_sitk_stub(
     scale_unit : str, optional
         Unit for scaling, by default "millimeter".
     set_origin : tuple, optional
-        Origin of the image, by default None. Exclusive of set_corner and
-        set_corner_lps.
+        LPS position of the first full-resolution voxel's center, by default
+        ``(0, 0, 0)``. Exclusive of set_corner and set_corner_lps.
     set_corner : str, optional
-        Which corner to use, by default None. If set, must specify both
-        set_corner and set_corner_lps, exclusive of set_origin.
+        Which corner of the full-resolution grid to anchor, by default None.
+        If set, must specify both set_corner and set_corner_lps, exclusive of
+        set_origin.
     set_corner_lps: tuple, optional
-        Coordinates of the corner in LPS. If set, must specify both set_corner
-        and set_corner_lps, exclusive of set_origin.
+        LPS coordinates of that corner voxel's center. If set, must specify
+        both set_corner and set_corner_lps, exclusive of set_origin.
     opened_zarr : tuple, optional
         Pre-opened ZARR file (image_node, zarr_meta), by default None. If
         provided, this will be used instead of opening the ZARR file again.
@@ -519,7 +543,14 @@ def zarr_to_sitk_stub(
     tuple
         The size of the image data in each dimension of the underlying array,
         in SimpleITK order (column-major).
+
+    Notes
+    -----
+    The origin arguments describe the full-resolution grid, whatever
+    ``level`` is read: a level is placed where its voxels' level-0 sources
+    lie, so a physical point means the same tissue at every level.
     """
+    image_node, zarr_meta = opened_zarr or _open_zarr(uri)
     (
         image_node,
         rej_axes,
@@ -531,7 +562,7 @@ def zarr_to_sitk_stub(
         nd_metadata,
         level=level,
         scale_unit=scale_unit,
-        opened_zarr=opened_zarr,
+        opened_zarr=(image_node, zarr_meta),
     )
     # SimpleITK uses fortran-style arrays, not C-style, so we need to reverse
     # the order of the axes
@@ -541,17 +572,16 @@ def zarr_to_sitk_stub(
     spacing_rev = spacing[::-1]
     size_rev = size[::-1]
     dir_tup = sitk.DICOMOrientImageFilter.GetDirectionCosinesFromOrientation(dir_str)
-    origin_type = _origin_args_check(set_origin, set_corner, set_corner_lps)
-    if origin_type == "origin":
-        assert set_origin is not None
-        origin = set_origin
-    elif origin_type == "corner":
-        assert set_corner_lps is not None and set_corner is not None
-        origin = fix_corner_compute_origin(size_rev, spacing_rev, dir_tup, set_corner_lps, set_corner)[0]
-    elif origin_type == "none":
-        origin = (0.0, 0.0, 0.0)
-    else:
-        raise ValueError(f"Unknown origin_type: {origin_type}")
+    origin = _level_origin(
+        uri,
+        dirs,
+        spacing,
+        scale_unit=scale_unit,
+        opened_zarr=(image_node, zarr_meta),
+        set_origin=set_origin,
+        set_corner=set_corner,
+        set_corner_lps=set_corner_lps,
+    )
     stub_image = sitk.Image([1] * n_spatial, sitk.sitkUInt8)
     stub_image.SetSpacing(tuple(spacing_rev))
     stub_image.SetOrigin(origin)

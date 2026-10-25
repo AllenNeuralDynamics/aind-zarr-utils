@@ -32,6 +32,13 @@ Resolution levels follow the OME-Zarr multiscale convention:
 - **Level 3**: typical working resolution
 - **Level 5+**: preview resolution
 
+Every level is placed in one physical frame. A level voxel is the mean of the
+level-0 voxels beneath it, so its center sits where theirs does: at level `L`,
+voxel `i` is centered on level-0 index `2**L * i + (2**L - 1) / 2`, and the
+level's origin is offset from level 0's by half a level voxel less half a
+level-0 voxel. The Zarr's own `translation` is not read, because the SmartSPIM
+fusion writes it missing or in the wrong units.
+
 ## Read Concurrency
 
 Reading a level from an S3-backed Zarr is one dask `compute()` call, and it is
@@ -109,6 +116,11 @@ ras_anchored = asset.image(
     origin=Origin.at_corner("RAS", (0.0, 0.0, 0.0)),
 )
 ```
+
+An `Origin` places the full-resolution grid: `Origin.at` is the first level-0
+voxel's center, and `Origin.at_corner` anchors a level-0 corner voxel's center.
+The level read is then placed over its level-0 sources, so the same origin
+gives the same frame at every level.
 
 `origin` is rejected when `pipeline=True`, because pipeline outputs must use the
 pipeline-corrected origin.

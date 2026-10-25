@@ -33,6 +33,13 @@ ants_img = asset.image(level=3, library="ants", pipeline=True)
 `origin` is intentionally rejected when `pipeline=True`; the origin comes from
 the corrected pipeline header.
 
+The registration placed the pyramid level it registered (level 3), so the
+overlays anchor that level's grid. Level 0 and every other level are derived
+from it, each over its level-0 sources. Anchoring a corner of the level-0 grid
+instead misses by the level's half-voxel offset plus the voxels the pyramid
+truncated at that end: 3.5–10.5 level-0 voxels per axis at level 3 (6–42 µm
+for 1.8–4 µm voxels), depending on the acquisition's orientation and size.
+
 ## Points In Pipeline Space
 
 ```python
@@ -60,14 +67,15 @@ from aind_zarr_utils.domain.selector import apply_overlays, get_selector
 selector = get_selector()
 overlays = selector.select(version=4, meta=asset.metadata)
 
-base_stub, _ = asset.stub(pipeline=False)
-base_header = AnatomicalHeader.from_sitk(base_stub)
+# Overlays run on the registered level's grid, so the level is 0 relative to it.
+base_stub, size_ijk = asset.stub(level=3, pipeline=False)
+base_header = AnatomicalHeader.from_sitk(base_stub, size_ijk)
 
 corrected_header, applied = apply_overlays(
     base_header,
     overlays,
     dict(asset.metadata),
-    multiscale_no=3,
+    registration_multiscale_no=0,
     zarr_import_version=4,
 )
 ```
