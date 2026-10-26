@@ -86,15 +86,12 @@ import boto3
 from botocore.config import Config
 
 # Configure longer timeouts
-config = Config(
-    read_timeout=60,
-    connect_timeout=30,
-    retries={'max_attempts': 5, 'mode': 'adaptive'}
-)
+config = Config(read_timeout=60, connect_timeout=30, retries={"max_attempts": 5, "mode": "adaptive"})
 
 # Use with S3 operations
 from aind_s3_cache.json_utils import get_json_s3
-data = get_json_s3("bucket", "key", s3_client=boto3.client('s3', config=config))
+
+data = get_json_s3("bucket", "key", s3_client=boto3.client("s3", config=config))
 ```
 
 ### Access Denied Errors
@@ -108,10 +105,12 @@ ClientError: An error occurred (403) when calling the GetObject operation: Forbi
 ```python
 # For public buckets, ensure anonymous access
 from aind_s3_cache.json_utils import get_json_s3_uri
+
 data = get_json_s3_uri("s3://aind-open-data/file.json", anonymous=True)
 
 # For private buckets, check credentials
 import boto3
+
 session = boto3.Session()
 credentials = session.get_credentials()
 print(f"Access key: {credentials.access_key[:5]}...")  # Verify credentials exist
@@ -128,11 +127,12 @@ print(f"Access key: {credentials.access_key[:5]}...")  # Verify credentials exis
 import boto3
 
 # Specify correct region
-s3_client = boto3.client('s3', region_name='us-west-2')
+s3_client = boto3.client("s3", region_name="us-west-2")
 
 # Or set environment variable
 import os
-os.environ['AWS_DEFAULT_REGION'] = 'us-west-2'
+
+os.environ["AWS_DEFAULT_REGION"] = "us-west-2"
 ```
 
 ## ZARR Processing Issues
@@ -154,6 +154,7 @@ img = zarr_to_ants(zarr_uri, metadata, level=3)  # Much smaller
 
 # Check memory requirements first
 from aind_zarr_utils.zarr import zarr_to_sitk_stub
+
 stub, size = zarr_to_sitk_stub(zarr_uri, metadata, level=0)
 memory_gb = (size[0] * size[1] * size[2] * 4) / (1024**3)
 print(f"Estimated memory: {memory_gb:.1f} GB")
@@ -170,6 +171,7 @@ if memory_gb > 8:  # Adjust based on available RAM
 ```python
 # Check metadata structure
 from aind_s3_cache.json_utils import get_json
+
 metadata = get_json("s3://bucket/metadata.json")
 
 # Verify acquisition metadata
@@ -183,6 +185,7 @@ print(ome_zarr_meta.get("multiscales", []))
 
 # Use explicit scale unit
 from aind_zarr_utils.zarr import zarr_to_ants
+
 img = zarr_to_ants(zarr_uri, metadata, scale_unit="millimeter")
 print(f"Spacing in mm: {img.spacing}")
 ```
@@ -195,6 +198,7 @@ print(f"Spacing in mm: {img.spacing}")
 ```python
 # Verify coordinate system
 from aind_zarr_utils.zarr import zarr_to_ants
+
 img = zarr_to_ants(zarr_uri, metadata, level=3)
 
 print(f"Direction matrix:\n{img.direction}")
@@ -202,9 +206,10 @@ print(f"Origin: {img.origin}")
 
 # Check if direction matrix is identity
 import numpy as np
+
 if not np.allclose(img.direction, np.eye(3)):
     print("⚠ Non-standard orientation detected")
-    
+
 # Verify LPS convention
 # +X should be Left, +Y should be Posterior, +Z should be Superior
 ```
@@ -224,6 +229,7 @@ zarr_uri = "s3://aind-open-data/dataset/data.ome.zarr/0"  # Correct
 
 # List available levels
 import zarr
+
 for level in range(10):
     try:
         store = zarr.open(f"{base_uri}/{level}")
@@ -233,6 +239,7 @@ for level in range(10):
 
 # Check if file exists
 from aind_s3_cache.json_utils import get_json
+
 try:
     # Try to access the ZARR metadata first
     metadata_uri = zarr_uri.replace("/0", "") + "/.zmetadata"
@@ -264,6 +271,7 @@ ng_data = {
 
 # Verify transformation
 from aind_zarr_utils.neuroglancer import neuroglancer_annotations_to_anatomical
+
 physical_coords, descriptions = neuroglancer_annotations_to_anatomical(
     ng_data, zarr_uri, metadata, scale_unit="millimeter"
 )
@@ -273,6 +281,7 @@ print(f"Output LPS mm: {physical_coords['test'][0]} (x, y, z)")
 
 # Check coordinate system consistency
 from aind_zarr_utils.zarr import zarr_to_sitk
+
 img = zarr_to_sitk(zarr_uri, metadata, level=3)
 sitk_physical = img.TransformIndexToPhysicalPoint([150, 200, 100])  # [x, y, z]
 print(f"SimpleITK result: {sitk_physical} (should match)")
@@ -320,14 +329,11 @@ KeyError: 'pipeline_version'
 ```python
 # Check processing metadata structure
 from aind_s3_cache.json_utils import get_json
+
 processing_data = get_json("s3://bucket/processing.json")
 
 # Required structure:
-required_structure = {
-    "processing": {
-        "pipeline_version": "smartspim-pipeline v0.0.25"
-    }
-}
+required_structure = {"processing": {"pipeline_version": "smartspim-pipeline v0.0.25"}}
 
 # Check if structure exists
 if "processing" not in processing_data:
@@ -379,17 +385,18 @@ try:
     individual_paths, template_paths = pipeline_transforms(zarr_uri, processing_data)
     print("Individual transforms:", individual_paths)
     print("Template transforms:", template_paths)
-    
+
     # Check if files exist
     for path in individual_paths + template_paths:
         try:
             from aind_s3_cache.json_utils import get_json
+
             # Try to access the file
             result = get_json(path)
             print(f"✓ {path}")
         except Exception as e:
             print(f"✗ {path}: {e}")
-            
+
 except Exception as e:
     print(f"Error getting transform paths: {e}")
 ```
@@ -408,14 +415,17 @@ from aind_s3_cache.s3_cache import CacheManager
 with CacheManager(persistent=True, cache_dir="~/.aind_cache") as cm:
     # All S3 operations will be cached
     from aind_s3_cache.json_utils import get_json
+
     data = get_json("s3://bucket/file.json", cache_dir=cm.dir)
 
 # Use parallel downloads for multiple files
 import concurrent.futures
 from aind_s3_cache.s3_cache import get_local_path_for_resource
 
+
 def download_file(uri):
     return get_local_path_for_resource(uri, cache_dir="~/.cache")
+
 
 uris = ["s3://bucket/file1.json", "s3://bucket/file2.json"]
 with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
@@ -434,16 +444,17 @@ from aind_zarr_utils.zarr import zarr_to_sitk_stub
 stub, original_size = zarr_to_sitk_stub(zarr_uri, metadata, level=0)
 # Stub has full coordinate system but minimal memory usage
 
+
 # Process in chunks for large datasets
 def process_in_chunks(zarr_uri, metadata, chunk_size=1000):
     from aind_zarr_utils.zarr import _open_zarr
-    
+
     image_node, zarr_meta = _open_zarr(zarr_uri)
-    level_data = image_node['3']  # Use lower resolution
-    
+    level_data = image_node["3"]  # Use lower resolution
+
     # Process chunks instead of full array
     for z in range(0, level_data.shape[0], chunk_size):
-        chunk = level_data[z:z+chunk_size]
+        chunk = level_data[z : z + chunk_size]
         # Process chunk...
         yield process_chunk(chunk)
 ```
@@ -457,21 +468,23 @@ def process_in_chunks(zarr_uri, metadata, chunk_size=1000):
 # Vectorize transformations
 import numpy as np
 
+
 def batch_transform_points(points, sitk_image):
     """Transform multiple points efficiently."""
     # Convert to numpy array if needed
     points = np.array(points)
-    
+
     # Get transform parameters once
     origin = np.array(sitk_image.GetOrigin())
     spacing = np.array(sitk_image.GetSpacing())
     direction = np.array(sitk_image.GetDirection()).reshape(3, 3)
-    
+
     # Vectorized transformation
     # points are in [x, y, z] order for SimpleITK
     transformed = origin + (points @ direction.T) * spacing
-    
+
     return transformed
+
 
 # Use for large point sets
 large_point_set = np.random.rand(10000, 3) * 100
@@ -484,10 +497,12 @@ transformed = batch_transform_points(large_point_set, sitk_img)
 
 ```python
 import logging
+
 logging.basicConfig(level=logging.DEBUG)
 
 # Now all operations will show detailed debug info
 from aind_zarr_utils.zarr import zarr_to_ants
+
 result = zarr_to_ants(zarr_uri, metadata, level=3)
 ```
 
@@ -504,11 +519,11 @@ print(f"Platform: {platform.platform()}")
 print(f"aind-zarr-utils: {aind_zarr_utils.__version__}")
 
 # Check key dependencies
-dependencies = ['SimpleITK', 'ants', 'boto3', 'zarr', 'requests']
+dependencies = ["SimpleITK", "ants", "boto3", "zarr", "requests"]
 for dep in dependencies:
     try:
         module = __import__(dep)
-        version = getattr(module, '__version__', 'unknown')
+        version = getattr(module, "__version__", "unknown")
         print(f"{dep}: {version}")
     except ImportError:
         print(f"{dep}: NOT INSTALLED")
@@ -516,6 +531,7 @@ for dep in dependencies:
 # Check S3 connectivity
 try:
     from aind_s3_cache.json_utils import get_json
+
     test_data = get_json("s3://aind-open-data/exaspim_708373_2024-02-02_11-26-44/metadata.json")
     print("S3 connectivity: ✓ Working")
 except Exception as e:
@@ -528,25 +544,26 @@ except Exception as e:
 def validate_zarr_data(zarr_uri, metadata):
     """Validate ZARR data and metadata."""
     print("=== Data Validation ===")
-    
+
     # Check metadata structure
-    required_keys = ['session_id', 'acquisition']
+    required_keys = ["session_id", "acquisition"]
     for key in required_keys:
         if key not in metadata:
             print(f"⚠ Missing metadata key: {key}")
         else:
             print(f"✓ Found metadata key: {key}")
-    
+
     # Check acquisition metadata
-    if 'acquisition' in metadata:
-        acq = metadata['acquisition']
-        if 'coordinate_transformations' in acq:
+    if "acquisition" in metadata:
+        acq = metadata["acquisition"]
+        if "coordinate_transformations" in acq:
             print("✓ Found coordinate transformations")
         else:
             print("⚠ Missing coordinate transformations")
-    
+
     # Try to access ZARR levels
     from aind_zarr_utils.zarr import zarr_to_sitk_stub
+
     for level in range(6):
         try:
             stub, size = zarr_to_sitk_stub(zarr_uri, metadata, level=level)
@@ -554,6 +571,7 @@ def validate_zarr_data(zarr_uri, metadata):
         except Exception as e:
             print(f"✗ Level {level}: {e}")
             break
+
 
 # Use to diagnose data issues
 validate_zarr_data(zarr_uri, metadata)

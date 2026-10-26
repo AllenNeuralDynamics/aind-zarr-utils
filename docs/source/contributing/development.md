@@ -171,24 +171,29 @@ import pytest
 import numpy as np
 from aind_zarr_utils.zarr import zarr_to_ants
 
+
 def test_zarr_conversion():
     """Test ZARR to ANTs conversion."""
     # Arrange
     zarr_uri = "test_data/sample.zarr"
     metadata = {"acquisition": {...}}
-    
+
     # Act
     result = zarr_to_ants(zarr_uri, metadata, level=3)
-    
+
     # Assert
     assert result.shape == expected_shape
     assert np.allclose(result.spacing, expected_spacing)
-    
-@pytest.mark.parametrize("level,expected_size", [
-    (0, (1000, 1000, 500)),
-    (1, (500, 500, 250)),
-    (2, (250, 250, 125)),
-])
+
+
+@pytest.mark.parametrize(
+    "level,expected_size",
+    [
+        (0, (1000, 1000, 500)),
+        (1, (500, 500, 250)),
+        (2, (250, 250, 125)),
+    ],
+)
 def test_zarr_levels(level, expected_size):
     """Test different resolution levels."""
     # Test implementation...
@@ -536,13 +541,10 @@ if level < 0:
 ```python
 # Good: Clear function signature with defaults
 def zarr_to_ants(
-    zarr_uri: str,
-    metadata: dict,
-    level: int = 3,
-    scale_unit: str = "millimeter"
+    zarr_uri: str, metadata: dict, level: int = 3, scale_unit: str = "millimeter"
 ) -> "ants.core.ants_image.ANTsImage":
     """Convert ZARR to ANTs image.
-    
+
     Parameters
     ----------
     zarr_uri : str
@@ -551,9 +553,9 @@ def zarr_to_ants(
         ZARR metadata containing acquisition info
     level : int, default 3
         Resolution level to load (higher = lower resolution)
-    scale_unit : str, default "millimeter"  
+    scale_unit : str, default "millimeter"
         Physical units for output spacing
-        
+
     Returns
     -------
     ants.core.ants_image.ANTsImage

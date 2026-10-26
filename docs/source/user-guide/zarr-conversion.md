@@ -87,8 +87,8 @@ Use stubs for coordinate transformations without loading pixel data:
 ```python
 stub_img, native_size_ijk = asset.stub(level=0)
 
-print(stub_img.GetSize())       # (1, 1, 1)
-print(native_size_ijk)          # level-0 image dimensions
+print(stub_img.GetSize())  # (1, 1, 1)
+print(native_size_ijk)  # level-0 image dimensions
 print(stub_img.GetSpacing())
 print(stub_img.GetOrigin())
 ```

@@ -112,12 +112,14 @@ except Exception as e:
 # Test ZARR processing
 try:
     import SimpleITK as sitk
+
     print("✓ SimpleITK available")
 except ImportError:
     print("⚠ SimpleITK not available")
 
 try:
     import ants
+
     print("✓ ANTs available")
 except ImportError:
     print("⚠ ANTs not available")
@@ -227,11 +229,7 @@ import boto3
 from botocore.config import Config
 
 # Configure custom timeouts
-config = Config(
-    read_timeout=60,
-    connect_timeout=30,
-    retries={'max_attempts': 3}
-)
+config = Config(read_timeout=60, connect_timeout=30, retries={"max_attempts": 3})
 
 # Use with S3 operations
 ```

@@ -313,18 +313,21 @@ print(f"aind-zarr-utils: {aind_zarr_utils.__version__}")
 # Check key dependencies
 try:
     import SimpleITK as sitk
+
     print(f"SimpleITK: {sitk.Version_VersionString()}")
 except ImportError:
     print("SimpleITK: Not installed")
 
 try:
     import ants
+
     print(f"ANTs: {ants.__version__}")
 except ImportError:
     print("ANTs: Not installed")
 
 try:
     import boto3
+
     print(f"boto3: {boto3.__version__}")
 except ImportError:
     print("boto3: Not installed")
