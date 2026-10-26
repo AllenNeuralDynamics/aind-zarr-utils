@@ -1,3 +1,18 @@
+## v0.18.0 (2026-10-26)
+
+### BREAKING CHANGE
+
+- images and stubs read at level > 0 move by half a level
+voxel less half a level-0 voxel per axis, and set_origin/set_corner now
+place level 0 rather than the level read. Pipeline-frame images and CCF
+coordinates from the pipeline point functions move by up to 10.5 level-0
+voxels per axis at level 3; level-3 pipeline images move by up to 14 on an
+axis whose RAS end is the last index.
+
+### Fix
+
+- **zarr**: place every pyramid level over its level-0 sources
+
 ## v0.17.2 (2026-10-15)
 
 ### Fix
