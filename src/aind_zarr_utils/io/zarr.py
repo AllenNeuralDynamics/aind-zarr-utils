@@ -173,7 +173,7 @@ def _zarr_to_scaled(
         image_node, zarr_meta = opened_zarr
     scale = np.array(zarr_meta["coordinateTransformations"][level][0]["scale"])
     original_zarr_axes = zarr_meta["axes"]
-    spatial_dims = set(["x", "y", "z"])
+    spatial_dims = {"x", "y", "z"}
     original_to_subset_axes_map = {}  # sorted
     i = 0
     for j, ax in enumerate(original_zarr_axes):
@@ -186,7 +186,7 @@ def _zarr_to_scaled(
     size = []
     kept_zarr_axes = []
     dask_shape = image_node.data[level].shape
-    for i in original_to_subset_axes_map.keys():
+    for i in original_to_subset_axes_map:
         kept_zarr_axes.append(original_zarr_axes[i]["name"])
         scale_factor = _unit_conversion(original_zarr_axes[i]["unit"], scale_unit)
         spacing.append(scale_factor * scale[i])

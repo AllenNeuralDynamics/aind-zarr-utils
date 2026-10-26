@@ -49,22 +49,22 @@ __all__ = [
     "Origin",
     "Points",
     "Space",
+    # Coordinate transformation
+    "annotation_indices_to_anatomical",
+    "ccf_to_indices",
+    "ccf_to_indices_auto_metadata",
+    "indices_to_ccf_auto_metadata",
+    # Pipeline integration
+    "mimic_pipeline_zarr_to_anatomical_stub",
+    # Neuroglancer processing
+    "neuroglancer_annotations_to_anatomical",
+    "neuroglancer_annotations_to_indices",
+    "neuroglancer_to_ccf",
+    "neuroglancer_to_ccf_auto_metadata",
+    "scaled_points_to_indices",
+    "swc_data_to_ccf_auto_metadata",
     # Core ZARR conversion
     "zarr_to_ants",
     "zarr_to_sitk",
     "zarr_to_sitk_stub",
-    # Neuroglancer processing
-    "neuroglancer_annotations_to_anatomical",
-    "neuroglancer_annotations_to_indices",
-    # Coordinate transformation
-    "annotation_indices_to_anatomical",
-    "scaled_points_to_indices",
-    # Pipeline integration
-    "mimic_pipeline_zarr_to_anatomical_stub",
-    "neuroglancer_to_ccf",
-    "neuroglancer_to_ccf_auto_metadata",
-    "swc_data_to_ccf_auto_metadata",
-    "indices_to_ccf_auto_metadata",
-    "ccf_to_indices",
-    "ccf_to_indices_auto_metadata",
 ]

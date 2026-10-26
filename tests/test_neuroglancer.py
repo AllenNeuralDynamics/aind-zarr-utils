@@ -68,7 +68,7 @@ def test_process_annotation_layers():
     ann, desc = ng._process_annotation_layers(layers, ["a", "b"], return_description=True)
     assert set(ann.keys()) == {"a", "b"}
     assert desc["a"][0] == "d1"
-    ann2, desc2 = ng._process_annotation_layers(layers, ["a"], spacing=np.array([2, 2, 2]), return_description=True)
+    ann2, _desc2 = ng._process_annotation_layers(layers, ["a"], spacing=np.array([2, 2, 2]), return_description=True)
     assert np.allclose(ann2["a"], [[2, 4, 6]])
 
 

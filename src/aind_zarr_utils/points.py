@@ -24,6 +24,7 @@ re-download transform files.
 
 from __future__ import annotations
 
+import itertools
 from collections import deque
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -408,7 +409,7 @@ def transform_points(asset: Asset, points: Points, *, to: Space) -> Points:
         return points
     path = _path(points.space, to)
     current = points
-    for src, dst in zip(path[:-1], path[1:]):
+    for src, dst in itertools.pairwise(path):
         edge = _EDGES.get((src, dst))
         if edge is None:
             raise RuntimeError(f"No edge function registered for {src} → {dst}")

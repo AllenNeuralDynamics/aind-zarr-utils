@@ -36,12 +36,12 @@ class UnifiedS3Client:
 
     def __init__(
         self,
-        data: dict = None,
+        data: dict | None = None,
         *,
         etag: str = "mock-etag-12345",
         content_length: int = 1024,
         simulate_head_blocked: bool = False,
-        simulate_errors: dict = None,
+        simulate_errors: dict | None = None,
     ):
         self.data = data or {}
         self.etag = etag
@@ -54,7 +54,7 @@ class UnifiedS3Client:
 
     # ---- Core S3 Operations (from original DummyS3Client) ----
 
-    def get_object(self, Bucket: str, Key: str, Range: str = None):
+    def get_object(self, Bucket: str, Key: str, Range: str | None = None):
         """Mock S3 get_object with optional Range support for s3_cache."""
         if f"{Bucket}/{Key}" in self.simulate_errors:
             error_code = self.simulate_errors[f"{Bucket}/{Key}"]
@@ -207,7 +207,7 @@ class DummyResponse:
 
     def raise_for_status(self):
         if self.status_code != 200:
-            raise Exception("HTTP Error")
+            raise RuntimeError("HTTP Error")
 
 
 @pytest.fixture
@@ -293,9 +293,9 @@ class UnifiedZarrNode:
         self,
         shape: tuple[int, ...] = (1, 1, 10, 10, 10),
         levels: int = 4,
-        metadata: dict = None,
-        coordinate_transforms: list = None,
-        axes: list = None,
+        metadata: dict | None = None,
+        coordinate_transforms: list | None = None,
+        axes: list | None = None,
     ):
         # Create multi-level data structure
         self.data = {}
@@ -480,7 +480,7 @@ def real_ome_zarr(tmp_path):
 
 def create_processing_metadata(
     version: str = "3.1.0",
-    include_processes: list[dict] = None,
+    include_processes: list[dict] | None = None,
     include_zarr_import: bool = True,
     include_atlas_alignment: bool = True,
 ) -> dict[str, Any]:
@@ -544,7 +544,7 @@ def create_processing_metadata(
 
 
 def create_nd_metadata(
-    axes: list[dict] = None,
+    axes: list[dict] | None = None,
     subject_id: str = "123456",
     session_name: str = "SmartSPIM_123456_2024-01-01_15-30-00",
 ) -> dict[str, Any]:

@@ -317,7 +317,7 @@ def mimic_pipeline_zarr_to_sitk(
     """
     if level < 0:
         raise ValueError("Level must be non-negative")
-    _, pipeline_version, image_node, zarr_meta, multiscale_no = _pipeline_anatomical_check_args(
+    _, _pipeline_version, image_node, zarr_meta, _multiscale_no = _pipeline_anatomical_check_args(
         zarr_uri, processing_data, opened_zarr=opened_zarr
     )
 
@@ -372,7 +372,7 @@ def base_and_pipeline_zarr_to_sitk(
     """
     if level < 0:
         raise ValueError("Level must be non-negative")
-    _, pipeline_version, image_node, zarr_meta, multiscale_no = _pipeline_anatomical_check_args(
+    _, _pipeline_version, image_node, zarr_meta, _multiscale_no = _pipeline_anatomical_check_args(
         zarr_uri, processing_data, opened_zarr=opened_zarr
     )
 
@@ -463,7 +463,7 @@ def base_and_pipeline_zarr_to_ants(
     """
     if level < 0:
         raise ValueError("Level must be non-negative")
-    _, pipeline_version, image_node, zarr_meta, multiscale_no = _pipeline_anatomical_check_args(
+    _, _pipeline_version, image_node, zarr_meta, _multiscale_no = _pipeline_anatomical_check_args(
         zarr_uri, processing_data, opened_zarr=opened_zarr
     )
 
@@ -518,7 +518,7 @@ def mimic_pipeline_zarr_to_ants(
     """
     if level < 0:
         raise ValueError("Level must be non-negative")
-    _, pipeline_version, image_node, zarr_meta, multiscale_no = _pipeline_anatomical_check_args(
+    _, _pipeline_version, image_node, zarr_meta, _multiscale_no = _pipeline_anatomical_check_args(
         zarr_uri, processing_data, opened_zarr=opened_zarr
     )
 

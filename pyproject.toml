@@ -72,7 +72,11 @@ extend-exclude = ["scratch", "docs/build", "docs/source/api-reference/generated"
 
 [tool.ruff.lint]
 extend-select = ["Q", "RUF100", "C90", "I", "F", "E", "W", "D", "UP", "ANN", "PYI"]
-extend-ignore = ["ANN401"]  # Skip self/cls type annotations
+extend-ignore = [
+  "ANN401",  # Skip self/cls type annotations
+  "PLC0414",  # `import x as x` is the explicit re-export the compatibility modules rely on
+  "B008",  # `get_selector()` defaults are part of the public signatures
+]
 per-file-ignores = { "tests/*.py" = ["ANN", "D"] }
 mccabe = { max-complexity = 14 }
 pydocstyle = { convention = "numpy" }

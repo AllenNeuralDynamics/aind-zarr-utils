@@ -360,7 +360,7 @@ class TestPipelineTransforms:
         zarr_uri = "s3://bucket/data/acquisition/session.ome.zarr/0"
 
         # Test with explicit template_used (should be same as default)
-        individual, template = pt.pipeline_transforms(
+        _individual, template = pt.pipeline_transforms(
             zarr_uri,
             sample_processing_data,
             template_used="SmartSPIM-template_2024-05-16_11-26-14",
@@ -664,7 +664,7 @@ class TestPipelineTransformsLocalPaths:
             "aind_zarr_utils.io.transforms.get_local_path_for_resource",
             side_effect=mock_get_local_path,
         ):
-            pt_paths, pt_inverted, img_paths, img_inverted = pt.pipeline_transforms_local_paths(
+            pt_paths, _pt_inverted, img_paths, _img_inverted = pt.pipeline_transforms_local_paths(
                 "s3://bucket/data/acquisition/session.ome.zarr/0",
                 sample_processing_data,
                 s3_client=mock_s3_client,
@@ -756,7 +756,7 @@ class TestTemplateBaseParameter:
         """Test pipeline_transforms fallback when template_base=None."""
         zarr_uri = "s3://bucket/data/acquisition/session.ome.zarr/0"
 
-        individual, template = pt.pipeline_transforms(zarr_uri, sample_processing_data, template_base=None)
+        _individual, template = pt.pipeline_transforms(zarr_uri, sample_processing_data, template_base=None)
 
         # Template should use default from _PIPELINE_TEMPLATE_TRANSFORMS
         assert template == pt._PIPELINE_TEMPLATE_TRANSFORMS["SmartSPIM-template_2024-05-16_11-26-14"]
@@ -974,7 +974,7 @@ class TestSWCDataTransformations:
         result_milli = pt.swc_data_to_zarr_indices(sample_swc_data, zarr_uri, swc_point_units="millimeter")
 
         # Results should be different (unit conversion affects scaling)
-        for neuron_id in sample_swc_data.keys():
+        for neuron_id in sample_swc_data:
             assert not np.array_equal(result_micro[neuron_id], result_milli[neuron_id])
 
     def test_swc_data_to_zarr_indices_invalid_shapes(self, invalid_swc_data, mock_zarr_operations):
@@ -1006,7 +1006,7 @@ class TestSWCDataTransformations:
 
         # Should return transformed coordinates
         assert set(result.keys()) == set(sample_swc_data.keys())
-        for neuron_id in sample_swc_data.keys():
+        for neuron_id in sample_swc_data:
             assert result[neuron_id].shape == sample_swc_data[neuron_id].shape
 
     def test_swc_data_to_ccf_error_propagation(self, sample_swc_data, mock_zarr_operations):
@@ -1186,7 +1186,7 @@ class TestSWCDataTransformations:
 
         # Verify the transformation was applied
         assert set(result.keys()) == set(sample_swc_data.keys())
-        for neuron_id in sample_swc_data.keys():
+        for neuron_id in sample_swc_data:
             assert result[neuron_id].shape == sample_swc_data[neuron_id].shape
 
 
@@ -1226,7 +1226,7 @@ class TestIntegrationScenarios:
         assert rel_path == "image_atlas_alignment/session/"
 
         # Test transform paths
-        individual, template = pt.pipeline_transforms(zarr_uri, complete_processing_data)
+        individual, _template = pt.pipeline_transforms(zarr_uri, complete_processing_data)
         assert individual.base == "s3://bucket/data/image_atlas_alignment/session"
 
     def test_error_propagation(self):
@@ -1256,12 +1256,12 @@ class TestIntegrationScenarios:
         zarr_uri = "s3://bucket/data/acquisition/session.ome.zarr/0"
 
         # Test image transform workflow
-        img_paths, img_inverted = pt.pipeline_image_transforms_local_paths(
+        img_paths, _img_inverted = pt.pipeline_image_transforms_local_paths(
             zarr_uri, complete_processing_data, cache_dir=tmp_path
         )
 
         # Test point transform workflow
-        pt_paths, pt_inverted = pt.pipeline_point_transforms_local_paths(
+        pt_paths, _pt_inverted = pt.pipeline_point_transforms_local_paths(
             zarr_uri, complete_processing_data, cache_dir=tmp_path
         )
 
@@ -1296,7 +1296,7 @@ class TestIntegrationScenarios:
             cache_dir=tmp_path,
         )
 
-        pt_paths, pt_inverted, img_paths, img_inverted = result
+        pt_paths, _pt_inverted, img_paths, _img_inverted = result
 
         # Should still get 4 transforms each
         assert len(pt_paths) == len(img_paths) == 4
