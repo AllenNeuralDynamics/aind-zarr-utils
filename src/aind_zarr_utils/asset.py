@@ -46,6 +46,7 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 import SimpleITK as sitk
+from aind_metadata_reader import Acquisition, CoordinateFrame, Process
 
 from aind_zarr_utils.domain.selector import OverlaySelector, get_selector
 from aind_zarr_utils.formats.neuroglancer import get_image_sources
@@ -114,7 +115,7 @@ class Asset:
         :meth:`from_zarr` / :meth:`from_root` / :meth:`from_neuroglancer`
         to discover this from a different starting point.
     metadata : Mapping
-        Parsed ``metadata.nd.json``.
+        Parsed aggregate or acquisition metadata, retained for provenance and overlays.
     processing : Mapping
         Parsed ``processing.json``.
     source_zarr_uri : str, optional
@@ -143,6 +144,12 @@ class Asset:
         large win. :meth:`image` accepts a per-call override. When ``None``,
         the environment fallbacks described in
         :mod:`aind_zarr_utils.io.compute` apply.
+    acquisition : Acquisition or CoordinateFrame, optional
+        Reader acquisition view or exact frame selection for image geometry.
+        The original metadata mapping remains available to overlays.
+    registration : Process, optional
+        Selected Image importing process, including its source pointer and pipeline association.
+        Used for registration overlays and transform paths, even when other runs share the same channel.
     """
 
     alignment_zarr_uri: str
@@ -156,6 +163,8 @@ class Asset:
     template_used: str = _DEFAULT_TEMPLATE
     template_base: str | os.PathLike | None = None
     compute_kwargs: ComputeKwargs | None = None
+    acquisition: Acquisition | CoordinateFrame | None = field(default=None, kw_only=True)
+    registration: Process | None = field(default=None, kw_only=True)
 
     # Lazily-populated cache of the opened Zarr ``(Node, metadata)`` tuple.
     # Set via the :attr:`opened_zarr` property or by the eager ``from_*``
@@ -186,6 +195,8 @@ class Asset:
         template_used: str = _DEFAULT_TEMPLATE,
         template_base: str | os.PathLike | None = None,
         compute_kwargs: ComputeKwargs | None = None,
+        acquisition: Acquisition | CoordinateFrame | None = None,
+        registration: Process | None = None,
     ) -> Asset:
         """Discover the asset's metadata + alignment Zarr from any acquisition Zarr URI.
 
@@ -197,6 +208,7 @@ class Asset:
         """
         z_uri, metadata, processing = alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
             a_zarr_uri=zarr_uri,
+            registration=registration,
             anonymous=anonymous,
             s3_client=s3_client,
         )
@@ -212,6 +224,8 @@ class Asset:
             template_used=template_used,
             template_base=template_base,
             compute_kwargs=compute_kwargs,
+            acquisition=acquisition,
+            registration=registration,
         )
 
     @classmethod
@@ -226,10 +240,13 @@ class Asset:
         template_used: str = _DEFAULT_TEMPLATE,
         template_base: str | os.PathLike | None = None,
         compute_kwargs: ComputeKwargs | None = None,
+        acquisition: Acquisition | CoordinateFrame | None = None,
+        registration: Process | None = None,
     ) -> Asset:
         """Discover the asset's metadata + alignment Zarr from the asset root URI."""
         z_uri, metadata, processing = alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
             asset_uri=asset_uri,
+            registration=registration,
             anonymous=anonymous,
             s3_client=s3_client,
         )
@@ -245,6 +262,8 @@ class Asset:
             template_used=template_used,
             template_base=template_base,
             compute_kwargs=compute_kwargs,
+            acquisition=acquisition,
+            registration=registration,
         )
 
     @classmethod
@@ -260,6 +279,8 @@ class Asset:
         template_used: str = _DEFAULT_TEMPLATE,
         template_base: str | os.PathLike | None = None,
         compute_kwargs: ComputeKwargs | None = None,
+        acquisition: Acquisition | CoordinateFrame | None = None,
+        registration: Process | None = None,
     ) -> Asset:
         """Discover the asset from a Neuroglancer state.
 
@@ -277,6 +298,8 @@ class Asset:
                 template_used=template_used,
                 template_base=template_base,
                 compute_kwargs=compute_kwargs,
+                acquisition=acquisition,
+                registration=registration,
             )
         sources = get_image_sources(ng_state, remove_zarr_protocol=True)
         a_zarr_uri = next(iter(sources.values()), None)
@@ -291,6 +314,8 @@ class Asset:
             template_used=template_used,
             template_base=template_base,
             compute_kwargs=compute_kwargs,
+            acquisition=acquisition,
+            registration=registration,
         )
 
     @classmethod
@@ -308,6 +333,8 @@ class Asset:
         template_used: str,
         template_base: str | os.PathLike | None,
         compute_kwargs: ComputeKwargs | None = None,
+        acquisition: Acquisition | CoordinateFrame | None = None,
+        registration: Process | None = None,
     ) -> Asset:
         """Build an :class:`Asset` and pre-open its Zarr (internal helper)."""
         kwargs: dict[str, Any] = {
@@ -321,6 +348,8 @@ class Asset:
             "template_used": template_used,
             "template_base": template_base,
             "compute_kwargs": compute_kwargs,
+            "acquisition": acquisition,
+            "registration": registration,
         }
         if overlay_selector is not None:
             kwargs["overlay_selector"] = overlay_selector
@@ -337,6 +366,14 @@ class Asset:
     def _processing_dict(self) -> dict[str, Any]:
         """Return processing metadata for legacy helpers typed as accepting dicts."""
         return cast(dict[str, Any], self.processing)
+
+    def _geometry_metadata(self) -> dict[str, Any] | Acquisition | CoordinateFrame:
+        """Use an explicit frame selection without replacing the original metadata."""
+        return self.acquisition if self.acquisition is not None else self._metadata_dict()
+
+    def _registration_metadata(self) -> dict[str, Any] | Process:
+        """Keep selected run provenance intact instead of rebuilding processing JSON."""
+        return self.registration if self.registration is not None else self._processing_dict()
 
     @property
     def opened_zarr(self) -> tuple[Node, dict]:
@@ -358,7 +395,7 @@ class Asset:
         if self._transforms is None:
             pt_paths, pt_invert, img_paths, img_invert = pipeline_transforms_local_paths(
                 self.alignment_zarr_uri,
-                self._processing_dict(),
+                self._registration_metadata(),
                 s3_client=self.s3_client,
                 anonymous=self.anonymous,
                 cache_dir=self.cache_dir,
@@ -429,7 +466,7 @@ class Asset:
         if library == "sitk":
             img: sitk.Image | ANTsImage = zarr_to_sitk(
                 self.alignment_zarr_uri,
-                self._metadata_dict(),
+                self._geometry_metadata(),
                 level=level,
                 scale_unit=scale_unit,
                 opened_zarr=self.opened_zarr,
@@ -439,7 +476,7 @@ class Asset:
         elif library == "ants":
             img = zarr_to_ants(
                 self.alignment_zarr_uri,
-                self._metadata_dict(),
+                self._geometry_metadata(),
                 level=level,
                 scale_unit=scale_unit,
                 opened_zarr=self.opened_zarr,
@@ -484,14 +521,15 @@ class Asset:
             return mimic_pipeline_zarr_to_anatomical_stub(
                 self.alignment_zarr_uri,
                 self._metadata_dict(),
-                self._processing_dict(),
+                self._registration_metadata(),
+                acquisition=self.acquisition,
                 overlay_selector=self.overlay_selector,
                 opened_zarr=self.opened_zarr,
             )
         legacy_origin = (origin or Origin.default())._legacy_kwargs()
         return zarr_to_sitk_stub(
             self.alignment_zarr_uri,
-            self._metadata_dict(),
+            self._geometry_metadata(),
             level=level,
             scale_unit=scale_unit,
             opened_zarr=self.opened_zarr,
@@ -514,8 +552,9 @@ class Asset:
         apply_pipeline_overlays(
             img,
             self.alignment_zarr_uri,
-            self._processing_dict(),
+            self._registration_metadata(),
             self._metadata_dict(),
+            acquisition=self.acquisition,
             level=level,
             overlay_selector=self.overlay_selector,
             opened_zarr=self.opened_zarr,

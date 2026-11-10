@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
 import SimpleITK as sitk
+from aind_metadata_reader import Acquisition, CoordinateFrame, Process
 from aind_registration_utils.ants import (
     apply_ants_transforms_to_point_arr,
 )
@@ -205,8 +206,9 @@ def base_and_pipeline_anatomical_stub(
 def mimic_pipeline_zarr_to_anatomical_stub(
     zarr_uri: str,
     metadata: dict,
-    processing_data: dict,
+    processing_data: dict | Process,
     *,
+    acquisition: Acquisition | CoordinateFrame | None = None,
     overlay_selector: OverlaySelector = get_selector(),
     opened_zarr: tuple[Node, dict] | None = None,
 ) -> tuple[sitk.Image, tuple[int, int, int]]:
@@ -226,6 +228,8 @@ def mimic_pipeline_zarr_to_anatomical_stub(
         ND metadata (instrument + acquisition) used by overlays.
     processing_data : dict
         Processing metadata containing version / process list.
+    acquisition : Acquisition or CoordinateFrame, optional
+        Selected acquisition view for geometry. The original metadata is supplied to overlays.
     overlay_selector : OverlaySelector, optional
         Selector used to obtain overlay sequence; defaults to the global
         selector.
@@ -249,6 +253,7 @@ def mimic_pipeline_zarr_to_anatomical_stub(
         zarr_uri,
         metadata,
         processing_data,
+        acquisition=acquisition,
         overlay_selector=overlay_selector,
         opened_zarr=opened_zarr,
     )

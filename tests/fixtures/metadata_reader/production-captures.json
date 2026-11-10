@@ -1,0 +1,61 @@
+{
+  "771432-docdb-historical-v1.json": {
+    "capture": "historical-v1-docdb.json",
+    "capture_sha256": "7d3d8427e64ee4b497118055716e32c78c00595747566a6318a6c95638069b0f",
+    "origin": "historical_v1",
+    "evidence": {
+      "host": "api.allenneuraldynamics.org",
+      "api_version": "v1",
+      "database": "metadata_index",
+      "collection": "data_assets",
+      "record_id": "b554c456-077b-4dd0-83a8-ebddaec1134b",
+      "asset_location": "s3://aind-open-data/SmartSPIM_771432_2025-04-19_18-48-34_stitched_2025-04-21_02-56-20",
+      "paired_record_id": "5753ae1f-3b32-4304-adb2-3ef539a12e0e",
+      "conversion_identity": "not recorded; paired representations observed, exact conversion run unverified"
+    },
+    "captured_on": "2026-11-10",
+    "excerpt": true
+  },
+  "771432-docdb-converted-v2.json": {
+    "capture": "converted-v2-docdb.json",
+    "capture_sha256": "c3b4fd608c6bdd284fedee27f668c1e78471e421d8b3a2da47979b21786e0efe",
+    "origin": "paired_v2_copy",
+    "evidence": {
+      "host": "api.allenneuraldynamics.org",
+      "api_version": "v2",
+      "database": "metadata_index",
+      "collection": "data_assets",
+      "record_id": "5753ae1f-3b32-4304-adb2-3ef539a12e0e",
+      "asset_location": "s3://aind-open-data/SmartSPIM_771432_2025-04-19_18-48-34_stitched_2025-04-21_02-56-20",
+      "paired_record_id": "b554c456-077b-4dd0-83a8-ebddaec1134b",
+      "conversion_identity": "not recorded; paired representations observed, exact conversion run unverified"
+    },
+    "captured_on": "2026-11-10",
+    "excerpt": true
+  },
+  "791132-s3-processing.json": {
+    "capture": "native-v2-processing.json",
+    "capture_sha256": "5881d61a6b7bc901705d2ab67c9c0fcde64d79bb6ed4686a084d766c9fdef047",
+    "origin": "production_v2_serialization",
+    "evidence": {
+      "locator": "s3://aind-open-data/SmartSPIM_791132_2026-09-18_14-10-48_stitched_2026-10-29_21-23-13/processing.json",
+      "authorship": "v2 on disk; native versus converted authorship not certified"
+    },
+    "captured_on": "2026-11-10",
+    "excerpt": false
+  },
+  "771432-zattrs.json": {
+    "capture_sha256": "0fe4bdefe09ccc1d6f48efd787629c622533773e35e792d1877a65c31428d315",
+    "captured_on": "2026-11-10",
+    "excerpt": false,
+    "asset_location": "s3://aind-open-data/SmartSPIM_771432_2025-04-19_18-48-34_stitched_2025-04-21_02-56-20",
+    "relative_path": "image_tile_fusing/OMEZarr/Ex_639_Em_667.zarr/.zattrs"
+  },
+  "837772-zattrs.json": {
+    "capture_sha256": "0e93307ba210344b9283ce8b6bbda4e02bdbd3ca1434c575cb67578391bd2809",
+    "captured_on": "2026-11-10",
+    "excerpt": false,
+    "asset_location": "s3://aind-open-data/SmartSPIM_837772_2026-08-27_18-29-18_stitched_2026-09-03_13-39-04",
+    "relative_path": "image_tile_fusing/OMEZarr/Ex_639_Em_667.zarr/.zattrs"
+  }
+}
