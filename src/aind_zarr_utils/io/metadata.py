@@ -8,19 +8,41 @@ between common length units used by OME-Zarr metadata.
 from __future__ import annotations
 
 import numpy as np
+from aind_metadata_reader import Acquisition, CoordinateFrame, Document, read_acquisition
 from numpy.typing import NDArray
 
 
+def _acquisition_view(metadata: dict | Acquisition) -> Acquisition:
+    """Accept either recorded JSON or an explicitly selected acquisition view."""
+    return metadata if isinstance(metadata, Acquisition) else read_acquisition(Document(metadata))
+
+
+def anatomical_axes(metadata: dict | Acquisition | CoordinateFrame) -> tuple[list[str], list[str]]:
+    """Require a unique cardinal frame, without inventing array dimension numbers.
+
+    An Acquisition view can carry an explicit device, stream and frame-scope
+    selection; a CoordinateFrame carries an exact frame selection. Zarr consumers
+    match the returned names to the actual Zarr axes.
+    This reads frame directions only; it does not compose image/tile transforms.
+    """
+    frame = metadata if isinstance(metadata, CoordinateFrame) else _acquisition_view(metadata).one_frame()
+    frame.orientation.require()
+    names = [axis.name for axis in frame.axes]
+    if len(set(names)) != len(names) or any(name not in {"x", "y", "z"} for name in names):
+        raise ValueError("Anatomical conversion requires distinct x, y, z axis names")
+    return [str(name) for name in names], [str(axis.anatomical_direction) for axis in frame.axes]
+
+
 def direction_from_acquisition_metadata(
-    acq_metadata: dict,
+    acq_metadata: dict | Acquisition,
 ) -> tuple[NDArray, list[str], list[str]]:
     """
     Extract direction, axes, and dimensions from acquisition metadata.
 
     Parameters
     ----------
-    acq_metadata : dict
-        Acquisition metadata
+    acq_metadata : dict or Acquisition
+        Recorded metadata or a selected acquisition view with explicit array dimensions.
 
     Returns
     -------
@@ -31,26 +53,24 @@ def direction_from_acquisition_metadata(
     directions : list
         List of direction codes (e.g., 'L', 'R', etc.).
     """
-    axes_dict = {d["dimension"]: d for d in acq_metadata["axes"]}
-    dimensions = np.sort(np.array(list(axes_dict.keys())))
-    axes = []
-    directions = []
-    for i in dimensions:
-        axes.append(axes_dict[i]["name"].lower())
-        directions.append(axes_dict[i]["direction"].split("_")[-1][0].upper())
-    return dimensions, axes, directions
+    view = _acquisition_view(acq_metadata)
+    axes = view.array_mapping.require()
+    anatomical_axes(view)
+    # Preserve the recorded dimension spelling for the legacy public API.
+    dimensions = np.array([axis.document.field("/dimension").value for axis in axes])
+    return dimensions, [str(axis.name) for axis in axes], [str(axis.anatomical_direction) for axis in axes]
 
 
 def direction_from_nd_metadata(
-    nd_metadata: dict,
+    nd_metadata: dict | Acquisition,
 ) -> tuple[NDArray, list[str], list[str]]:
     """
     Extract direction, axes, and dimensions from ND metadata.
 
     Parameters
     ----------
-    nd_metadata : dict
-        ND metadata
+    nd_metadata : dict or Acquisition
+        Aggregate metadata, acquisition core, or selected acquisition view.
 
     Returns
     -------
@@ -61,7 +81,7 @@ def direction_from_nd_metadata(
     directions : list
         List of direction codes (e.g., 'L', 'R', etc.).
     """
-    return direction_from_acquisition_metadata(nd_metadata["acquisition"])
+    return direction_from_acquisition_metadata(nd_metadata)
 
 
 def _units_to_meter(unit: str) -> float:

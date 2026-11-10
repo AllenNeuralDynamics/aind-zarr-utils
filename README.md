@@ -13,7 +13,7 @@ annotations, and SmartSPIM pipeline coordinate transforms.
 ## Recommended API
 
 The primary entry point is `Asset`. It discovers an asset's alignment-channel
-Zarr, loads `metadata.nd.json` and `processing.json`, opens the Zarr once, and
+Zarr, loads acquisition metadata and `processing.json`, opens the Zarr once, and
 reuses that state for image, stub, and point-transform workflows.
 
 ```python
@@ -45,6 +45,67 @@ asset = Asset(
     source_zarr_uri="s3://bucket/asset/acquisition.ome.zarr/0",
 )
 ```
+
+## Metadata Reader Integration
+
+This branch uses `aind-metadata-reader` to interpret historical and newer
+acquisition and processing layouts. Asset discovery reads `metadata.nd.json`
+when present and falls back to `acquisition.json` when the aggregate is absent.
+Malformed JSON and access failures propagate. This file preference preserves
+existing behavior; callers who need a different source can load it explicitly.
+
+Anatomical conversion matches recorded coordinate-axis names to Zarr axis names.
+It requires one cardinal frame; multiple frames require explicit selection.
+`Asset` and all three discovery constructors accept an `acquisition` reader view
+and a `registration` process:
+
+```python
+from aind_metadata_reader import Document, read_acquisition, read_processing
+from aind_zarr_utils import Asset
+
+acquisition = read_acquisition(Document(metadata), device_name="SmartSPIM", frame_scope="local")
+registrations = read_processing(Document(processing)).find("Image importing")
+for run in registrations:
+    print(run.document.pointer, run.pipeline_name, run.pipeline_version, run.code_version)
+
+# Choose a source pointer after inspecting the runs; a channel can have multiple runs.
+registration = next(run for run in registrations if run.document.pointer == registration_pointer)
+asset = Asset(
+    alignment_zarr_uri=zarr_uri,
+    metadata=metadata,
+    processing=processing,
+    acquisition=acquisition,
+    registration=registration,
+)
+image = asset.image(level=0)
+pipeline_stub, size = asset.stub(pipeline=True)
+```
+
+Choose the device and frame that describe the Zarr. This selection does not
+compose tile transforms or establish a global origin. To select a frame by its
+exact source pointer, pass the `CoordinateFrame` returned by
+`read_acquisition(document).one_frame(pointer=frame_pointer)` as `acquisition`.
+The low-level image functions also accept either kind of view. The legacy
+`direction_from_*` helpers still require recorded array dimensions, which newer
+coordinate frames may omit.
+
+The selected acquisition supplies geometry; the original `asset.metadata`
+mapping remains the input to overlay predicates. The selected registration
+supplies the component version and pipeline association used for overlays and
+transform paths. Both views retain their source pointers, and `asset.processing`
+keeps the original processing mapping. An explicit selection takes precedence
+over automatic selection without rewriting the source metadata.
+
+Registration component versions continue to select pipeline overlays independently
+of the metadata schema version. The reader's SmartSPIM helper interprets the
+observed registration 0.0.37 input convention; unverified producer conventions
+remain unresolved. Repeated registration steps require an unambiguous selection.
+Reading metadata does not apply LS-17 corrections or certify schema validity.
+
+The reader is installed from PyPI with `aind-metadata-reader>=0.2.0,<0.3`.
+Run `uv sync` to install the locked dependencies; a sibling checkout and internal
+GitHub access are unnecessary. The upper bound keeps this integration within the
+reader's tested experimental release series.
 
 ## Images And Stubs
 

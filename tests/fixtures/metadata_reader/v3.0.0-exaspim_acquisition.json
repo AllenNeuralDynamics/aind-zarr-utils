@@ -1,0 +1,299 @@
+{
+  "object_type": "Acquisition",
+  "describedBy": "https://raw.githubusercontent.com/AllenNeuralDynamics/biodata-schema/main/src/biodata_schema/core/acquisition.py",
+  "schema_version": "3.0.0",
+  "protocol_id": null,
+  "subject_id": "123456",
+  "specimen_id": "123456-123",
+  "acquisition_start_time": "2022-11-22T08:43:00-08:00",
+  "acquisition_start_tz": "America/Los_Angeles",
+  "acquisition_end_time": "2022-11-22T08:43:00-08:00",
+  "experimenters": [
+    "John Smith"
+  ],
+  "ethics_review_id": null,
+  "instrument_id": "exaSPIM1",
+  "acquisition_type": "ExaSPIM",
+  "notes": null,
+  "global_coordinate_system": null,
+  "calibrations": [
+    {
+      "object_type": "Calibration",
+      "device_name": "Laser_1",
+      "protocol_id": null,
+      "calibration_date": "2022-11-22T08:43:00-08:00",
+      "description": "Laser power calibration",
+      "measured_at": null,
+      "input": [
+        100.0
+      ],
+      "input_unit": "percent",
+      "repeats": null,
+      "output": [
+        50.0
+      ],
+      "output_unit": "milliwatt",
+      "fit": null,
+      "notes": null
+    }
+  ],
+  "maintenance": [
+    {
+      "object_type": "Maintenance",
+      "device_name": "Chamber",
+      "protocol_id": null,
+      "maintenance_date": "2022-11-22T08:43:00-08:00",
+      "description": "Clean chamber",
+      "reagents": [
+        {
+          "object_type": "Reagent",
+          "name": "reagent1",
+          "source": {
+            "name": "Other",
+            "abbreviation": null,
+            "registry": null,
+            "registry_identifier": null
+          },
+          "rrid": {
+            "name": "xxx",
+            "abbreviation": "xx",
+            "registry": "Research Resource Identifiers (RRID)",
+            "registry_identifier": "100"
+          },
+          "lot_number": "xxx",
+          "expiration_date": "2022-11-22"
+        }
+      ],
+      "notes": null
+    }
+  ],
+  "data_streams": [
+    {
+      "object_type": "Data stream",
+      "stream_start_time": "2022-11-22T08:43:00-08:00",
+      "stream_end_time": "2022-11-22T08:43:00-08:00",
+      "modalities": [
+        {
+          "name": "Selective plane illumination microscopy",
+          "abbreviation": "SPIM"
+        }
+      ],
+      "code": null,
+      "notes": null,
+      "active_devices": [
+        "LAS-08307",
+        "539251",
+        "Multiband filter",
+        "PMT_1",
+        "Sample chamber"
+      ],
+      "configurations": [
+        {
+          "object_type": "Imaging config",
+          "device_name": "exaSPIM1",
+          "channels": [
+            {
+              "object_type": "Channel",
+              "channel_name": "488",
+              "intended_measurement": "GFP signal",
+              "detector": {
+                "object_type": "Detector config",
+                "device_name": "PMT_1",
+                "exposure_time": 1.0,
+                "exposure_time_unit": "millisecond",
+                "trigger_type": "Internal",
+                "compression": null,
+                "crop_offset_x": null,
+                "crop_offset_y": null,
+                "crop_width": null,
+                "crop_height": null,
+                "crop_unit": "pixel"
+              },
+              "additional_device_names": null,
+              "light_sources": [
+                {
+                  "object_type": "Laser config",
+                  "device_name": "LAS-08307",
+                  "wavelength": 488,
+                  "wavelength_unit": "nanometer",
+                  "power": 200.0,
+                  "power_unit": "milliwatt",
+                  "power_measured_at": null
+                }
+              ],
+              "variable_power": false,
+              "excitation_filters": null,
+              "emission_filters": [
+                {
+                  "object_type": "Device config",
+                  "device_name": "Multiband filter"
+                }
+              ],
+              "emission_wavelength": null,
+              "emission_wavelength_unit": null
+            },
+            {
+              "object_type": "Channel",
+              "channel_name": "561",
+              "intended_measurement": "TdTomato signal",
+              "detector": {
+                "object_type": "Detector config",
+                "device_name": "PMT_1",
+                "exposure_time": 1.0,
+                "exposure_time_unit": "millisecond",
+                "trigger_type": "Internal",
+                "compression": null,
+                "crop_offset_x": null,
+                "crop_offset_y": null,
+                "crop_width": null,
+                "crop_height": null,
+                "crop_unit": "pixel"
+              },
+              "additional_device_names": null,
+              "light_sources": [
+                {
+                  "object_type": "Laser config",
+                  "device_name": "539251",
+                  "wavelength": 561,
+                  "wavelength_unit": "nanometer",
+                  "power": 200.0,
+                  "power_unit": "milliwatt",
+                  "power_measured_at": null
+                }
+              ],
+              "variable_power": false,
+              "excitation_filters": null,
+              "emission_filters": [
+                {
+                  "object_type": "Device config",
+                  "device_name": "Multiband filter"
+                }
+              ],
+              "emission_wavelength": null,
+              "emission_wavelength_unit": null
+            }
+          ],
+          "local_coordinate_system": {
+            "object_type": "Coordinate system",
+            "name": "SPIM_RPI",
+            "origin": "Origin",
+            "axes": [
+              {
+                "object_type": "Axis",
+                "name": "X",
+                "direction": "Left_to_right"
+              },
+              {
+                "object_type": "Axis",
+                "name": "Y",
+                "direction": "Anterior_to_posterior"
+              },
+              {
+                "object_type": "Axis",
+                "name": "Z",
+                "direction": "Superior_to_inferior"
+              }
+            ],
+            "axis_unit": "millimeter",
+            "handedness": null
+          },
+          "images": [
+            {
+              "object_type": "Image spim",
+              "channel_name": "488",
+              "dimensions_unit": "pixel",
+              "image_to_acquisition_transform": [
+                {
+                  "object_type": "Scale",
+                  "scale": [
+                    0.748,
+                    0.748,
+                    1.0
+                  ],
+                  "pivot": "global"
+                },
+                {
+                  "object_type": "Translation",
+                  "translation": [
+                    0.0,
+                    1.0,
+                    2.0
+                  ],
+                  "reference_coordinate_system": "global"
+                }
+              ],
+              "dimensions": {
+                "object_type": "Scale",
+                "scale": [
+                  512.0,
+                  512.0,
+                  256.0
+                ],
+                "pivot": "global"
+              },
+              "file_name": "tile_X_0000_Y_0000_Z_0000_CH_488.ims",
+              "imaging_angle": 0,
+              "imaging_angle_unit": "degrees",
+              "image_start_time": null,
+              "image_end_time": null
+            },
+            {
+              "object_type": "Image spim",
+              "channel_name": "561",
+              "dimensions_unit": "pixel",
+              "image_to_acquisition_transform": [
+                {
+                  "object_type": "Scale",
+                  "scale": [
+                    0.748,
+                    0.748,
+                    1.0
+                  ],
+                  "pivot": "global"
+                },
+                {
+                  "object_type": "Translation",
+                  "translation": [
+                    0.0,
+                    1.0,
+                    2.0
+                  ],
+                  "reference_coordinate_system": "global"
+                }
+              ],
+              "dimensions": {
+                "object_type": "Scale",
+                "scale": [
+                  512.0,
+                  512.0,
+                  256.0
+                ],
+                "pivot": "global"
+              },
+              "file_name": "tile_X_0000_Y_0000_Z_0000_CH_561.ims",
+              "imaging_angle": 0,
+              "imaging_angle_unit": "degrees",
+              "image_start_time": null,
+              "image_end_time": null
+            }
+          ],
+          "sampling_strategy": null
+        },
+        {
+          "object_type": "Sample chamber config",
+          "device_name": "Sample chamber",
+          "chamber_immersion": {
+            "object_type": "Immersion",
+            "medium": "PBS",
+            "refractive_index": 1.33
+          },
+          "sample_immersion": null
+        }
+      ],
+      "connections": []
+    }
+  ],
+  "stimulus_epochs": [],
+  "manipulations": [],
+  "subject_details": null
+}

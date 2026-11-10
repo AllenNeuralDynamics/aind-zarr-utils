@@ -1,0 +1,854 @@
+{
+   "data_processes": [
+      {
+         "code": {
+            "commit_hash": null,
+            "container": null,
+            "core_dependency": null,
+            "input_data": null,
+            "language": null,
+            "language_version": null,
+            "name": "aind-smartspim-flatfield-estimation",
+            "object_type": "Code",
+            "parameters": null,
+            "run_script": null,
+            "url": "https://github.com/AllenNeuralDynamics/aind-smartspim-flatfield-estimation",
+            "version": "0.0.4"
+         },
+         "end_date_time": "2026-10-28T11:21:22.831088Z",
+         "experimenters": [
+            "Camilo Laiton"
+         ],
+         "name": "Flatfield estimation - Ex_488_Em_525",
+         "notes": "Flatfield estimation for channel Ex_488_Em_525",
+         "object_type": "Data process",
+         "output_parameters": {
+            "duration_seconds": 5461.496856,
+            "flatfield_paths": [
+               "/tmp/nxf.qyJYorXn00/capsule/results/estimated_flat_laser_Ex_488_Em_525_side_0.tif",
+               "/tmp/nxf.qyJYorXn00/capsule/results/estimated_flat_laser_Ex_488_Em_525_side_1.tif"
+            ],
+            "input_location": "s3://aind-open-data/SmartSPIM_791132_2026-09-18_14-10-48/SPIM/Ex_488_Em_525",
+            "shading_parameters": {
+               "get_darkfield": false,
+               "max_reweight_iterations": 35,
+               "max_workers": 4,
+               "resize_mode": "skimage_dask",
+               "smoothness_darkfield": 20,
+               "smoothness_flatfield": 1,
+               "sort_intensity": true
+            }
+         },
+         "output_path": "/tmp/nxf.qyJYorXn00/capsule/results",
+         "pipeline_name": "SmartSPIM Pipeline",
+         "process_type": "Image flat-field correction",
+         "resources": {
+            "architecture": "x86_64",
+            "cpu": null,
+            "cpu_cores": 4,
+            "cpu_usage": [],
+            "gpu": null,
+            "gpu_usage": null,
+            "object_type": "Resource usage",
+            "os": "Linux",
+            "ram": 991.99,
+            "ram_unit": "Gigabyte",
+            "ram_usage": [],
+            "system_memory": 991.99,
+            "system_memory_unit": "Gigabyte",
+            "usage_unit": "percent"
+         },
+         "stage": "Processing",
+         "start_date_time": "2026-10-28T09:50:21.334232Z"
+      },
+      {
+         "code": {
+            "commit_hash": null,
+            "container": null,
+            "core_dependency": null,
+            "input_data": null,
+            "language": null,
+            "language_version": null,
+            "name": "aind-smartspim-flatfield-estimation",
+            "object_type": "Code",
+            "parameters": null,
+            "run_script": null,
+            "url": "https://github.com/AllenNeuralDynamics/aind-smartspim-flatfield-estimation",
+            "version": "0.0.4"
+         },
+         "end_date_time": "2026-10-28T13:06:19.161958Z",
+         "experimenters": [
+            "Camilo Laiton"
+         ],
+         "name": "Flatfield estimation - Ex_561_Em_600",
+         "notes": "Flatfield estimation for channel Ex_561_Em_600",
+         "object_type": "Data process",
+         "output_parameters": {
+            "duration_seconds": 6296.22882,
+            "flatfield_paths": [
+               "/tmp/nxf.qyJYorXn00/capsule/results/estimated_flat_laser_Ex_561_Em_600_side_0.tif",
+               "/tmp/nxf.qyJYorXn00/capsule/results/estimated_flat_laser_Ex_561_Em_600_side_1.tif"
+            ],
+            "input_location": "s3://aind-open-data/SmartSPIM_791132_2026-09-18_14-10-48/SPIM/Ex_561_Em_600",
+            "shading_parameters": {
+               "get_darkfield": false,
+               "max_reweight_iterations": 35,
+               "max_workers": 4,
+               "resize_mode": "skimage_dask",
+               "smoothness_darkfield": 20,
+               "smoothness_flatfield": 1,
+               "sort_intensity": true
+            }
+         },
+         "output_path": "/tmp/nxf.qyJYorXn00/capsule/results",
+         "pipeline_name": "SmartSPIM Pipeline",
+         "process_type": "Image flat-field correction",
+         "resources": {
+            "architecture": "x86_64",
+            "cpu": null,
+            "cpu_cores": 4,
+            "cpu_usage": [],
+            "gpu": null,
+            "gpu_usage": null,
+            "object_type": "Resource usage",
+            "os": "Linux",
+            "ram": 991.99,
+            "ram_unit": "Gigabyte",
+            "ram_usage": [],
+            "system_memory": 991.99,
+            "system_memory_unit": "Gigabyte",
+            "usage_unit": "percent"
+         },
+         "stage": "Processing",
+         "start_date_time": "2026-10-28T11:21:22.933138Z"
+      },
+      {
+         "code": {
+            "commit_hash": null,
+            "container": null,
+            "core_dependency": null,
+            "input_data": null,
+            "language": null,
+            "language_version": null,
+            "name": "aind-smartspim-flatfield-estimation",
+            "object_type": "Code",
+            "parameters": null,
+            "run_script": null,
+            "url": "https://github.com/AllenNeuralDynamics/aind-smartspim-flatfield-estimation",
+            "version": "0.0.4"
+         },
+         "end_date_time": "2026-10-28T14:25:57.637764Z",
+         "experimenters": [
+            "Camilo Laiton"
+         ],
+         "name": "Flatfield estimation - Ex_639_Em_680",
+         "notes": "Flatfield estimation for channel Ex_639_Em_680",
+         "object_type": "Data process",
+         "output_parameters": {
+            "duration_seconds": 4778.424611,
+            "flatfield_paths": [
+               "/tmp/nxf.qyJYorXn00/capsule/results/estimated_flat_laser_Ex_639_Em_680_side_0.tif",
+               "/tmp/nxf.qyJYorXn00/capsule/results/estimated_flat_laser_Ex_639_Em_680_side_1.tif"
+            ],
+            "input_location": "s3://aind-open-data/SmartSPIM_791132_2026-09-18_14-10-48/SPIM/Ex_639_Em_680",
+            "shading_parameters": {
+               "get_darkfield": false,
+               "max_reweight_iterations": 35,
+               "max_workers": 4,
+               "resize_mode": "skimage_dask",
+               "smoothness_darkfield": 20,
+               "smoothness_flatfield": 1,
+               "sort_intensity": true
+            }
+         },
+         "output_path": "/tmp/nxf.qyJYorXn00/capsule/results",
+         "pipeline_name": "SmartSPIM Pipeline",
+         "process_type": "Image flat-field correction",
+         "resources": {
+            "architecture": "x86_64",
+            "cpu": null,
+            "cpu_cores": 4,
+            "cpu_usage": [],
+            "gpu": null,
+            "gpu_usage": null,
+            "object_type": "Resource usage",
+            "os": "Linux",
+            "ram": 991.99,
+            "ram_unit": "Gigabyte",
+            "ram_usage": [],
+            "system_memory": 991.99,
+            "system_memory_unit": "Gigabyte",
+            "usage_unit": "percent"
+         },
+         "stage": "Processing",
+         "start_date_time": "2026-10-28T13:06:19.213153Z"
+      },
+      {
+         "code": {
+            "commit_hash": null,
+            "container": null,
+            "core_dependency": null,
+            "input_data": null,
+            "language": null,
+            "language_version": null,
+            "name": "aind-smartspim-stitch",
+            "object_type": "Code",
+            "parameters": null,
+            "run_script": null,
+            "url": "https://github.com/AllenNeuralDynamics/aind-smartspim-stitch",
+            "version": "1.2.9"
+         },
+         "end_date_time": "2026-10-29T16:10:37.668845Z",
+         "experimenters": [
+            "Camilo Laiton"
+         ],
+         "name": "BigStitcher phase correlation + global optimization - Ex_639_Em_680",
+         "notes": "Running stitching and global optimization separately",
+         "object_type": "Data process",
+         "output_parameters": {
+            "duration_seconds": 59.508027,
+            "global_optimization": [
+               "bash",
+               "./bigstitcher_spark_scripts/run_classes.sh",
+               "--xml",
+               "/tmp/nxf.xJmuE4WVNh/capsule/results/bigstitcher.xml",
+               "--sourcePoints",
+               "STITCHING"
+            ],
+            "input_location": "SmartSPIM_791132_2026-09-18_14-10-48",
+            "output_file": "/tmp/nxf.xJmuE4WVNh/capsule/results/SmartSPIM_791132_2026-09-18_14-10-48_stitch_channel_Ex_639_Em_680_params.json",
+            "stitching": [
+               "bash",
+               "./bigstitcher_spark_scripts/run_classes.sh",
+               "--xml",
+               "/tmp/nxf.xJmuE4WVNh/capsule/results/bigstitcher.xml",
+               "--downsampling",
+               "4,4,4",
+               "--maxShiftZ",
+               "20",
+               "--maxShiftY",
+               "30",
+               "--maxShiftX",
+               "35"
+            ]
+         },
+         "output_path": "/tmp/nxf.xJmuE4WVNh/capsule/results/SmartSPIM_791132_2026-09-18_14-10-48_stitch_channel_Ex_639_Em_680_params.json",
+         "pipeline_name": "SmartSPIM Pipeline",
+         "process_type": "Image tile alignment",
+         "resources": {
+            "architecture": "x86_64",
+            "cpu": null,
+            "cpu_cores": 16,
+            "cpu_usage": [],
+            "gpu": null,
+            "gpu_usage": null,
+            "object_type": "Resource usage",
+            "os": "Linux",
+            "ram": null,
+            "ram_unit": "Gigabyte",
+            "ram_usage": [],
+            "system_memory": 371.76,
+            "system_memory_unit": "Gigabyte",
+            "usage_unit": "percent"
+         },
+         "stage": "Processing",
+         "start_date_time": "2026-10-29T16:09:38.160818Z"
+      },
+      {
+         "code": {
+            "commit_hash": null,
+            "container": null,
+            "core_dependency": null,
+            "input_data": null,
+            "language": null,
+            "language_version": null,
+            "name": "aind-smartspim-fuse",
+            "object_type": "Code",
+            "parameters": null,
+            "run_script": null,
+            "url": "https://github.com/AllenNeuralDynamics/aind-smartspim-fuse",
+            "version": "0.0.6"
+         },
+         "end_date_time": "2026-10-29T18:47:50.217289Z",
+         "experimenters": [
+            "Camilo Laiton"
+         ],
+         "name": "Image tile fusing - Ex_639_Em_680",
+         "notes": "Fusing channel with BigStitcher",
+         "object_type": "Data process",
+         "output_parameters": {
+            "affine_fusion_params": {
+               "parameters": [
+                  "/home/BigStitcher-Spark/affine-fusion",
+                  "-o",
+                  "/tmp/nxf.ETikCwC8em/capsule/results/Ex_639_Em_680.zarr",
+                  "-s",
+                  "ZARR",
+                  "--prefetch"
+               ]
+            },
+            "container_params": {
+               "parameters": [
+                  "-x",
+                  "/tmp/nxf.ETikCwC8em/capsule/scratch/bigstitcher.xml",
+                  "-o",
+                  "/tmp/nxf.ETikCwC8em/capsule/results/Ex_639_Em_680.zarr",
+                  "-d",
+                  "UINT16",
+                  "-ds",
+                  "1,1,1",
+                  "-ds",
+                  "2,2,2",
+                  "-ds",
+                  "4,4,4",
+                  "-ds",
+                  "8,8,8",
+                  "-ds",
+                  "16,16,16",
+                  "-ds",
+                  "32,32,32",
+                  "-ds",
+                  "64,64,64",
+                  "-ds",
+                  "128,128,128",
+                  "-ds",
+                  "256,256,256",
+                  "--anisotropyFactor",
+                  "1"
+               ]
+            },
+            "input_location": "/tmp/nxf.ETikCwC8em/capsule/data/bigstitcher.xml"
+         },
+         "output_path": "/tmp/nxf.ETikCwC8em/capsule/results/Ex_639_Em_680.zarr",
+         "pipeline_name": "SmartSPIM Pipeline",
+         "process_type": "Image tile fusing",
+         "resources": {
+            "architecture": "x86_64",
+            "cpu": null,
+            "cpu_cores": 16,
+            "cpu_usage": [],
+            "gpu": null,
+            "gpu_usage": null,
+            "object_type": "Resource usage",
+            "os": "Linux",
+            "ram": null,
+            "ram_unit": "Gigabyte",
+            "ram_usage": [],
+            "system_memory": 495.78,
+            "system_memory_unit": "Gigabyte",
+            "usage_unit": "percent"
+         },
+         "stage": "Processing",
+         "start_date_time": "2026-10-29T17:48:37.921566Z"
+      },
+      {
+         "code": {
+            "commit_hash": null,
+            "container": null,
+            "core_dependency": null,
+            "input_data": null,
+            "language": null,
+            "language_version": null,
+            "name": "aind-smartspim-fuse",
+            "object_type": "Code",
+            "parameters": null,
+            "run_script": null,
+            "url": "https://github.com/AllenNeuralDynamics/aind-smartspim-fuse",
+            "version": "0.0.6"
+         },
+         "end_date_time": "2026-10-29T18:32:58.740034Z",
+         "experimenters": [
+            "Camilo Laiton"
+         ],
+         "name": "Image tile fusing - Ex_561_Em_600",
+         "notes": "Fusing channel with BigStitcher",
+         "object_type": "Data process",
+         "output_parameters": {
+            "affine_fusion_params": {
+               "parameters": [
+                  "/home/BigStitcher-Spark/affine-fusion",
+                  "-o",
+                  "/tmp/nxf.vgVc21GHzh/capsule/results/Ex_561_Em_600.zarr",
+                  "-s",
+                  "ZARR",
+                  "--prefetch"
+               ]
+            },
+            "container_params": {
+               "parameters": [
+                  "-x",
+                  "/tmp/nxf.vgVc21GHzh/capsule/scratch/bigstitcher.xml",
+                  "-o",
+                  "/tmp/nxf.vgVc21GHzh/capsule/results/Ex_561_Em_600.zarr",
+                  "-d",
+                  "UINT16",
+                  "-ds",
+                  "1,1,1",
+                  "-ds",
+                  "2,2,2",
+                  "-ds",
+                  "4,4,4",
+                  "-ds",
+                  "8,8,8",
+                  "-ds",
+                  "16,16,16",
+                  "-ds",
+                  "32,32,32",
+                  "-ds",
+                  "64,64,64",
+                  "-ds",
+                  "128,128,128",
+                  "-ds",
+                  "256,256,256",
+                  "--anisotropyFactor",
+                  "1"
+               ]
+            },
+            "input_location": "/tmp/nxf.vgVc21GHzh/capsule/data/bigstitcher.xml"
+         },
+         "output_path": "/tmp/nxf.vgVc21GHzh/capsule/results/Ex_561_Em_600.zarr",
+         "pipeline_name": "SmartSPIM Pipeline",
+         "process_type": "Image tile fusing",
+         "resources": {
+            "architecture": "x86_64",
+            "cpu": null,
+            "cpu_cores": 16,
+            "cpu_usage": [],
+            "gpu": null,
+            "gpu_usage": null,
+            "object_type": "Resource usage",
+            "os": "Linux",
+            "ram": null,
+            "ram_unit": "Gigabyte",
+            "ram_usage": [],
+            "system_memory": 371.76,
+            "system_memory_unit": "Gigabyte",
+            "usage_unit": "percent"
+         },
+         "stage": "Processing",
+         "start_date_time": "2026-10-29T17:55:26.946579Z"
+      },
+      {
+         "code": {
+            "commit_hash": null,
+            "container": null,
+            "core_dependency": null,
+            "input_data": null,
+            "language": null,
+            "language_version": null,
+            "name": "aind-smartspim-fuse",
+            "object_type": "Code",
+            "parameters": null,
+            "run_script": null,
+            "url": "https://github.com/AllenNeuralDynamics/aind-smartspim-fuse",
+            "version": "0.0.6"
+         },
+         "end_date_time": "2026-10-29T18:55:23.844772Z",
+         "experimenters": [
+            "Camilo Laiton"
+         ],
+         "name": "Image tile fusing - Ex_488_Em_525",
+         "notes": "Fusing channel with BigStitcher",
+         "object_type": "Data process",
+         "output_parameters": {
+            "affine_fusion_params": {
+               "parameters": [
+                  "/home/BigStitcher-Spark/affine-fusion",
+                  "-o",
+                  "/tmp/nxf.wjwoeGKeO6/capsule/results/Ex_488_Em_525.zarr",
+                  "-s",
+                  "ZARR",
+                  "--prefetch"
+               ]
+            },
+            "container_params": {
+               "parameters": [
+                  "-x",
+                  "/tmp/nxf.wjwoeGKeO6/capsule/scratch/bigstitcher.xml",
+                  "-o",
+                  "/tmp/nxf.wjwoeGKeO6/capsule/results/Ex_488_Em_525.zarr",
+                  "-d",
+                  "UINT16",
+                  "-ds",
+                  "1,1,1",
+                  "-ds",
+                  "2,2,2",
+                  "-ds",
+                  "4,4,4",
+                  "-ds",
+                  "8,8,8",
+                  "-ds",
+                  "16,16,16",
+                  "-ds",
+                  "32,32,32",
+                  "-ds",
+                  "64,64,64",
+                  "-ds",
+                  "128,128,128",
+                  "-ds",
+                  "256,256,256",
+                  "--anisotropyFactor",
+                  "1"
+               ]
+            },
+            "input_location": "/tmp/nxf.wjwoeGKeO6/capsule/data/bigstitcher.xml"
+         },
+         "output_path": "/tmp/nxf.wjwoeGKeO6/capsule/results/Ex_488_Em_525.zarr",
+         "pipeline_name": "SmartSPIM Pipeline",
+         "process_type": "Image tile fusing",
+         "resources": {
+            "architecture": "x86_64",
+            "cpu": null,
+            "cpu_cores": 16,
+            "cpu_usage": [],
+            "gpu": null,
+            "gpu_usage": null,
+            "object_type": "Resource usage",
+            "os": "Linux",
+            "ram": null,
+            "ram_unit": "Gigabyte",
+            "ram_usage": [],
+            "system_memory": 495.78,
+            "system_memory_unit": "Gigabyte",
+            "usage_unit": "percent"
+         },
+         "stage": "Processing",
+         "start_date_time": "2026-10-29T17:57:31.205624Z"
+      },
+      {
+         "code": {
+            "commit_hash": null,
+            "container": null,
+            "core_dependency": null,
+            "input_data": null,
+            "language": null,
+            "language_version": null,
+            "name": "aind-smartspim-ccf-registration",
+            "object_type": "Code",
+            "parameters": null,
+            "run_script": null,
+            "url": "https://github.com/AllenNeuralDynamics/aind-smartspim-ccf-registration",
+            "version": "0.0.37"
+         },
+         "end_date_time": "2026-10-29T20:10:39.896276Z",
+         "experimenters": [
+            "Camilo Laiton",
+            "Di Wang",
+            "Nicholas Lusk",
+            "Yoni Browning"
+         ],
+         "name": "Image importing - Ex_639_Em_680",
+         "notes": "Importing fused data for alignment",
+         "object_type": "Data process",
+         "output_parameters": {
+            "duration_seconds": 2.576035,
+            "input_location": "/tmp/nxf.E5W8W4S2Ih/capsule/data/fused/Ex_639_Em_680.zarr/3"
+         },
+         "output_path": "/tmp/nxf.E5W8W4S2Ih/capsule/data/fused/Ex_639_Em_680.zarr/3",
+         "pipeline_name": "SmartSPIM Pipeline",
+         "process_type": "Image importing",
+         "resources": {
+            "architecture": "x86_64",
+            "cpu": null,
+            "cpu_cores": 16,
+            "cpu_usage": [],
+            "gpu": null,
+            "gpu_usage": null,
+            "object_type": "Resource usage",
+            "os": "Linux",
+            "ram": null,
+            "ram_unit": "Gigabyte",
+            "ram_usage": [],
+            "system_memory": 371.76,
+            "system_memory_unit": "Gigabyte",
+            "usage_unit": "percent"
+         },
+         "stage": "Processing",
+         "start_date_time": "2026-10-29T20:10:37.320241Z"
+      },
+      {
+         "code": {
+            "commit_hash": null,
+            "container": null,
+            "core_dependency": null,
+            "input_data": null,
+            "language": null,
+            "language_version": null,
+            "name": "ANTs",
+            "object_type": "Code",
+            "parameters": null,
+            "run_script": null,
+            "url": "https://github.com/ANTsX/ANTs",
+            "version": "0.6.3"
+         },
+         "end_date_time": "2026-10-29T20:33:32.282584Z",
+         "experimenters": [
+            "Camilo Laiton",
+            "Di Wang",
+            "Nicholas Lusk",
+            "Yoni Browning"
+         ],
+         "name": "Atlas alignment (LS -> template -> CCF) - Ex_639_Em_680",
+         "notes": "Template based registration: LS -> template -> Allen CCFv3 Atlas",
+         "object_type": "Data process",
+         "output_parameters": {
+            "duration_seconds": 1372.385454,
+            "input_location": "/tmp/nxf.E5W8W4S2Ih/capsule/data/fused/Ex_639_Em_680.zarr/3",
+            "parameters": {
+               "affine_path": "/tmp/nxf.E5W8W4S2Ih/capsule/results/ccf_Ex_639_Em_680/metadata/registration_metadata/moved_affine.nii.gz",
+               "ccf_anno_to_brain_path": "/tmp/nxf.E5W8W4S2Ih/capsule/results/ccf_Ex_639_Em_680/metadata/registration_metadata/moved_ccf_anno_to_ls.nii.gz",
+               "moved_to_ccf_path": "../results/ccf_Ex_639_Em_680/moved_ls_to_ccf.nii.gz",
+               "moved_to_template_path": "/tmp/nxf.E5W8W4S2Ih/capsule/results/ccf_Ex_639_Em_680/metadata/registration_metadata/moved_ls_to_template.nii.gz",
+               "new_spacing": [
+                  25,
+                  25,
+                  25
+               ],
+               "rigid_path": "/tmp/nxf.E5W8W4S2Ih/capsule/results/ccf_Ex_639_Em_680/metadata/registration_metadata/moved_rigid.nii.gz",
+               "spacing": [
+                  0.016,
+                  0.0144,
+                  0.0144
+               ],
+               "template_orientations": {
+                  "anterior_to_posterior": 1,
+                  "right_to_left": 0,
+                  "superior_to_inferior": 2
+               },
+               "unit": "millimetre"
+            }
+         },
+         "output_path": "/tmp/nxf.E5W8W4S2Ih/capsule/results/ccf_Ex_639_Em_680/metadata/registration_metadata",
+         "pipeline_name": "SmartSPIM Pipeline",
+         "process_type": "Image atlas alignment",
+         "resources": {
+            "architecture": "x86_64",
+            "cpu": null,
+            "cpu_cores": 16,
+            "cpu_usage": [],
+            "gpu": null,
+            "gpu_usage": null,
+            "object_type": "Resource usage",
+            "os": "Linux",
+            "ram": null,
+            "ram_unit": "Gigabyte",
+            "ram_usage": [],
+            "system_memory": 371.76,
+            "system_memory_unit": "Gigabyte",
+            "usage_unit": "percent"
+         },
+         "stage": "Processing",
+         "start_date_time": "2026-10-29T20:10:39.897130Z"
+      },
+      {
+         "code": {
+            "commit_hash": null,
+            "container": null,
+            "core_dependency": null,
+            "input_data": null,
+            "language": null,
+            "language_version": null,
+            "name": "aind-smartspim-ccf-registration",
+            "object_type": "Code",
+            "parameters": null,
+            "run_script": null,
+            "url": "https://github.com/AllenNeuralDynamics/aind-smartspim-ccf-registration",
+            "version": "0.0.37"
+         },
+         "end_date_time": "2026-10-29T20:33:34.396753Z",
+         "experimenters": [
+            "Camilo Laiton",
+            "Di Wang",
+            "Nicholas Lusk",
+            "Yoni Browning"
+         ],
+         "name": "OMEZarr conversion - Ex_639_Em_680",
+         "notes": "Converting registered image to OMEZarr",
+         "object_type": "Data process",
+         "output_parameters": {
+            "duration_seconds": 2.113635,
+            "input_location": "In memory array",
+            "parameters": {
+               "OMEZarr_params": {
+                  "chunk_size": [
+                     128,
+                     128,
+                     128
+                  ],
+                  "chunks": [
+                     64,
+                     64,
+                     64
+                  ],
+                  "clevel": 1,
+                  "compressor": "zstd",
+                  "n_lvls": 4,
+                  "scale_factor": [
+                     2,
+                     2,
+                     2
+                  ],
+                  "shard_size": [
+                     512,
+                     512,
+                     512
+                  ]
+               },
+               "pixel_sizes": [
+                  25,
+                  25,
+                  25
+               ]
+            }
+         },
+         "output_path": "/tmp/nxf.E5W8W4S2Ih/capsule/results/ccf_Ex_639_Em_680/OMEZarr/image.zarr",
+         "pipeline_name": "SmartSPIM Pipeline",
+         "process_type": "File format conversion",
+         "resources": {
+            "architecture": "x86_64",
+            "cpu": null,
+            "cpu_cores": 16,
+            "cpu_usage": [],
+            "gpu": null,
+            "gpu_usage": null,
+            "object_type": "Resource usage",
+            "os": "Linux",
+            "ram": null,
+            "ram_unit": "Gigabyte",
+            "ram_usage": [],
+            "system_memory": 371.76,
+            "system_memory_unit": "Gigabyte",
+            "usage_unit": "percent"
+         },
+         "stage": "Processing",
+         "start_date_time": "2026-10-29T20:33:32.283118Z"
+      },
+      {
+         "code": {
+            "commit_hash": null,
+            "container": null,
+            "core_dependency": null,
+            "input_data": null,
+            "language": null,
+            "language_version": null,
+            "name": "ANTs",
+            "object_type": "Code",
+            "parameters": null,
+            "run_script": null,
+            "url": "https://github.com/ANTsX/ANTs",
+            "version": "0.6.3"
+         },
+         "end_date_time": "2026-10-29T20:38:50.454302Z",
+         "experimenters": [
+            "Camilo Laiton",
+            "Di Wang",
+            "Nicholas Lusk",
+            "Yoni Browning"
+         ],
+         "name": "Reverse annotation alignment (CCF -> LS) - Ex_639_Em_680",
+         "notes": "Template based reversed registration: annotations in template space -> LS",
+         "object_type": "Data process",
+         "output_parameters": {
+            "duration_seconds": 316.057102,
+            "input_location": "/tmp/nxf.E5W8W4S2Ih/capsule/data/fused/Ex_639_Em_680.zarr/3",
+            "parameters": {
+               "affine_path": "/tmp/nxf.E5W8W4S2Ih/capsule/results/ccf_Ex_639_Em_680/metadata/registration_metadata/moved_affine.nii.gz",
+               "ccf_anno_to_brain_path": "/tmp/nxf.E5W8W4S2Ih/capsule/results/ccf_Ex_639_Em_680/metadata/registration_metadata/moved_ccf_anno_to_ls.nii.gz",
+               "moved_to_ccf_path": "../results/ccf_Ex_639_Em_680/moved_ls_to_ccf.nii.gz",
+               "moved_to_template_path": "/tmp/nxf.E5W8W4S2Ih/capsule/results/ccf_Ex_639_Em_680/metadata/registration_metadata/moved_ls_to_template.nii.gz",
+               "new_spacing": [
+                  25,
+                  25,
+                  25
+               ],
+               "rigid_path": "/tmp/nxf.E5W8W4S2Ih/capsule/results/ccf_Ex_639_Em_680/metadata/registration_metadata/moved_rigid.nii.gz",
+               "spacing": [
+                  0.016,
+                  0.0144,
+                  0.0144
+               ],
+               "template_orientations": {
+                  "anterior_to_posterior": 1,
+                  "right_to_left": 0,
+                  "superior_to_inferior": 2
+               },
+               "unit": "millimetre"
+            }
+         },
+         "output_path": "/tmp/nxf.E5W8W4S2Ih/capsule/data/fused/Ex_639_Em_680.zarr/3",
+         "pipeline_name": "SmartSPIM Pipeline",
+         "process_type": "Image atlas alignment",
+         "resources": {
+            "architecture": "x86_64",
+            "cpu": null,
+            "cpu_cores": 16,
+            "cpu_usage": [],
+            "gpu": null,
+            "gpu_usage": null,
+            "object_type": "Resource usage",
+            "os": "Linux",
+            "ram": null,
+            "ram_unit": "Gigabyte",
+            "ram_usage": [],
+            "system_memory": 371.76,
+            "system_memory_unit": "Gigabyte",
+            "usage_unit": "percent"
+         },
+         "stage": "Processing",
+         "start_date_time": "2026-10-29T20:33:34.397200Z"
+      }
+   ],
+   "dependency_graph": {
+      "Atlas alignment (LS -> template -> CCF) - Ex_639_Em_680": [
+         "Image importing - Ex_639_Em_680"
+      ],
+      "BigStitcher phase correlation + global optimization - Ex_639_Em_680": [
+         "Flatfield estimation - Ex_639_Em_680"
+      ],
+      "Flatfield estimation - Ex_488_Em_525": [],
+      "Flatfield estimation - Ex_561_Em_600": [
+         "Flatfield estimation - Ex_488_Em_525"
+      ],
+      "Flatfield estimation - Ex_639_Em_680": [
+         "Flatfield estimation - Ex_561_Em_600"
+      ],
+      "Image importing - Ex_639_Em_680": [
+         "Image tile fusing - Ex_639_Em_680"
+      ],
+      "Image tile fusing - Ex_488_Em_525": [
+         "BigStitcher phase correlation + global optimization - Ex_639_Em_680"
+      ],
+      "Image tile fusing - Ex_561_Em_600": [
+         "BigStitcher phase correlation + global optimization - Ex_639_Em_680"
+      ],
+      "Image tile fusing - Ex_639_Em_680": [
+         "BigStitcher phase correlation + global optimization - Ex_639_Em_680"
+      ],
+      "OMEZarr conversion - Ex_639_Em_680": [
+         "Atlas alignment (LS -> template -> CCF) - Ex_639_Em_680"
+      ],
+      "Reverse annotation alignment (CCF -> LS) - Ex_639_Em_680": [
+         "OMEZarr conversion - Ex_639_Em_680"
+      ]
+   },
+   "describedBy": "https://raw.githubusercontent.com/AllenNeuralDynamics/aind-data-schema/main/src/aind_data_schema/core/processing.py",
+   "notes": "SmartSPIM light-sheet microscopy image processing pipeline. Root record rebuilt from the per-step processing records by aind-data-migration-scripts 2026-11-05_processing_jsons; per-second resource usage samples are kept in the per-step records only; Processes were reordered by start_date_time",
+   "object_type": "Processing",
+   "pipelines": [
+      {
+         "commit_hash": null,
+         "container": null,
+         "core_dependency": null,
+         "input_data": null,
+         "language": null,
+         "language_version": null,
+         "name": "SmartSPIM Pipeline",
+         "object_type": "Code",
+         "parameters": null,
+         "run_script": null,
+         "url": "https://github.com/AllenNeuralDynamics/aind-smartspim-pipeline",
+         "version": "6.0.0"
+      }
+   ],
+   "schema_version": "2.3.3"
+}

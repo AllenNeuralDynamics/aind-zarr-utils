@@ -1,0 +1,856 @@
+{
+  "_id": "5753ae1f-3b32-4304-adb2-3ef539a12e0e",
+  "name": "SmartSPIM_771432_2025-04-19_18-48-34_stitched_2025-04-21_02-56-20",
+  "location": "s3://aind-open-data/SmartSPIM_771432_2025-04-19_18-48-34_stitched_2025-04-21_02-56-20",
+  "processing": {
+    "schema_version": "2.3.2",
+    "describedBy": "https://raw.githubusercontent.com/AllenNeuralDynamics/aind-data-schema/main/src/aind_data_schema/core/processing.py",
+    "data_processes": [
+      {
+        "object_type": "Data process",
+        "process_type": "Image flat-field correction",
+        "name": "Image flat-field correction",
+        "stage": "Processing",
+        "code": {
+          "object_type": "Code",
+          "url": "https://github.com/AllenNeuralDynamics/aind-smartspim-flatfield-estimation",
+          "name": "Image flat-field correction",
+          "version": "0.0.1",
+          "commit_hash": null,
+          "container": null,
+          "run_script": null,
+          "language": null,
+          "language_version": null,
+          "input_data": null,
+          "parameters": {
+            "shading_parameters": {
+              "get_darkfield": false,
+              "max_reweight_iterations": 35,
+              "max_workers": 16,
+              "resize_mode": "skimage_dask",
+              "smoothness_darkfield": 20,
+              "smoothness_flatfield": 1,
+              "sort_intensity": true
+            }
+          },
+          "core_dependency": null
+        },
+        "experimenters": [
+          "Camilo Laiton"
+        ],
+        "pipeline_name": "Processing Pipeline",
+        "start_date_time": "2025-04-20 12:20:19.594899+00:00",
+        "end_date_time": "2025-04-20 12:34:02.753875+00:00",
+        "output_path": "/tmp/nxf.0J6juMZL8L/capsule/results",
+        "output_parameters": {
+          "flatfield_paths": [
+            "/tmp/nxf.0J6juMZL8L/capsule/results/estimated_flat_laser_Ex_639_Em_667_side_0.tif",
+            "/tmp/nxf.0J6juMZL8L/capsule/results/estimated_flat_laser_Ex_639_Em_667_side_1.tif"
+          ]
+        },
+        "notes": "Flatfield estimation for channel Ex_639_Em_667",
+        "resources": null
+      },
+      {
+        "object_type": "Data process",
+        "process_type": "Image flat-field correction",
+        "name": "Image flat-field correction_2",
+        "stage": "Processing",
+        "code": {
+          "object_type": "Code",
+          "url": "https://github.com/AllenNeuralDynamics/aind-smartspim-flatfield-estimation",
+          "name": "Image flat-field correction",
+          "version": "0.0.1",
+          "commit_hash": null,
+          "container": null,
+          "run_script": null,
+          "language": null,
+          "language_version": null,
+          "input_data": null,
+          "parameters": {
+            "shading_parameters": {
+              "get_darkfield": false,
+              "max_reweight_iterations": 35,
+              "max_workers": 16,
+              "resize_mode": "skimage_dask",
+              "smoothness_darkfield": 20,
+              "smoothness_flatfield": 1,
+              "sort_intensity": true
+            }
+          },
+          "core_dependency": null
+        },
+        "experimenters": [
+          "Camilo Laiton"
+        ],
+        "pipeline_name": "Processing Pipeline",
+        "start_date_time": "2025-04-20 12:34:02.754037+00:00",
+        "end_date_time": "2025-04-20 12:48:58.342869+00:00",
+        "output_path": "/tmp/nxf.0J6juMZL8L/capsule/results",
+        "output_parameters": {
+          "flatfield_paths": [
+            "/tmp/nxf.0J6juMZL8L/capsule/results/estimated_flat_laser_Ex_561_Em_593_side_0.tif",
+            "/tmp/nxf.0J6juMZL8L/capsule/results/estimated_flat_laser_Ex_561_Em_593_side_1.tif"
+          ]
+        },
+        "notes": "Flatfield estimation for channel Ex_561_Em_593",
+        "resources": null
+      },
+      {
+        "object_type": "Data process",
+        "process_type": "Image flat-field correction",
+        "name": "Image flat-field correction_3",
+        "stage": "Processing",
+        "code": {
+          "object_type": "Code",
+          "url": "https://github.com/AllenNeuralDynamics/aind-smartspim-flatfield-estimation",
+          "name": "Image flat-field correction",
+          "version": "0.0.1",
+          "commit_hash": null,
+          "container": null,
+          "run_script": null,
+          "language": null,
+          "language_version": null,
+          "input_data": null,
+          "parameters": {
+            "shading_parameters": {
+              "get_darkfield": false,
+              "max_reweight_iterations": 35,
+              "max_workers": 16,
+              "resize_mode": "skimage_dask",
+              "smoothness_darkfield": 20,
+              "smoothness_flatfield": 1,
+              "sort_intensity": true
+            }
+          },
+          "core_dependency": null
+        },
+        "experimenters": [
+          "Camilo Laiton"
+        ],
+        "pipeline_name": "Processing Pipeline",
+        "start_date_time": "2025-04-20 12:48:58.342965+00:00",
+        "end_date_time": "2025-04-20 13:06:40.297551+00:00",
+        "output_path": "/tmp/nxf.0J6juMZL8L/capsule/results",
+        "output_parameters": {
+          "flatfield_paths": [
+            "/tmp/nxf.0J6juMZL8L/capsule/results/estimated_flat_laser_Ex_665_Em_700_side_0.tif",
+            "/tmp/nxf.0J6juMZL8L/capsule/results/estimated_flat_laser_Ex_665_Em_700_side_1.tif"
+          ]
+        },
+        "notes": "Flatfield estimation for channel Ex_665_Em_700",
+        "resources": null
+      },
+      {
+        "object_type": "Data process",
+        "process_type": "Image destriping",
+        "name": "Image destriping",
+        "stage": "Processing",
+        "code": {
+          "object_type": "Code",
+          "url": "https://github.com/AllenNeuralDynamics/aind-smartspim-destripe",
+          "name": "Image destriping",
+          "version": "0.0.4",
+          "commit_hash": null,
+          "container": null,
+          "run_script": null,
+          "language": null,
+          "language_version": null,
+          "input_data": null,
+          "parameters": {
+            "cells_config": {
+              "level": null,
+              "max_threshold": 3,
+              "sigma": 64,
+              "wavelet": "db3"
+            },
+            "no_cells_config": {
+              "level": null,
+              "max_threshold": 12,
+              "sigma": 128,
+              "wavelet": "db3"
+            },
+            "retrospective": true
+          },
+          "core_dependency": null
+        },
+        "experimenters": [
+          "Camilo Laiton"
+        ],
+        "pipeline_name": "Processing Pipeline",
+        "start_date_time": "2025-04-20 13:51:38.725699+00:00",
+        "end_date_time": "2025-04-20 17:02:36.400682+00:00",
+        "output_path": "/tmp/nxf.os8yv2EBh4/capsule/results",
+        "output_parameters": {},
+        "notes": "Destriping for channel Ex_665_Em_700 in zarr format",
+        "resources": null
+      },
+      {
+        "object_type": "Data process",
+        "process_type": "Image flat-field correction",
+        "name": "Image flat-field correction_4",
+        "stage": "Processing",
+        "code": {
+          "object_type": "Code",
+          "url": "https://github.com/AllenNeuralDynamics/aind-smartspim-destripe",
+          "name": "Image flat-field correction",
+          "version": "0.0.4",
+          "commit_hash": null,
+          "container": null,
+          "run_script": null,
+          "language": null,
+          "language_version": null,
+          "input_data": null,
+          "parameters": {},
+          "core_dependency": null
+        },
+        "experimenters": [
+          "Camilo Laiton"
+        ],
+        "pipeline_name": "Processing Pipeline",
+        "start_date_time": "2025-04-20 13:51:38.725699+00:00",
+        "end_date_time": "2025-04-20 17:02:36.400682+00:00",
+        "output_path": "/tmp/nxf.os8yv2EBh4/capsule/results",
+        "output_parameters": {},
+        "notes": "The flats were computed from the data             with basicpy, these were applied with the destriping algorithm             and with the current dark from the microscope.\n            ",
+        "resources": null
+      },
+      {
+        "object_type": "Data process",
+        "process_type": "Image destriping",
+        "name": "Image destriping_3",
+        "stage": "Processing",
+        "code": {
+          "object_type": "Code",
+          "url": "https://github.com/AllenNeuralDynamics/aind-smartspim-destripe",
+          "name": "Image destriping",
+          "version": "0.0.4",
+          "commit_hash": null,
+          "container": null,
+          "run_script": null,
+          "language": null,
+          "language_version": null,
+          "input_data": null,
+          "parameters": {
+            "cells_config": {
+              "level": null,
+              "max_threshold": 3,
+              "sigma": 64,
+              "wavelet": "db3"
+            },
+            "no_cells_config": {
+              "level": null,
+              "max_threshold": 12,
+              "sigma": 128,
+              "wavelet": "db3"
+            },
+            "retrospective": true
+          },
+          "core_dependency": null
+        },
+        "experimenters": [
+          "Camilo Laiton"
+        ],
+        "pipeline_name": "Processing Pipeline",
+        "start_date_time": "2025-04-20 13:54:37.206408+00:00",
+        "end_date_time": "2025-04-20 17:22:04.515084+00:00",
+        "output_path": "/tmp/nxf.z9sof6zCCB/capsule/results",
+        "output_parameters": {},
+        "notes": "Destriping for channel Ex_639_Em_667 in zarr format",
+        "resources": null
+      },
+      {
+        "object_type": "Data process",
+        "process_type": "Image flat-field correction",
+        "name": "Image flat-field correction_6",
+        "stage": "Processing",
+        "code": {
+          "object_type": "Code",
+          "url": "https://github.com/AllenNeuralDynamics/aind-smartspim-destripe",
+          "name": "Image flat-field correction",
+          "version": "0.0.4",
+          "commit_hash": null,
+          "container": null,
+          "run_script": null,
+          "language": null,
+          "language_version": null,
+          "input_data": null,
+          "parameters": {},
+          "core_dependency": null
+        },
+        "experimenters": [
+          "Camilo Laiton"
+        ],
+        "pipeline_name": "Processing Pipeline",
+        "start_date_time": "2025-04-20 13:54:37.206408+00:00",
+        "end_date_time": "2025-04-20 17:22:04.515084+00:00",
+        "output_path": "/tmp/nxf.z9sof6zCCB/capsule/results",
+        "output_parameters": {},
+        "notes": "The flats were computed from the data             with basicpy, these were applied with the destriping algorithm             and with the current dark from the microscope.\n            ",
+        "resources": null
+      },
+      {
+        "object_type": "Data process",
+        "process_type": "Image destriping",
+        "name": "Image destriping_2",
+        "stage": "Processing",
+        "code": {
+          "object_type": "Code",
+          "url": "https://github.com/AllenNeuralDynamics/aind-smartspim-destripe",
+          "name": "Image destriping",
+          "version": "0.0.4",
+          "commit_hash": null,
+          "container": null,
+          "run_script": null,
+          "language": null,
+          "language_version": null,
+          "input_data": null,
+          "parameters": {
+            "cells_config": {
+              "level": null,
+              "max_threshold": 3,
+              "sigma": 64,
+              "wavelet": "db3"
+            },
+            "no_cells_config": {
+              "level": null,
+              "max_threshold": 12,
+              "sigma": 128,
+              "wavelet": "db3"
+            },
+            "retrospective": true
+          },
+          "core_dependency": null
+        },
+        "experimenters": [
+          "Camilo Laiton"
+        ],
+        "pipeline_name": "Processing Pipeline",
+        "start_date_time": "2025-04-20 13:57:30.720469+00:00",
+        "end_date_time": "2025-04-20 17:10:11.700154+00:00",
+        "output_path": "/tmp/nxf.Jik68tIW9u/capsule/results",
+        "output_parameters": {},
+        "notes": "Destriping for channel Ex_561_Em_593 in zarr format",
+        "resources": null
+      },
+      {
+        "object_type": "Data process",
+        "process_type": "Image flat-field correction",
+        "name": "Image flat-field correction_5",
+        "stage": "Processing",
+        "code": {
+          "object_type": "Code",
+          "url": "https://github.com/AllenNeuralDynamics/aind-smartspim-destripe",
+          "name": "Image flat-field correction",
+          "version": "0.0.4",
+          "commit_hash": null,
+          "container": null,
+          "run_script": null,
+          "language": null,
+          "language_version": null,
+          "input_data": null,
+          "parameters": {},
+          "core_dependency": null
+        },
+        "experimenters": [
+          "Camilo Laiton"
+        ],
+        "pipeline_name": "Processing Pipeline",
+        "start_date_time": "2025-04-20 13:57:30.720469+00:00",
+        "end_date_time": "2025-04-20 17:10:11.700154+00:00",
+        "output_path": "/tmp/nxf.Jik68tIW9u/capsule/results",
+        "output_parameters": {},
+        "notes": "The flats were computed from the data             with basicpy, these were applied with the destriping algorithm             and with the current dark from the microscope.\n            ",
+        "resources": null
+      },
+      {
+        "object_type": "Data process",
+        "process_type": "Image tile alignment",
+        "name": "Image tile alignment",
+        "stage": "Processing",
+        "code": {
+          "object_type": "Code",
+          "url": "",
+          "name": "Image tile alignment",
+          "version": "1.2.5",
+          "commit_hash": null,
+          "container": null,
+          "run_script": null,
+          "language": null,
+          "language_version": null,
+          "input_data": null,
+          "parameters": {
+            "dataset_xml": "/tmp/nxf.TOzQnlQGUw/capsule/results/SmartSPIM_771432_2025-04-19_18-48-34_stitching_channel_Ex_561_Em_593.xml",
+            "do_detection": false,
+            "do_phase_correlation": true,
+            "do_registrations": false,
+            "memgb": 100,
+            "parallel": "16",
+            "phase_correlation_params": {
+              "downsample": 0,
+              "max_shift_in_x": 10,
+              "max_shift_in_y": 10,
+              "max_shift_in_z": 10,
+              "min_correlation": 0.6
+            },
+            "session_id": "SmartSPIM_771432_2025-04-19_18-48-34"
+          },
+          "core_dependency": null
+        },
+        "experimenters": [
+          "Camilo Laiton"
+        ],
+        "pipeline_name": "Processing Pipeline",
+        "start_date_time": "2025-04-20 19:58:42.516991+00:00",
+        "end_date_time": "2025-04-20 19:58:42.767617+00:00",
+        "output_path": "/tmp/nxf.TOzQnlQGUw/capsule/results/SmartSPIM_771432_2025-04-19_18-48-34_stitch_channel_Ex_561_Em_593_params.json",
+        "output_parameters": {
+          "output_file": "/tmp/nxf.TOzQnlQGUw/capsule/results/SmartSPIM_771432_2025-04-19_18-48-34_stitch_channel_Ex_561_Em_593_params.json"
+        },
+        "notes": "Creation of stitching parameters",
+        "resources": null
+      },
+      {
+        "object_type": "Data process",
+        "process_type": "Image tile fusing",
+        "name": "Image tile fusing",
+        "stage": "Processing",
+        "code": {
+          "object_type": "Code",
+          "url": "",
+          "name": "Image tile fusing",
+          "version": "0.0.2",
+          "commit_hash": null,
+          "container": null,
+          "run_script": null,
+          "language": null,
+          "language_version": null,
+          "input_data": null,
+          "parameters": {
+            "n_workers": 16,
+            "pyramid_levels": 4,
+            "scale_factor": [
+              2,
+              2,
+              2
+            ],
+            "threads_per_worker": 1,
+            "voxel_resolution": [
+              1.8,
+              1.8,
+              2
+            ]
+          },
+          "core_dependency": null
+        },
+        "experimenters": [
+          "Camilo Laiton"
+        ],
+        "pipeline_name": "Processing Pipeline",
+        "start_date_time": "2025-04-20 21:05:35.969888+00:00",
+        "end_date_time": "2025-04-21 00:12:19.242445+00:00",
+        "output_path": "/tmp/nxf.GH0xaZ5Efk/capsule/results/Ex_665_Em_700.zarr",
+        "output_parameters": {},
+        "notes": "Fusing channel Ex_665_Em_700.zarr",
+        "resources": null
+      },
+      {
+        "object_type": "Data process",
+        "process_type": "Image tile fusing",
+        "name": "Image tile fusing_2",
+        "stage": "Processing",
+        "code": {
+          "object_type": "Code",
+          "url": "",
+          "name": "Image tile fusing",
+          "version": "0.0.2",
+          "commit_hash": null,
+          "container": null,
+          "run_script": null,
+          "language": null,
+          "language_version": null,
+          "input_data": null,
+          "parameters": {
+            "n_workers": 16,
+            "pyramid_levels": 4,
+            "scale_factor": [
+              2,
+              2,
+              2
+            ],
+            "threads_per_worker": 1,
+            "voxel_resolution": [
+              1.8,
+              1.8,
+              2
+            ]
+          },
+          "core_dependency": null
+        },
+        "experimenters": [
+          "Camilo Laiton"
+        ],
+        "pipeline_name": "Processing Pipeline",
+        "start_date_time": "2025-04-20 21:06:15.282505+00:00",
+        "end_date_time": "2025-04-21 00:13:00.477200+00:00",
+        "output_path": "/tmp/nxf.TV5UxwvpJv/capsule/results/Ex_639_Em_667.zarr",
+        "output_parameters": {},
+        "notes": "Fusing channel Ex_639_Em_667.zarr",
+        "resources": null
+      },
+      {
+        "object_type": "Data process",
+        "process_type": "Image tile fusing",
+        "name": "Image tile fusing_3",
+        "stage": "Processing",
+        "code": {
+          "object_type": "Code",
+          "url": "",
+          "name": "Image tile fusing",
+          "version": "0.0.2",
+          "commit_hash": null,
+          "container": null,
+          "run_script": null,
+          "language": null,
+          "language_version": null,
+          "input_data": null,
+          "parameters": {
+            "n_workers": 16,
+            "pyramid_levels": 4,
+            "scale_factor": [
+              2,
+              2,
+              2
+            ],
+            "threads_per_worker": 1,
+            "voxel_resolution": [
+              1.8,
+              1.8,
+              2
+            ]
+          },
+          "core_dependency": null
+        },
+        "experimenters": [
+          "Camilo Laiton"
+        ],
+        "pipeline_name": "Processing Pipeline",
+        "start_date_time": "2025-04-20 21:06:49.601445+00:00",
+        "end_date_time": "2025-04-21 00:14:24.872386+00:00",
+        "output_path": "/tmp/nxf.1CF5SOgR4h/capsule/results/Ex_561_Em_593.zarr",
+        "output_parameters": {},
+        "notes": "Fusing channel Ex_561_Em_593.zarr",
+        "resources": null
+      },
+      {
+        "object_type": "Data process",
+        "process_type": "Image importing",
+        "name": "Image importing",
+        "stage": "Processing",
+        "code": {
+          "object_type": "Code",
+          "url": "https://github.com/AllenNeuralDynamics/aind-ccf-registration",
+          "name": "Image importing",
+          "version": "0.0.31",
+          "commit_hash": null,
+          "container": null,
+          "run_script": null,
+          "language": null,
+          "language_version": null,
+          "input_data": null,
+          "parameters": {},
+          "core_dependency": null
+        },
+        "experimenters": [
+          "Camilo Laiton"
+        ],
+        "pipeline_name": "Processing Pipeline",
+        "start_date_time": "2025-04-21 01:27:35.865412+00:00",
+        "end_date_time": "2025-04-21 01:27:41.088756+00:00",
+        "output_path": "/tmp/nxf.sf664Sb4Lr/capsule/data/fused/Ex_639_Em_667.zarr/3",
+        "output_parameters": {},
+        "notes": "Importing fused data for alignment",
+        "resources": null
+      },
+      {
+        "object_type": "Data process",
+        "process_type": "Image atlas alignment",
+        "name": "Image atlas alignment",
+        "stage": "Processing",
+        "code": {
+          "object_type": "Code",
+          "url": "https://github.com/ANTsX/ANTs",
+          "name": "Image atlas alignment",
+          "version": "0.4.2",
+          "commit_hash": null,
+          "container": null,
+          "run_script": null,
+          "language": null,
+          "language_version": null,
+          "input_data": null,
+          "parameters": {
+            "affine_path": "/tmp/nxf.sf664Sb4Lr/capsule/results/ccf_Ex_639_Em_667/metadata/registration_metadata/moved_affine.nii.gz",
+            "ccf_anno_to_brain_path": "/tmp/nxf.sf664Sb4Lr/capsule/results/ccf_Ex_639_Em_667/metadata/registration_metadata/moved_ccf_anno_to_ls.nii.gz",
+            "moved_to_ccf_path": "../results/ccf_Ex_639_Em_667/moved_ls_to_ccf.nii.gz",
+            "moved_to_template_path": "/tmp/nxf.sf664Sb4Lr/capsule/results/ccf_Ex_639_Em_667/metadata/registration_metadata/moved_ls_to_template.nii.gz",
+            "new_spacing": [
+              25,
+              25,
+              25
+            ],
+            "rigid_path": "/tmp/nxf.sf664Sb4Lr/capsule/results/ccf_Ex_639_Em_667/metadata/registration_metadata/moved_rigid.nii.gz",
+            "spacing": [
+              0.016,
+              0.0144,
+              0.0144
+            ],
+            "template_orientations": {
+              "anterior_to_posterior": 1,
+              "right_to_left": 0,
+              "superior_to_inferior": 2
+            },
+            "unit": "millimetre"
+          },
+          "core_dependency": null
+        },
+        "experimenters": [
+          "Camilo Laiton"
+        ],
+        "pipeline_name": "Processing Pipeline",
+        "start_date_time": "2025-04-21 01:27:41.092668+00:00",
+        "end_date_time": "2025-04-21 02:00:46.924874+00:00",
+        "output_path": "/tmp/nxf.sf664Sb4Lr/capsule/results/ccf_Ex_639_Em_667/metadata/registration_metadata",
+        "output_parameters": {},
+        "notes": "Template based registration: LS -> template -> Allen CCFv3 Atlas",
+        "resources": null
+      },
+      {
+        "object_type": "Data process",
+        "process_type": "File format conversion",
+        "name": "File format conversion",
+        "stage": "Processing",
+        "code": {
+          "object_type": "Code",
+          "url": "https://github.com/AllenNeuralDynamics/aind-ccf-registration",
+          "name": "File format conversion",
+          "version": "0.0.31",
+          "commit_hash": null,
+          "container": null,
+          "run_script": null,
+          "language": null,
+          "language_version": null,
+          "input_data": null,
+          "parameters": {
+            "OMEZarr_params": {
+              "chunks": [
+                64,
+                64,
+                64
+              ],
+              "clevel": 1,
+              "compressor": "zstd"
+            },
+            "pixel_sizes": [
+              25,
+              25,
+              25
+            ]
+          },
+          "core_dependency": null
+        },
+        "experimenters": [
+          "Camilo Laiton"
+        ],
+        "pipeline_name": "Processing Pipeline",
+        "start_date_time": "2025-04-21 02:00:46.927056+00:00",
+        "end_date_time": "2025-04-21 02:01:26.230030+00:00",
+        "output_path": "/tmp/nxf.sf664Sb4Lr/capsule/results/ccf_Ex_639_Em_667/OMEZarr/image.zarr",
+        "output_parameters": {},
+        "notes": "Converting registered image to OMEZarr",
+        "resources": null
+      },
+      {
+        "object_type": "Data process",
+        "process_type": "Image atlas alignment",
+        "name": "Image atlas alignment_2",
+        "stage": "Processing",
+        "code": {
+          "object_type": "Code",
+          "url": "https://github.com/ANTsX/ANTs",
+          "name": "Image atlas alignment",
+          "version": "0.4.2",
+          "commit_hash": null,
+          "container": null,
+          "run_script": null,
+          "language": null,
+          "language_version": null,
+          "input_data": null,
+          "parameters": {
+            "affine_path": "/tmp/nxf.sf664Sb4Lr/capsule/results/ccf_Ex_639_Em_667/metadata/registration_metadata/moved_affine.nii.gz",
+            "ccf_anno_to_brain_path": "/tmp/nxf.sf664Sb4Lr/capsule/results/ccf_Ex_639_Em_667/metadata/registration_metadata/moved_ccf_anno_to_ls.nii.gz",
+            "moved_to_ccf_path": "../results/ccf_Ex_639_Em_667/moved_ls_to_ccf.nii.gz",
+            "moved_to_template_path": "/tmp/nxf.sf664Sb4Lr/capsule/results/ccf_Ex_639_Em_667/metadata/registration_metadata/moved_ls_to_template.nii.gz",
+            "new_spacing": [
+              25,
+              25,
+              25
+            ],
+            "rigid_path": "/tmp/nxf.sf664Sb4Lr/capsule/results/ccf_Ex_639_Em_667/metadata/registration_metadata/moved_rigid.nii.gz",
+            "spacing": [
+              0.016,
+              0.0144,
+              0.0144
+            ],
+            "template_orientations": {
+              "anterior_to_posterior": 1,
+              "right_to_left": 0,
+              "superior_to_inferior": 2
+            },
+            "unit": "millimetre"
+          },
+          "core_dependency": null
+        },
+        "experimenters": [
+          "Camilo Laiton"
+        ],
+        "pipeline_name": "Processing Pipeline",
+        "start_date_time": "2025-04-21 02:00:46.927056+00:00",
+        "end_date_time": "2025-04-21 02:09:30.265139+00:00",
+        "output_path": "In memory array",
+        "output_parameters": {},
+        "notes": "Template based reversed registration: annotations in template space -> LS",
+        "resources": null
+      }
+    ],
+    "pipelines": [
+      {
+        "object_type": "Code",
+        "url": "https://github.com/AllenNeuralDynamics/aind-smartspim-pipeline",
+        "name": "Processing Pipeline",
+        "version": "3.0.1",
+        "commit_hash": null,
+        "container": null,
+        "run_script": null,
+        "language": null,
+        "language_version": null,
+        "input_data": null,
+        "parameters": null,
+        "core_dependency": null
+      }
+    ]
+  },
+  "acquisition": {
+    "schema_version": "2.5.4",
+    "describedBy": "https://raw.githubusercontent.com/AllenNeuralDynamics/aind-data-schema/main/src/aind_data_schema/core/acquisition.py",
+    "coordinate_system": {
+      "object_type": "Coordinate system",
+      "name": "SPIM_IPR",
+      "origin": "Origin",
+      "axes": [
+        {
+          "object_type": "Axis",
+          "name": "Z",
+          "direction": "Superior_to_inferior"
+        },
+        {
+          "object_type": "Axis",
+          "name": "Y",
+          "direction": "Anterior_to_posterior"
+        },
+        {
+          "object_type": "Axis",
+          "name": "X",
+          "direction": "Left_to_right"
+        }
+      ],
+      "axis_unit": "micrometer",
+      "handedness": null
+    },
+    "global_coordinate_system": {
+      "object_type": "Coordinate system",
+      "name": "SPIM_IPR",
+      "origin": "Origin",
+      "axes": [
+        {
+          "object_type": "Axis",
+          "name": "Z",
+          "direction": "Superior_to_inferior"
+        },
+        {
+          "object_type": "Axis",
+          "name": "Y",
+          "direction": "Anterior_to_posterior"
+        },
+        {
+          "object_type": "Axis",
+          "name": "X",
+          "direction": "Left_to_right"
+        }
+      ],
+      "axis_unit": "micrometer",
+      "handedness": null
+    },
+    "data_streams": [
+      {
+        "configurations": [
+          {
+            "object_type": "Imaging config",
+            "device_name": "unknown",
+            "coordinate_system": {
+              "object_type": "Coordinate system",
+              "name": "SPIM_IPR",
+              "origin": "Origin",
+              "axes": [
+                {
+                  "object_type": "Axis",
+                  "name": "Z",
+                  "direction": "Superior_to_inferior"
+                },
+                {
+                  "object_type": "Axis",
+                  "name": "Y",
+                  "direction": "Anterior_to_posterior"
+                },
+                {
+                  "object_type": "Axis",
+                  "name": "X",
+                  "direction": "Left_to_right"
+                }
+              ],
+              "axis_unit": "micrometer",
+              "handedness": null
+            },
+            "local_coordinate_system": {
+              "object_type": "Coordinate system",
+              "name": "SPIM_IPR",
+              "origin": "Origin",
+              "axes": [
+                {
+                  "object_type": "Axis",
+                  "name": "Z",
+                  "direction": "Superior_to_inferior"
+                },
+                {
+                  "object_type": "Axis",
+                  "name": "Y",
+                  "direction": "Anterior_to_posterior"
+                },
+                {
+                  "object_type": "Axis",
+                  "name": "X",
+                  "direction": "Left_to_right"
+                }
+              ],
+              "axis_unit": "micrometer",
+              "handedness": null
+            }
+          },
+          {
+            "object_type": "Sample chamber config",
+            "device_name": "440_SmartSPIM1_20250116"
+          }
+        ]
+      }
+    ]
+  }
+}

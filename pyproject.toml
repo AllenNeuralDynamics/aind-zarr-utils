@@ -17,6 +17,7 @@ version = "0.18.0"
 
 dependencies = [
   "aind-anatomical-utils>=0.4",
+  "aind-metadata-reader>=0.2.0,<0.3",
   "aind-registration-utils>=0.1",
   "aind-s3-cache>=0.1",
   # 0.6.0-0.6.1 cap scipy below 1.16 but not numpy, so resolvers pair them with numpy 2.5 and backtrack to

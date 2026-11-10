@@ -14,6 +14,7 @@ import ants  # type: ignore[import-untyped]
 import numpy as np
 import SimpleITK as sitk
 from aind_anatomical_utils.anatomical_volume import fix_corner_compute_origin
+from aind_metadata_reader import Acquisition, CoordinateFrame
 from ants.core import ANTsImage  # type: ignore[import-untyped]
 from numpy.typing import NDArray
 
@@ -29,6 +30,9 @@ from aind_zarr_utils.io.metadata import (
 )
 from aind_zarr_utils.io.metadata import (
     _units_to_meter as _units_to_meter,
+)
+from aind_zarr_utils.io.metadata import (
+    anatomical_axes,
 )
 from aind_zarr_utils.io.metadata import (
     direction_from_acquisition_metadata as direction_from_acquisition_metadata,
@@ -125,7 +129,7 @@ def scaled_points_to_indices(
 
 def _zarr_to_anatomical(
     uri: str,
-    nd_metadata: dict,
+    nd_metadata: dict | Acquisition | CoordinateFrame,
     *,
     level: int = 3,
     scale_unit: str = "millimeter",
@@ -162,7 +166,7 @@ def _zarr_to_anatomical(
         List of size values.
     """
     # Get direction metadata
-    _, axes, directions = direction_from_nd_metadata(nd_metadata)
+    axes, directions = anatomical_axes(nd_metadata)
     metadata_axes_to_dir = {a: d for a, d in zip(axes, directions)}
     image_node, rej_axes, zarr_axes, spacing, size = _zarr_to_scaled(
         uri, level=level, scale_unit=scale_unit, opened_zarr=opened_zarr
@@ -173,7 +177,7 @@ def _zarr_to_anatomical(
 
 def _zarr_to_numpy_anatomical(
     uri: str,
-    nd_metadata: dict,
+    nd_metadata: dict | Acquisition | CoordinateFrame,
     level: int = 3,
     scale_unit: str = "millimeter",
     opened_zarr: tuple[Node, dict] | None = None,
@@ -258,7 +262,7 @@ def _anatomical_to_ants(
 
 def zarr_to_ants(
     uri: str,
-    nd_metadata: dict,
+    nd_metadata: dict | Acquisition | CoordinateFrame,
     level: int = 3,
     scale_unit: str = "millimeter",
     set_origin: tuple[float, float, float] | None = None,
@@ -360,7 +364,7 @@ def _anatomical_to_sitk(
 
 def zarr_to_sitk(
     uri: str,
-    nd_metadata: dict,
+    nd_metadata: dict | Acquisition | CoordinateFrame,
     level: int = 3,
     scale_unit: str = "millimeter",
     set_origin: tuple[float, float, float] | None = None,
@@ -501,7 +505,7 @@ def _level_origin(
 
 def zarr_to_sitk_stub(
     uri: str,
-    nd_metadata: dict,
+    nd_metadata: dict | Acquisition | CoordinateFrame,
     level: int = 0,
     scale_unit: str = "millimeter",
     set_origin: tuple[float, float, float] | None = None,

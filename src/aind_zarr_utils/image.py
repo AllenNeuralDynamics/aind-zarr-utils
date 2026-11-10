@@ -29,6 +29,7 @@ from aind_anatomical_utils.anatomical_volume import (
     fix_corner_compute_origin,
 )
 from aind_anatomical_utils.coordinate_systems import _OPPOSITE_AXES
+from aind_metadata_reader import Acquisition, CoordinateFrame, Process
 from packaging.version import Version
 
 from aind_zarr_utils.domain.overlays import _PIPELINE_MULTISCALE_FACTOR, estimate_pipeline_multiscale
@@ -37,7 +38,7 @@ from aind_zarr_utils.domain.selector import (
     apply_overlays,
     get_selector,
 )
-from aind_zarr_utils.io.processing import _get_zarr_import_process
+from aind_zarr_utils.io.processing import _get_zarr_import_view
 from aind_zarr_utils.io.zarr import _open_zarr
 from aind_zarr_utils.zarr import zarr_to_sitk_stub
 
@@ -49,7 +50,7 @@ if TYPE_CHECKING:
 
 def _pipeline_anatomical_check_args(
     zarr_uri: str,
-    processing_data: dict[str, Any],
+    processing_data: dict[str, Any] | Process,
     opened_zarr: tuple[Node, dict] | None = None,
 ) -> tuple[dict[str, Any], str, Node, dict, int | None]:
     """
@@ -78,11 +79,11 @@ def _pipeline_anatomical_check_args(
     multiscale_no : int or None
         Estimated multiscale number, if determinable.
     """
-    proc = _get_zarr_import_process(processing_data)
+    proc = _get_zarr_import_view(processing_data, zarr_uri)
     if not proc:
         raise ValueError("Could not find zarr import process in processing data")
 
-    zarr_import_version = proc.get("code_version")
+    zarr_import_version = proc.code_version
     if not zarr_import_version:
         raise ValueError("Zarr import version not found in zarr import process")
     if opened_zarr is None:
@@ -90,7 +91,7 @@ def _pipeline_anatomical_check_args(
     else:
         image_node, zarr_meta = opened_zarr
     multiscale_no = estimate_pipeline_multiscale(zarr_meta, Version(zarr_import_version))
-    return proc, zarr_import_version, image_node, zarr_meta, multiscale_no
+    return proc.document.raw, zarr_import_version, image_node, zarr_meta, multiscale_no
 
 
 def _apply_pipeline_overlays_to_header(
@@ -168,8 +169,9 @@ def _rescale_level(header: AnatomicalHeader, factor: float, size_ijk: tuple[int,
 def _build_pipeline_header(
     zarr_uri: str,
     metadata: dict,
-    processing_data: dict,
+    processing_data: dict | Process,
     *,
+    acquisition: Acquisition | CoordinateFrame | None = None,
     overlay_selector: OverlaySelector = get_selector(),
     opened_zarr: tuple[Node, dict] | None = None,
 ) -> tuple[AnatomicalHeader, list[str], AnatomicalHeader]:
@@ -191,6 +193,8 @@ def _build_pipeline_header(
         ND metadata (instrument + acquisition) used by overlays.
     processing_data : dict
         Processing metadata containing version / process list.
+    acquisition : Acquisition or CoordinateFrame, optional
+        Explicit frame selection for image geometry; metadata remains the input to overlay predicates.
     overlay_selector : OverlaySelector, optional
         Selector used to obtain overlay sequence; defaults to the global
         selector.
@@ -212,15 +216,16 @@ def _build_pipeline_header(
     )
 
     registration_level = 3 if multiscale_no is None else multiscale_no
+    geometry_metadata = acquisition if acquisition is not None else metadata
     stub_img, size_ijk = zarr_to_sitk_stub(
         zarr_uri,
-        metadata,
+        geometry_metadata,
         opened_zarr=(image_node, zarr_meta),
     )
     base_header = AnatomicalHeader.from_sitk(stub_img, size_ijk)
     registered_stub, registered_size = zarr_to_sitk_stub(
         zarr_uri,
-        metadata,
+        geometry_metadata,
         level=registration_level,
         opened_zarr=(image_node, zarr_meta),
     )
@@ -288,10 +293,11 @@ def _to_ants_convention(
 def apply_pipeline_overlays(
     img: sitk.Image | ANTsImage,
     zarr_uri: str,
-    processing_data: dict,
+    processing_data: dict | Process,
     metadata: dict,
     level: int = 3,
     *,
+    acquisition: Acquisition | CoordinateFrame | None = None,
     overlay_selector: OverlaySelector = get_selector(),
     opened_zarr: tuple[Node, dict] | None = None,
 ) -> None:
@@ -311,6 +317,8 @@ def apply_pipeline_overlays(
         Processing metadata.
     metadata : dict
         ND (instrument/acquisition) metadata.
+    acquisition : Acquisition or CoordinateFrame, optional
+        Explicit frame selection for image geometry; metadata remains the input to overlay predicates.
     level : int, optional
         Pyramid level of ``img``. Default is 3.
     overlay_selector : OverlaySelector, optional
@@ -335,6 +343,7 @@ def apply_pipeline_overlays(
         zarr_uri,
         metadata,
         processing_data,
+        acquisition=acquisition,
         overlay_selector=overlay_selector,
         opened_zarr=opened_zarr,
     )

@@ -1,0 +1,484 @@
+{
+  "_id": "b554c456-077b-4dd0-83a8-ebddaec1134b",
+  "name": "SmartSPIM_771432_2025-04-19_18-48-34_stitched_2025-04-21_02-56-20",
+  "location": "s3://aind-open-data/SmartSPIM_771432_2025-04-19_18-48-34_stitched_2025-04-21_02-56-20",
+  "processing": {
+    "schema_version": "1.1.4",
+    "describedBy": "https://raw.githubusercontent.com/AllenNeuralDynamics/aind-data-schema/main/src/aind_data_schema/core/processing.py",
+    "processing_pipeline": {
+      "data_processes": [
+        {
+          "code_url": "https://github.com/AllenNeuralDynamics/aind-smartspim-flatfield-estimation",
+          "code_version": "0.0.1",
+          "end_date_time": "2025-04-20T12:34:02.753875Z",
+          "input_location": "/tmp/nxf.0J6juMZL8L/capsule/data/Ex_639_Em_667",
+          "name": "Image flat-field correction",
+          "notes": "Flatfield estimation for channel Ex_639_Em_667",
+          "output_location": "/tmp/nxf.0J6juMZL8L/capsule/results",
+          "outputs": {
+            "flatfield_paths": [
+              "/tmp/nxf.0J6juMZL8L/capsule/results/estimated_flat_laser_Ex_639_Em_667_side_0.tif",
+              "/tmp/nxf.0J6juMZL8L/capsule/results/estimated_flat_laser_Ex_639_Em_667_side_1.tif"
+            ]
+          },
+          "parameters": {
+            "shading_parameters": {
+              "get_darkfield": false,
+              "max_reweight_iterations": 35,
+              "max_workers": 16,
+              "resize_mode": "skimage_dask",
+              "smoothness_darkfield": 20,
+              "smoothness_flatfield": 1,
+              "sort_intensity": true
+            }
+          },
+          "resources": null,
+          "software_version": "0.0.1",
+          "start_date_time": "2025-04-20T12:20:19.594899Z"
+        },
+        {
+          "code_url": "https://github.com/AllenNeuralDynamics/aind-smartspim-flatfield-estimation",
+          "code_version": "0.0.1",
+          "end_date_time": "2025-04-20T12:48:58.342869Z",
+          "input_location": "/tmp/nxf.0J6juMZL8L/capsule/data/Ex_561_Em_593",
+          "name": "Image flat-field correction",
+          "notes": "Flatfield estimation for channel Ex_561_Em_593",
+          "output_location": "/tmp/nxf.0J6juMZL8L/capsule/results",
+          "outputs": {
+            "flatfield_paths": [
+              "/tmp/nxf.0J6juMZL8L/capsule/results/estimated_flat_laser_Ex_561_Em_593_side_0.tif",
+              "/tmp/nxf.0J6juMZL8L/capsule/results/estimated_flat_laser_Ex_561_Em_593_side_1.tif"
+            ]
+          },
+          "parameters": {
+            "shading_parameters": {
+              "get_darkfield": false,
+              "max_reweight_iterations": 35,
+              "max_workers": 16,
+              "resize_mode": "skimage_dask",
+              "smoothness_darkfield": 20,
+              "smoothness_flatfield": 1,
+              "sort_intensity": true
+            }
+          },
+          "resources": null,
+          "software_version": "0.0.1",
+          "start_date_time": "2025-04-20T12:34:02.754037Z"
+        },
+        {
+          "code_url": "https://github.com/AllenNeuralDynamics/aind-smartspim-flatfield-estimation",
+          "code_version": "0.0.1",
+          "end_date_time": "2025-04-20T13:06:40.297551Z",
+          "input_location": "/tmp/nxf.0J6juMZL8L/capsule/data/Ex_665_Em_700",
+          "name": "Image flat-field correction",
+          "notes": "Flatfield estimation for channel Ex_665_Em_700",
+          "output_location": "/tmp/nxf.0J6juMZL8L/capsule/results",
+          "outputs": {
+            "flatfield_paths": [
+              "/tmp/nxf.0J6juMZL8L/capsule/results/estimated_flat_laser_Ex_665_Em_700_side_0.tif",
+              "/tmp/nxf.0J6juMZL8L/capsule/results/estimated_flat_laser_Ex_665_Em_700_side_1.tif"
+            ]
+          },
+          "parameters": {
+            "shading_parameters": {
+              "get_darkfield": false,
+              "max_reweight_iterations": 35,
+              "max_workers": 16,
+              "resize_mode": "skimage_dask",
+              "smoothness_darkfield": 20,
+              "smoothness_flatfield": 1,
+              "sort_intensity": true
+            }
+          },
+          "resources": null,
+          "software_version": "0.0.1",
+          "start_date_time": "2025-04-20T12:48:58.342965Z"
+        },
+        {
+          "code_url": "https://github.com/AllenNeuralDynamics/aind-smartspim-destripe",
+          "code_version": "0.0.4",
+          "end_date_time": "2025-04-20T17:02:36.400682Z",
+          "input_location": "/tmp/nxf.os8yv2EBh4/capsule/data/Ex_665_Em_700",
+          "name": "Image destriping",
+          "notes": "Destriping for channel Ex_665_Em_700 in zarr format",
+          "output_location": "/tmp/nxf.os8yv2EBh4/capsule/results",
+          "outputs": {},
+          "parameters": {
+            "cells_config": {
+              "level": null,
+              "max_threshold": 3,
+              "sigma": 64,
+              "wavelet": "db3"
+            },
+            "no_cells_config": {
+              "level": null,
+              "max_threshold": 12,
+              "sigma": 128,
+              "wavelet": "db3"
+            },
+            "retrospective": true
+          },
+          "resources": null,
+          "software_version": "0.0.4",
+          "start_date_time": "2025-04-20T13:51:38.725699Z"
+        },
+        {
+          "code_url": "https://github.com/AllenNeuralDynamics/aind-smartspim-destripe",
+          "code_version": "0.0.4",
+          "end_date_time": "2025-04-20T17:02:36.400682Z",
+          "input_location": "/tmp/nxf.os8yv2EBh4/capsule/data/Ex_665_Em_700",
+          "name": "Image flat-field correction",
+          "notes": "The flats were computed from the data             with basicpy, these were applied with the destriping algorithm             and with the current dark from the microscope.\n            ",
+          "output_location": "/tmp/nxf.os8yv2EBh4/capsule/results",
+          "outputs": {},
+          "parameters": {},
+          "resources": null,
+          "software_version": "0.0.4",
+          "start_date_time": "2025-04-20T13:51:38.725699Z"
+        },
+        {
+          "code_url": "https://github.com/AllenNeuralDynamics/aind-smartspim-destripe",
+          "code_version": "0.0.4",
+          "end_date_time": "2025-04-20T17:10:11.700154Z",
+          "input_location": "/tmp/nxf.Jik68tIW9u/capsule/data/Ex_561_Em_593",
+          "name": "Image destriping",
+          "notes": "Destriping for channel Ex_561_Em_593 in zarr format",
+          "output_location": "/tmp/nxf.Jik68tIW9u/capsule/results",
+          "outputs": {},
+          "parameters": {
+            "cells_config": {
+              "level": null,
+              "max_threshold": 3,
+              "sigma": 64,
+              "wavelet": "db3"
+            },
+            "no_cells_config": {
+              "level": null,
+              "max_threshold": 12,
+              "sigma": 128,
+              "wavelet": "db3"
+            },
+            "retrospective": true
+          },
+          "resources": null,
+          "software_version": "0.0.4",
+          "start_date_time": "2025-04-20T13:57:30.720469Z"
+        },
+        {
+          "code_url": "https://github.com/AllenNeuralDynamics/aind-smartspim-destripe",
+          "code_version": "0.0.4",
+          "end_date_time": "2025-04-20T17:10:11.700154Z",
+          "input_location": "/tmp/nxf.Jik68tIW9u/capsule/data/Ex_561_Em_593",
+          "name": "Image flat-field correction",
+          "notes": "The flats were computed from the data             with basicpy, these were applied with the destriping algorithm             and with the current dark from the microscope.\n            ",
+          "output_location": "/tmp/nxf.Jik68tIW9u/capsule/results",
+          "outputs": {},
+          "parameters": {},
+          "resources": null,
+          "software_version": "0.0.4",
+          "start_date_time": "2025-04-20T13:57:30.720469Z"
+        },
+        {
+          "code_url": "https://github.com/AllenNeuralDynamics/aind-smartspim-destripe",
+          "code_version": "0.0.4",
+          "end_date_time": "2025-04-20T17:22:04.515084Z",
+          "input_location": "/tmp/nxf.z9sof6zCCB/capsule/data/Ex_639_Em_667",
+          "name": "Image destriping",
+          "notes": "Destriping for channel Ex_639_Em_667 in zarr format",
+          "output_location": "/tmp/nxf.z9sof6zCCB/capsule/results",
+          "outputs": {},
+          "parameters": {
+            "cells_config": {
+              "level": null,
+              "max_threshold": 3,
+              "sigma": 64,
+              "wavelet": "db3"
+            },
+            "no_cells_config": {
+              "level": null,
+              "max_threshold": 12,
+              "sigma": 128,
+              "wavelet": "db3"
+            },
+            "retrospective": true
+          },
+          "resources": null,
+          "software_version": "0.0.4",
+          "start_date_time": "2025-04-20T13:54:37.206408Z"
+        },
+        {
+          "code_url": "https://github.com/AllenNeuralDynamics/aind-smartspim-destripe",
+          "code_version": "0.0.4",
+          "end_date_time": "2025-04-20T17:22:04.515084Z",
+          "input_location": "/tmp/nxf.z9sof6zCCB/capsule/data/Ex_639_Em_667",
+          "name": "Image flat-field correction",
+          "notes": "The flats were computed from the data             with basicpy, these were applied with the destriping algorithm             and with the current dark from the microscope.\n            ",
+          "output_location": "/tmp/nxf.z9sof6zCCB/capsule/results",
+          "outputs": {},
+          "parameters": {},
+          "resources": null,
+          "software_version": "0.0.4",
+          "start_date_time": "2025-04-20T13:54:37.206408Z"
+        },
+        {
+          "code_url": "",
+          "code_version": "1.2.5",
+          "end_date_time": "2025-04-20T19:58:42.767617Z",
+          "input_location": "SmartSPIM_771432_2025-04-19_18-48-34",
+          "name": "Image tile alignment",
+          "notes": "Creation of stitching parameters",
+          "output_location": "/tmp/nxf.TOzQnlQGUw/capsule/results/SmartSPIM_771432_2025-04-19_18-48-34_stitch_channel_Ex_561_Em_593_params.json",
+          "outputs": {
+            "output_file": "/tmp/nxf.TOzQnlQGUw/capsule/results/SmartSPIM_771432_2025-04-19_18-48-34_stitch_channel_Ex_561_Em_593_params.json"
+          },
+          "parameters": {
+            "dataset_xml": "/tmp/nxf.TOzQnlQGUw/capsule/results/SmartSPIM_771432_2025-04-19_18-48-34_stitching_channel_Ex_561_Em_593.xml",
+            "do_detection": false,
+            "do_phase_correlation": true,
+            "do_registrations": false,
+            "memgb": 100,
+            "parallel": "16",
+            "phase_correlation_params": {
+              "downsample": 0,
+              "max_shift_in_x": 10,
+              "max_shift_in_y": 10,
+              "max_shift_in_z": 10,
+              "min_correlation": 0.6
+            },
+            "session_id": "SmartSPIM_771432_2025-04-19_18-48-34"
+          },
+          "resources": null,
+          "software_version": "1.2.11",
+          "start_date_time": "2025-04-20T19:58:42.516991Z"
+        },
+        {
+          "code_url": "",
+          "code_version": "0.0.2",
+          "end_date_time": "2025-04-21T00:12:19.242445Z",
+          "input_location": "/tmp/nxf.GH0xaZ5Efk/capsule/data/bigstitcher.xml",
+          "name": "Image tile fusing",
+          "notes": "Fusing channel Ex_665_Em_700.zarr",
+          "output_location": "/tmp/nxf.GH0xaZ5Efk/capsule/results/Ex_665_Em_700.zarr",
+          "outputs": {},
+          "parameters": {
+            "n_workers": 16,
+            "pyramid_levels": 4,
+            "scale_factor": [
+              2,
+              2,
+              2
+            ],
+            "threads_per_worker": 1,
+            "voxel_resolution": [
+              1.8,
+              1.8,
+              2
+            ]
+          },
+          "resources": null,
+          "software_version": "0.0.2",
+          "start_date_time": "2025-04-20T21:05:35.969888Z"
+        },
+        {
+          "code_url": "",
+          "code_version": "0.0.2",
+          "end_date_time": "2025-04-21T00:13:00.477200Z",
+          "input_location": "/tmp/nxf.TV5UxwvpJv/capsule/data/bigstitcher.xml",
+          "name": "Image tile fusing",
+          "notes": "Fusing channel Ex_639_Em_667.zarr",
+          "output_location": "/tmp/nxf.TV5UxwvpJv/capsule/results/Ex_639_Em_667.zarr",
+          "outputs": {},
+          "parameters": {
+            "n_workers": 16,
+            "pyramid_levels": 4,
+            "scale_factor": [
+              2,
+              2,
+              2
+            ],
+            "threads_per_worker": 1,
+            "voxel_resolution": [
+              1.8,
+              1.8,
+              2
+            ]
+          },
+          "resources": null,
+          "software_version": "0.0.2",
+          "start_date_time": "2025-04-20T21:06:15.282505Z"
+        },
+        {
+          "code_url": "",
+          "code_version": "0.0.2",
+          "end_date_time": "2025-04-21T00:14:24.872386Z",
+          "input_location": "/tmp/nxf.1CF5SOgR4h/capsule/data/bigstitcher.xml",
+          "name": "Image tile fusing",
+          "notes": "Fusing channel Ex_561_Em_593.zarr",
+          "output_location": "/tmp/nxf.1CF5SOgR4h/capsule/results/Ex_561_Em_593.zarr",
+          "outputs": {},
+          "parameters": {
+            "n_workers": 16,
+            "pyramid_levels": 4,
+            "scale_factor": [
+              2,
+              2,
+              2
+            ],
+            "threads_per_worker": 1,
+            "voxel_resolution": [
+              1.8,
+              1.8,
+              2
+            ]
+          },
+          "resources": null,
+          "software_version": "0.0.2",
+          "start_date_time": "2025-04-20T21:06:49.601445Z"
+        },
+        {
+          "code_url": "https://github.com/AllenNeuralDynamics/aind-ccf-registration",
+          "code_version": "0.0.31",
+          "end_date_time": "2025-04-21T01:27:41.088756Z",
+          "input_location": "/tmp/nxf.sf664Sb4Lr/capsule/data/fused/Ex_639_Em_667.zarr/3",
+          "name": "Image importing",
+          "notes": "Importing fused data for alignment",
+          "output_location": "/tmp/nxf.sf664Sb4Lr/capsule/data/fused/Ex_639_Em_667.zarr/3",
+          "outputs": {},
+          "parameters": {},
+          "resources": null,
+          "software_version": "0.0.31",
+          "start_date_time": "2025-04-21T01:27:35.865412Z"
+        },
+        {
+          "code_url": "https://github.com/ANTsX/ANTs",
+          "code_version": "0.4.2",
+          "end_date_time": "2025-04-21T02:00:46.924874Z",
+          "input_location": "/tmp/nxf.sf664Sb4Lr/capsule/data/fused/Ex_639_Em_667.zarr/3",
+          "name": "Image atlas alignment",
+          "notes": "Template based registration: LS -> template -> Allen CCFv3 Atlas",
+          "output_location": "/tmp/nxf.sf664Sb4Lr/capsule/results/ccf_Ex_639_Em_667/metadata/registration_metadata",
+          "outputs": {},
+          "parameters": {
+            "affine_path": "/tmp/nxf.sf664Sb4Lr/capsule/results/ccf_Ex_639_Em_667/metadata/registration_metadata/moved_affine.nii.gz",
+            "ccf_anno_to_brain_path": "/tmp/nxf.sf664Sb4Lr/capsule/results/ccf_Ex_639_Em_667/metadata/registration_metadata/moved_ccf_anno_to_ls.nii.gz",
+            "moved_to_ccf_path": "../results/ccf_Ex_639_Em_667/moved_ls_to_ccf.nii.gz",
+            "moved_to_template_path": "/tmp/nxf.sf664Sb4Lr/capsule/results/ccf_Ex_639_Em_667/metadata/registration_metadata/moved_ls_to_template.nii.gz",
+            "new_spacing": [
+              25,
+              25,
+              25
+            ],
+            "rigid_path": "/tmp/nxf.sf664Sb4Lr/capsule/results/ccf_Ex_639_Em_667/metadata/registration_metadata/moved_rigid.nii.gz",
+            "spacing": [
+              0.016,
+              0.0144,
+              0.0144
+            ],
+            "template_orientations": {
+              "anterior_to_posterior": 1,
+              "right_to_left": 0,
+              "superior_to_inferior": 2
+            },
+            "unit": "millimetre"
+          },
+          "resources": null,
+          "software_version": "0.0.31",
+          "start_date_time": "2025-04-21T01:27:41.092668Z"
+        },
+        {
+          "code_url": "https://github.com/AllenNeuralDynamics/aind-ccf-registration",
+          "code_version": "0.0.31",
+          "end_date_time": "2025-04-21T02:01:26.230030Z",
+          "input_location": "In memory array",
+          "name": "File format conversion",
+          "notes": "Converting registered image to OMEZarr",
+          "output_location": "/tmp/nxf.sf664Sb4Lr/capsule/results/ccf_Ex_639_Em_667/OMEZarr/image.zarr",
+          "outputs": {},
+          "parameters": {
+            "OMEZarr_params": {
+              "chunks": [
+                64,
+                64,
+                64
+              ],
+              "clevel": 1,
+              "compressor": "zstd"
+            },
+            "pixel_sizes": [
+              25,
+              25,
+              25
+            ]
+          },
+          "resources": null,
+          "software_version": "0.0.31",
+          "start_date_time": "2025-04-21T02:00:46.927056Z"
+        },
+        {
+          "code_url": "https://github.com/ANTsX/ANTs",
+          "code_version": "0.4.2",
+          "end_date_time": "2025-04-21T02:09:30.265139Z",
+          "input_location": "/tmp/nxf.sf664Sb4Lr/capsule/data/fused/Ex_639_Em_667.zarr/3",
+          "name": "Image atlas alignment",
+          "notes": "Template based reversed registration: annotations in template space -> LS",
+          "output_location": "In memory array",
+          "outputs": {},
+          "parameters": {
+            "affine_path": "/tmp/nxf.sf664Sb4Lr/capsule/results/ccf_Ex_639_Em_667/metadata/registration_metadata/moved_affine.nii.gz",
+            "ccf_anno_to_brain_path": "/tmp/nxf.sf664Sb4Lr/capsule/results/ccf_Ex_639_Em_667/metadata/registration_metadata/moved_ccf_anno_to_ls.nii.gz",
+            "moved_to_ccf_path": "../results/ccf_Ex_639_Em_667/moved_ls_to_ccf.nii.gz",
+            "moved_to_template_path": "/tmp/nxf.sf664Sb4Lr/capsule/results/ccf_Ex_639_Em_667/metadata/registration_metadata/moved_ls_to_template.nii.gz",
+            "new_spacing": [
+              25,
+              25,
+              25
+            ],
+            "rigid_path": "/tmp/nxf.sf664Sb4Lr/capsule/results/ccf_Ex_639_Em_667/metadata/registration_metadata/moved_rigid.nii.gz",
+            "spacing": [
+              0.016,
+              0.0144,
+              0.0144
+            ],
+            "template_orientations": {
+              "anterior_to_posterior": 1,
+              "right_to_left": 0,
+              "superior_to_inferior": 2
+            },
+            "unit": "millimetre"
+          },
+          "resources": null,
+          "software_version": "0.0.31",
+          "start_date_time": "2025-04-21T02:00:46.927056Z"
+        }
+      ],
+      "note": null,
+      "pipeline_url": "https://github.com/AllenNeuralDynamics/aind-smartspim-pipeline",
+      "pipeline_version": "3.0.1",
+      "processor_full_name": "Camilo Laiton"
+    }
+  },
+  "acquisition": {
+    "schema_version": "1.0.0",
+    "describedBy": "https://raw.githubusercontent.com/AllenNeuralDynamics/aind-data-schema/main/src/aind_data_schema/core/acquisition.py",
+    "axes": [
+      {
+        "dimension": 0,
+        "direction": "Superior_to_inferior",
+        "name": "Z",
+        "unit": "micrometer"
+      },
+      {
+        "dimension": 1,
+        "direction": "Anterior_to_posterior",
+        "name": "Y",
+        "unit": "micrometer"
+      },
+      {
+        "dimension": 2,
+        "direction": "Left_to_right",
+        "name": "X",
+        "unit": "micrometer"
+      }
+    ]
+  }
+}

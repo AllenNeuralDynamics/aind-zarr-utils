@@ -20,12 +20,13 @@ import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from aind_metadata_reader import Process
 from aind_s3_cache.s3_cache import get_local_path_for_resource
 from aind_s3_cache.uri_utils import as_pathlike, as_string, join_any
 
 from aind_zarr_utils.io.paths import _asset_from_zarr_pathlike
 from aind_zarr_utils.io.processing import (
-    _get_processing_pipeline_data,
+    _registration_pipeline_major,
     image_atlas_alignment_path_relative_from_processing,
 )
 
@@ -158,7 +159,7 @@ def _resolve_individual_transform_chain(
 
 def pipeline_transforms(
     zarr_uri: str,
-    processing_data: dict[str, Any],
+    processing_data: dict[str, Any] | Process,
     *,
     template_used: str = "SmartSPIM-template_2024-05-16_11-26-14",
     template_base: str | os.PathLike | None = None,
@@ -170,8 +171,8 @@ def pipeline_transforms(
     ----------
     zarr_uri : str
         URI to an LS acquisition Zarr.
-    processing_data : dict
-        Processing metadata.
+    processing_data : dict or Process
+        Processing metadata or an explicitly selected registration import.
     template_used : str, optional
         Key identifying which template transform set to apply.
     template_base : str or PathLike, optional
@@ -191,7 +192,7 @@ def pipeline_transforms(
     """
     uri_type, bucket, zarr_pathlike = as_pathlike(zarr_uri)
     asset_pathlike = _asset_from_zarr_pathlike(zarr_pathlike)
-    alignment_rel_path = image_atlas_alignment_path_relative_from_processing(processing_data)
+    alignment_rel_path = image_atlas_alignment_path_relative_from_processing(processing_data, zarr_uri=zarr_uri)
     if alignment_rel_path is None:
         raise ValueError("Could not determine image atlas alignment path from processing data")
     alignment_path = as_string(
@@ -199,8 +200,7 @@ def pipeline_transforms(
         bucket,
         asset_pathlike / alignment_rel_path,
     )
-    pipeline = _get_processing_pipeline_data(processing_data)
-    pipeline_ver = int(pipeline["pipeline_version"].split(".")[0])
+    pipeline_ver = _registration_pipeline_major(processing_data, zarr_uri)
     transform_chain = _resolve_individual_transform_chain(pipeline_ver)
     individual_ants_paths = TemplatePaths(
         alignment_path,
@@ -254,7 +254,7 @@ def _pipeline_image_transforms_local_paths(
 
 def pipeline_image_transforms_local_paths(
     zarr_uri: str,
-    processing_data: dict[str, Any],
+    processing_data: dict[str, Any] | Process,
     *,
     s3_client: S3Client | None = None,
     anonymous: bool = True,
@@ -272,8 +272,8 @@ def pipeline_image_transforms_local_paths(
     ----------
     zarr_uri : str
         Acquisition Zarr URI.
-    processing_data : dict
-        Processing metadata.
+    processing_data : dict or Process
+        Processing metadata or an explicitly selected registration import.
     s3_client : S3Client, optional
         Boto3 S3 client (typed) for authenticated access.
     anonymous : bool, optional
@@ -349,7 +349,7 @@ def _pipeline_point_transforms_local_paths(
 
 def pipeline_point_transforms_local_paths(
     zarr_uri: str,
-    processing_data: dict[str, Any],
+    processing_data: dict[str, Any] | Process,
     *,
     s3_client: S3Client | None = None,
     anonymous: bool = True,
@@ -367,8 +367,8 @@ def pipeline_point_transforms_local_paths(
     ----------
     zarr_uri : str
         Acquisition Zarr URI.
-    processing_data : dict
-        Processing metadata.
+    processing_data : dict or Process
+        Processing metadata or an explicitly selected registration import.
     s3_client : S3Client, optional
         Boto3 S3 client (typed) for authenticated access.
     anonymous : bool, optional
@@ -407,7 +407,7 @@ def pipeline_point_transforms_local_paths(
 
 def pipeline_transforms_local_paths(
     zarr_uri: str,
-    processing_data: dict[str, Any],
+    processing_data: dict[str, Any] | Process,
     *,
     s3_client: S3Client | None = None,
     anonymous: bool = True,
@@ -429,8 +429,8 @@ def pipeline_transforms_local_paths(
     ----------
     zarr_uri : str
         Acquisition Zarr URI.
-    processing_data : dict
-        Processing metadata.
+    processing_data : dict or Process
+        Processing metadata or an explicitly selected registration import.
     s3_client : S3Client, optional
         Boto3 S3 client (typed) for authenticated access.
     anonymous : bool, optional

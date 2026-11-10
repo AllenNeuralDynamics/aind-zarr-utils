@@ -12,8 +12,28 @@ from __future__ import annotations
 from pathlib import PurePath, PurePosixPath
 from typing import Any
 
+from aind_metadata_reader import Process
 from aind_s3_cache.json_utils import get_json
 from aind_s3_cache.uri_utils import as_pathlike, as_string
+from botocore.exceptions import ClientError
+from requests import HTTPError
+
+
+def _acquisition_metadata(asset_uri: str, **kwargs: Any) -> dict:
+    """Read historical aggregate or split acquisition JSON, falling back only on absence."""
+    kind, bucket, root = as_pathlike(asset_uri)
+    legacy_uri = as_string(kind, bucket, root / "metadata.nd.json")
+    try:
+        return get_json(legacy_uri, **kwargs)
+    except FileNotFoundError:
+        pass
+    except ClientError as error:
+        if error.response.get("Error", {}).get("Code") not in {"NoSuchKey", "404", "NotFound"}:
+            raise
+    except HTTPError as error:
+        if error.response is None or error.response.status_code != 404:
+            raise
+    return get_json(as_string(kind, bucket, root / "acquisition.json"), **kwargs)
 
 
 def _asset_from_zarr_pathlike(zarr_path: PurePath) -> PurePath:
@@ -105,6 +125,8 @@ def _zarr_base_name_any(base: str) -> str | None:
 def alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
     asset_uri: str | None = None,
     a_zarr_uri: str | None = None,
+    *,
+    registration: Process | None = None,
     **kwargs: Any,
 ) -> tuple[str, dict, dict]:
     """
@@ -118,6 +140,8 @@ def alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
     a_zarr_uri : str, optional
         URI of an acquisition Zarr within the asset. If ``None``, the asset
         root is taken from ``asset_uri``.
+    registration : Process, optional
+        Explicitly selected registration import, used to resolve the alignment channel.
     **kwargs : Any
         Forwarded keyword arguments accepted by :func:`get_json`. Common keys
         include:
@@ -129,7 +153,7 @@ def alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
     tuple
         ``(zarr_uri, metadata, processing_data)`` where ``zarr_uri`` is the
         inferred alignment Zarr URI, ``metadata`` is the parsed
-        ``metadata.nd.json`` content, and ``processing_data`` is the parsed
+        ``metadata.nd.json`` or standalone ``acquisition.json`` content, and ``processing_data`` is the parsed
         ``processing.json`` content.
     """
     # Local import to avoid an ``io.paths`` ↔ ``io.processing`` cycle: the
@@ -146,13 +170,13 @@ def alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike(
         asset_pathlike = _asset_from_zarr_pathlike(a_zarr_pathlike)
     else:
         uri_type, bucket, asset_pathlike = as_pathlike(asset_uri)
-    metadata_pathlike = asset_pathlike / "metadata.nd.json"
     processing_pathlike = asset_pathlike / "processing.json"
-    metadata_uri = as_string(uri_type, bucket, metadata_pathlike)
     processing_uri = as_string(uri_type, bucket, processing_pathlike)
-    metadata = get_json(metadata_uri, **kwargs)
+    metadata = _acquisition_metadata(as_string(uri_type, bucket, asset_pathlike), **kwargs)
     processing_data = get_json(processing_uri, **kwargs)
-    alignment_rel_path = image_atlas_alignment_path_relative_from_processing(processing_data)
+    alignment_rel_path = image_atlas_alignment_path_relative_from_processing(
+        registration if registration is not None else processing_data
+    )
     if alignment_rel_path is None:
         raise ValueError("Could not determine image atlas alignment path from processing data")
     channel = PurePosixPath(alignment_rel_path).stem
