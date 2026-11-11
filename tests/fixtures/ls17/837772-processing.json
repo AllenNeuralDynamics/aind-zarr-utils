@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.1.4",
+  "describedBy": "https://raw.githubusercontent.com/AllenNeuralDynamics/aind-data-schema/main/src/aind_data_schema/core/processing.py",
+  "processing_pipeline": {
+    "pipeline_version": "5.0.0",
+    "data_processes": [
+      {
+        "name": "Image tile fusing",
+        "code_version": "0.0.4",
+        "code_url": "https://github.com/AllenNeuralDynamics/aind-smartspim-fuse",
+        "input_location": "/tmp/nxf.iWMoK8Mzuh/capsule/data/bigstitcher.xml",
+        "output_location": "/tmp/nxf.iWMoK8Mzuh/capsule/results/Ex_639_Em_667.zarr",
+        "parameters": {},
+        "notes": "Fusing channel with BigStitcher"
+      },
+      {
+        "name": "Image tile fusing",
+        "code_version": "0.0.4",
+        "code_url": "https://github.com/AllenNeuralDynamics/aind-smartspim-fuse",
+        "input_location": "/tmp/nxf.e38uClwp2c/capsule/data/bigstitcher.xml",
+        "output_location": "/tmp/nxf.e38uClwp2c/capsule/results/Ex_561_Em_593.zarr",
+        "parameters": {},
+        "notes": "Fusing channel with BigStitcher"
+      },
+      {
+        "name": "Image tile fusing",
+        "code_version": "0.0.4",
+        "code_url": "https://github.com/AllenNeuralDynamics/aind-smartspim-fuse",
+        "input_location": "/tmp/nxf.tmkZhWrtK8/capsule/data/bigstitcher.xml",
+        "output_location": "/tmp/nxf.tmkZhWrtK8/capsule/results/Ex_488_Em_525.zarr",
+        "parameters": {},
+        "notes": "Fusing channel with BigStitcher"
+      }
+    ]
+  }
+}

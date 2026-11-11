@@ -19,8 +19,8 @@ class Origin:
 
     Construct via the classmethods:
 
-    * :meth:`default` — origin at LPS ``(0, 0, 0)``.
-    * :meth:`at` — origin set directly to the given LPS point.
+    * :meth:`default` — use the recorded NGFF origin.
+    * :meth:`at` — place the full-resolution origin at the given LPS point.
     * :meth:`at_corner` — origin chosen so that the named anatomical
       corner of the image lands at the given LPS point.
 
@@ -35,7 +35,7 @@ class Origin:
 
     @classmethod
     def default(cls) -> Origin:
-        """Return an :class:`Origin` sentinel meaning ``(0, 0, 0)`` in LPS."""
+        """Honor recorded NGFF translations; absent translations mean zero."""
         return cls()
 
     @classmethod

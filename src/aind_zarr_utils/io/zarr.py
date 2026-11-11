@@ -15,6 +15,7 @@ from ome_zarr.reader import Node, Reader  # type: ignore[import-untyped]
 
 from aind_zarr_utils.io.compute import ComputeKwargs, compute_dask
 from aind_zarr_utils.io.metadata import _unit_conversion
+from aind_zarr_utils.io.ngff import level_transform
 
 
 def ensure_native_endian(a: np.ndarray, *, inplace: bool = False) -> np.ndarray:
@@ -84,7 +85,10 @@ def _open_zarr(uri: str) -> tuple[Node, dict]:
 
     # first node will be the image pixel data
     image_node = nodes[0]
-    zarr_meta = image_node.metadata
+    zarr_meta = dict(image_node.metadata)
+    attributes = getattr(getattr(image_node, "zarr", None), "root_attrs", None)
+    if isinstance(attributes, dict) and "multiscales" in attributes:
+        zarr_meta["multiscales"] = attributes["multiscales"]
     return image_node, zarr_meta
 
 
@@ -171,7 +175,7 @@ def _zarr_to_scaled(
         image_node, zarr_meta = _open_zarr(uri)
     else:
         image_node, zarr_meta = opened_zarr
-    scale = np.array(zarr_meta["coordinateTransformations"][level][0]["scale"])
+    scale, _ = level_transform(zarr_meta, level)
     original_zarr_axes = zarr_meta["axes"]
     spatial_dims = {"x", "y", "z"}
     original_to_subset_axes_map = {}  # sorted

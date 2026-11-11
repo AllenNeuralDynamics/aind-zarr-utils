@@ -41,18 +41,32 @@ Notes
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from datetime import datetime, timezone
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Literal, cast
+from warnings import warn
 
 import SimpleITK as sitk
-from aind_metadata_reader import Acquisition, CoordinateFrame, Process
+from aind_metadata_reader import (
+    Acquisition,
+    Applicability,
+    CoordinateFrame,
+    Document,
+    Interpretation,
+    Process,
+    apply_changes,
+    read_processing,
+)
+from aind_metadata_reader.smartspim import evaluate_ls17
 
 from aind_zarr_utils.domain.selector import OverlaySelector, get_selector
 from aind_zarr_utils.formats.neuroglancer import get_image_sources
 from aind_zarr_utils.image import apply_pipeline_overlays
 from aind_zarr_utils.io.compute import ComputeKwargs
+from aind_zarr_utils.io.ngff import attributes_document, interpreted_zarr
 from aind_zarr_utils.io.paths import (
+    _zarr_base_name_any,
     alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike,
 )
 from aind_zarr_utils.io.transforms import pipeline_transforms_local_paths
@@ -150,6 +164,9 @@ class Asset:
     registration : Process, optional
         Selected Image importing process, including its source pointer and pipeline association.
         Used for registration overlays and transform paths, even when other runs share the same channel.
+    geometry : Interpretation, optional
+        An explicit interpretation of this Zarr's NGFF attributes. Used for physical
+        image geometry and retained for audit; historical registration geometry stays separate.
     """
 
     alignment_zarr_uri: str
@@ -165,6 +182,7 @@ class Asset:
     compute_kwargs: ComputeKwargs | None = None
     acquisition: Acquisition | CoordinateFrame | None = field(default=None, kw_only=True)
     registration: Process | None = field(default=None, kw_only=True)
+    geometry: Interpretation | None = field(default=None, kw_only=True)
 
     # Lazily-populated cache of the opened Zarr ``(Node, metadata)`` tuple.
     # Set via the :attr:`opened_zarr` property or by the eager ``from_*``
@@ -385,6 +403,69 @@ class Asset:
         return opened
 
     @property
+    def zarr_attributes(self) -> Document:
+        """Recorded NGFF attributes, with a source locator and no byte-preservation claim."""
+        return attributes_document(self.alignment_zarr_uri, self.opened_zarr)
+
+    @property
+    def anatomical_zarr(self) -> tuple[Node, dict]:
+        """Use the explicitly interpreted geometry for physical images, retaining the raw opened Zarr."""
+        if self.geometry is None:
+            return self.opened_zarr
+        return interpreted_zarr(self.alignment_zarr_uri, self.opened_zarr, self.geometry)
+
+    def with_ls17(
+        self,
+        *,
+        author: str,
+        association_evidence: tuple[str, ...],
+        averaging_evidence: tuple[str, ...],
+        producer: Process | None = None,
+        applied_at: str | None = None,
+    ) -> Asset:
+        """Evaluate LS-17 and return an asset with a source-bound, auditable interpretation.
+
+        Evidence must establish that the selected fusion process produced this
+        artifact and that its pyramid uses block averaging. Unknown decisions
+        retain recorded geometry and their evaluation; they emit a warning.
+        No files, pixels, acquisition metadata or registration transforms change.
+        """
+        if self.geometry is not None:
+            raise ValueError("Asset already has a geometry interpretation; compose further changes explicitly")
+        if producer is None:
+            channel = _zarr_base_name_any(self.alignment_zarr_uri)
+            candidates = [
+                p
+                for p in read_processing(Document(dict(self.processing))).find("Image tile fusing")
+                if p.output_location and _zarr_base_name_any(p.output_location) == channel
+            ]
+            if len(candidates) != 1:
+                raise ValueError(
+                    "Select one fusion producer explicitly; channel matching alone is not association proof"
+                )
+            producer = candidates[0]
+        attributes = self.zarr_attributes
+        evaluation = evaluate_ls17(
+            attributes,
+            producer,
+            author=author,
+            association_evidence=association_evidence,
+            averaging_evidence=averaging_evidence,
+        )
+        interpretation = apply_changes(
+            attributes,
+            evaluation.changes,
+            applied_at=applied_at or datetime.now(timezone.utc).isoformat(),
+            evaluations=(evaluation,),
+        )
+        if evaluation.outcome == Applicability.UNKNOWN:
+            warn(f"LS-17 correction was not applied: {evaluation.reason}; using recorded NGFF geometry", stacklevel=2)
+        result = replace(self, geometry=interpretation)
+        object.__setattr__(result, "_opened_zarr", self.opened_zarr)
+        object.__setattr__(result, "_transforms", self._transforms)
+        return result
+
+    @property
     def transforms(self) -> TransformPaths:
         """The pipeline's ANTs transform chains as local file paths.
 
@@ -469,7 +550,7 @@ class Asset:
                 self._geometry_metadata(),
                 level=level,
                 scale_unit=scale_unit,
-                opened_zarr=self.opened_zarr,
+                opened_zarr=self.anatomical_zarr,
                 compute_kwargs=effective_compute,
                 **legacy_origin,
             )
@@ -479,7 +560,7 @@ class Asset:
                 self._geometry_metadata(),
                 level=level,
                 scale_unit=scale_unit,
-                opened_zarr=self.opened_zarr,
+                opened_zarr=self.anatomical_zarr,
                 compute_kwargs=effective_compute,
                 **legacy_origin,
             )
@@ -532,7 +613,7 @@ class Asset:
             self._geometry_metadata(),
             level=level,
             scale_unit=scale_unit,
-            opened_zarr=self.opened_zarr,
+            opened_zarr=self.anatomical_zarr,
             **legacy_origin,
         )
 

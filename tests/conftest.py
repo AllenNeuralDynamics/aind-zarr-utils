@@ -448,7 +448,11 @@ def real_ome_zarr(tmp_path):
                             1.0 * scale_factor,  # y spacing in mm
                             1.0 * scale_factor,  # x spacing in mm
                         ],
-                    }
+                    },
+                    {
+                        "type": "translation",
+                        "translation": [0.0, 0.0, *([(scale_factor - 1) / 2] * 3)],
+                    },
                 ],
             }
         )
