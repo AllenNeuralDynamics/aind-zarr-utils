@@ -17,7 +17,7 @@ from numpy.typing import NDArray
 from ome_zarr.format import CurrentFormat, Format, detect_format  # type: ignore[import-untyped]
 from ome_zarr.io import ZarrLocation, parse_url  # type: ignore[import-untyped]
 from ome_zarr.reader import Node, Reader  # type: ignore[import-untyped]
-from zarr import storage
+from zarr import storage  # type: ignore[import-untyped,unused-ignore]
 
 from aind_zarr_utils.io.compute import ComputeKwargs, compute_dask
 from aind_zarr_utils.io.metadata import _unit_conversion
@@ -90,7 +90,7 @@ class _S3ZarrLocation(ZarrLocation):
         if store_type is not None:
             store = store_type.from_url(self._uri, storage_options={"anon": anonymous}, read_only=True)
         else:
-            store = storage.FSStore(self._uri, mode="r", anon=anonymous)  # type: ignore[attr-defined]
+            store = getattr(storage, "FSStore")(self._uri, mode="r", anon=anonymous)
         super().__init__(store, mode="r", fmt=fmt)
 
     def subpath(self, subpath: str = "") -> str:
