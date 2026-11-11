@@ -1,4 +1,4 @@
-"""Stored physical transforms and explicit LS-17 interpretations share one geometry path."""
+"""Stored physical transforms and explicit pyramid translation interpretations share one geometry path."""
 
 import copy
 import json
@@ -14,7 +14,7 @@ from aind_zarr_utils import Asset
 from aind_zarr_utils import zarr as zarr_mod
 from aind_zarr_utils.io.ngff import level_transform
 
-FIXTURES = Path(__file__).parent / "fixtures" / "ls17"
+FIXTURES = Path(__file__).parent / "fixtures" / "pyramid_translations"
 EVIDENCE = {
     "author": "geometry-regression",
     "association_evidence": ("Synthetic fixture binds this retained fusion description to its generated artifact",),
@@ -96,7 +96,7 @@ def test_dataset_then_global_transforms_control_spacing_and_origin(real_ome_zarr
     assert anchored.GetOrigin() == pytest.approx((-47, -22, 13))
 
 
-def test_ls17_interpretation_changes_physical_geometry_without_mutating_sources(faulty_asset):
+def test_pyramid_translation_interpretation_changes_physical_geometry_without_mutating_sources(faulty_asset):
     asset, subject = faulty_asset
     raw_file = Path(asset.alignment_zarr_uri) / ".zattrs"
     original_bytes = raw_file.read_bytes()
@@ -105,9 +105,10 @@ def test_ls17_interpretation_changes_physical_geometry_without_mutating_sources(
     uncorrected, _ = asset.stub(level=3)
     expected_raw = (0, 0, 0) if subject == "771432" else (-0.0035, -0.0035, 0.0035)
     assert uncorrected.GetOrigin() == pytest.approx(expected_raw)
-    corrected = asset.with_ls17(**EVIDENCE)
+    corrected = asset.with_pyramid_translation_correction(**EVIDENCE)
     assert corrected.geometry.evaluations[0].outcome == Applicability.APPLICABLE
-    assert corrected.geometry.evaluations[0].rule_revision == "2"
+    assert corrected.geometry.evaluations[0].rule_id == "smartspim.pyramid-translations"
+    assert corrected.geometry.evaluations[0].rule_revision == "1"
     assert len(corrected.geometry.changes) == 3
     expected = (-0.0063, -0.0063, 0.007)
     assert corrected.stub(level=3)[0].GetOrigin() == pytest.approx(expected)
@@ -137,14 +138,16 @@ def test_unverified_producer_with_an_evidenced_fault_signature_is_corrected(faul
         for p in read_processing(Document(dict(asset.processing))).find("Image tile fusing")
         if p.output_location.endswith("Ex_639_Em_667.zarr")
     )
-    corrected = asset.with_ls17(producer=replace(process, code_version="unverified-future"), **EVIDENCE)
+    corrected = asset.with_pyramid_translation_correction(
+        producer=replace(process, code_version="unverified-future"), **EVIDENCE
+    )
     assert corrected.geometry.evaluations[0].outcome == Applicability.APPLICABLE
     assert corrected.stub(level=3)[0].GetOrigin() == pytest.approx((-0.0063, -0.0063, 0.007))
 
 
 def test_fixed_metadata_is_preserved_for_future_producers(faulty_asset, tmp_path):
     asset, _ = faulty_asset
-    corrected = asset.with_ls17(**EVIDENCE)
+    corrected = asset.with_pyramid_translation_correction(**EVIDENCE)
     fixed_uri = _write_pyramid(tmp_path / "future" / "Ex_639_Em_667.zarr", corrected.geometry.derived.raw)
     future = Asset(fixed_uri, asset.metadata, asset.processing)
     process = next(
@@ -152,7 +155,9 @@ def test_fixed_metadata_is_preserved_for_future_producers(faulty_asset, tmp_path
         for p in read_processing(Document(dict(asset.processing))).find("Image tile fusing")
         if p.output_location.endswith("Ex_639_Em_667.zarr")
     )
-    checked = future.with_ls17(producer=replace(process, code_version="future-fixed"), **EVIDENCE)
+    checked = future.with_pyramid_translation_correction(
+        producer=replace(process, code_version="future-fixed"), **EVIDENCE
+    )
     assert checked.geometry.evaluations[0].outcome == Applicability.NOT_APPLICABLE
     assert checked.geometry.changes == ()
     assert checked.stub(level=3)[0].GetOrigin() == pytest.approx(future.stub(level=3)[0].GetOrigin())
@@ -163,7 +168,7 @@ def test_unknown_decisions_retain_the_metadata_and_reason(faulty_asset, missing)
     asset, _ = faulty_asset
     evidence = {**EVIDENCE, missing: ()}
     with pytest.warns(UserWarning, match="using recorded NGFF geometry"):
-        unresolved = asset.with_ls17(**evidence)
+        unresolved = asset.with_pyramid_translation_correction(**evidence)
     assert unresolved.geometry.evaluations[0].outcome == Applicability.UNKNOWN
     assert unresolved.geometry.changes == ()
     assert unresolved.geometry.original.raw == unresolved.geometry.derived.raw
@@ -172,7 +177,7 @@ def test_unknown_decisions_retain_the_metadata_and_reason(faulty_asset, missing)
 
 def test_physical_correction_does_not_change_historical_registration_geometry(faulty_asset):
     asset, _ = faulty_asset
-    corrected = asset.with_ls17(**EVIDENCE)
+    corrected = asset.with_pyramid_translation_correction(**EVIDENCE)
     before, before_size = asset.stub(pipeline=True)
     after, after_size = corrected.stub(pipeline=True)
     assert before.GetOrigin() == after.GetOrigin()
@@ -183,13 +188,13 @@ def test_physical_correction_does_not_change_historical_registration_geometry(fa
 
 def test_interpretations_are_bound_to_the_source_capture(faulty_asset, tmp_path):
     asset, _ = faulty_asset
-    corrected = asset.with_ls17(**EVIDENCE)
+    corrected = asset.with_pyramid_translation_correction(**EVIDENCE)
     other_uri = _write_pyramid(tmp_path / "other" / "Ex_639_Em_667.zarr", asset.zarr_attributes.raw)
     wrong_asset = Asset(other_uri, asset.metadata, asset.processing, geometry=corrected.geometry)
     with pytest.raises(ValueError, match="different Zarr attribute capture"):
         wrong_asset.stub(level=3)
     with pytest.raises(ValueError, match="already has a geometry interpretation"):
-        corrected.with_ls17(**EVIDENCE)
+        corrected.with_pyramid_translation_correction(**EVIDENCE)
 
 
 @pytest.mark.parametrize(
@@ -206,7 +211,7 @@ def test_unusable_transforms_cannot_silently_produce_a_spatial_header(transform)
         level_transform(metadata, 0)
 
 
-def test_unfamiliar_but_valid_translation_is_not_replaced_by_an_ls17_guess(faulty_asset):
+def test_unfamiliar_but_valid_translation_is_not_replaced_by_a_pyramid_offset_guess(faulty_asset):
     asset, _ = faulty_asset
     opened = asset.opened_zarr
     metadata = copy.deepcopy(opened[1])
@@ -229,7 +234,7 @@ def test_unknown_multiscale_layout_remains_readable_after_a_noop_evaluation(faul
     multiple = Asset(asset.alignment_zarr_uri, asset.metadata, asset.processing)
     before, _ = multiple.stub(level=3)
     with pytest.warns(UserWarning, match="using recorded NGFF geometry"):
-        unresolved = multiple.with_ls17(**EVIDENCE)
+        unresolved = multiple.with_pyramid_translation_correction(**EVIDENCE)
     assert unresolved.geometry.evaluations[0].outcome == Applicability.UNKNOWN
     assert unresolved.geometry.changes == ()
     assert unresolved.stub(level=3)[0].GetOrigin() == before.GetOrigin()

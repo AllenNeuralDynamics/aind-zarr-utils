@@ -54,11 +54,11 @@ wheels = [
 
 [[package]]
 name = "aind-metadata-reader"
-version = "0.2.1"
+version = "0.2.2"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/27/1f/c3ab2bdb89ee981110aa4d204c8675f3d358a2549d5ee8aa1548eda267c9/aind_metadata_reader-0.2.1.tar.gz", hash = "sha256:33fd4ae5bcb3a7af85fe84bb7c271f13bf7fbf47e8bd9bc331819ca7f4b7b5fd", size = 218724, upload-time = "2026-11-11T00:23:25.678Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ec/d6/ee3708a3a4be31b2b0f6b3827814731ab881cf2ed967b03289397b8b04b8/aind_metadata_reader-0.2.2.tar.gz", hash = "sha256:021d2bdd4fae60562783835b0b31b05a2a09aba1941a3ab7076f4cf82bd9987b", size = 219116, upload-time = "2026-11-11T00:44:06.624Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3a/6e/d02f13b1370226df4fc5f0acb2bc7258d590b27ae113da1832b2c0a37db4/aind_metadata_reader-0.2.1-py3-none-any.whl", hash = "sha256:3d2c62ec5a91c42ecf3507e00dab9b7b2003b0d1d5755a02ec51caaae6731159", size = 41495, upload-time = "2026-11-11T00:23:24.725Z" },
+    { url = "https://files.pythonhosted.org/packages/42/d3/44a5ec8a6bdef42a010272d596e6a5fca652a48857666e51a72c2ac823f2/aind_metadata_reader-0.2.2-py3-none-any.whl", hash = "sha256:c4476e2669856855d267ad47cb901209a2a095534b5d3e4edb07d0a799b63f4e", size = 41701, upload-time = "2026-11-11T00:44:05.616Z" },
 ]
 
 [[package]]
@@ -176,7 +176,7 @@ types = [
 [package.metadata]
 requires-dist = [
     { name = "aind-anatomical-utils", specifier = ">=0.4" },
-    { name = "aind-metadata-reader", specifier = ">=0.2.1,<0.3" },
+    { name = "aind-metadata-reader", specifier = ">=0.2.2,<0.3" },
     { name = "aind-registration-utils", specifier = ">=0.1" },
     { name = "aind-s3-cache", specifier = ">=0.1" },
     { name = "antspyx", specifier = ">=0.6.2" },

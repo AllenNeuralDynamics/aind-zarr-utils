@@ -58,7 +58,7 @@ from aind_metadata_reader import (
     apply_changes,
     read_processing,
 )
-from aind_metadata_reader.smartspim import evaluate_ls17
+from aind_metadata_reader.smartspim import evaluate_pyramid_translation_correction
 
 from aind_zarr_utils.domain.selector import OverlaySelector, get_selector
 from aind_zarr_utils.formats.neuroglancer import get_image_sources
@@ -414,7 +414,7 @@ class Asset:
             return self.opened_zarr
         return interpreted_zarr(self.alignment_zarr_uri, self.opened_zarr, self.geometry)
 
-    def with_ls17(
+    def with_pyramid_translation_correction(
         self,
         *,
         author: str,
@@ -423,7 +423,7 @@ class Asset:
         producer: Process | None = None,
         applied_at: str | None = None,
     ) -> Asset:
-        """Evaluate LS-17 and return an asset with a source-bound, auditable interpretation.
+        """Correct evidenced pyramid translations and retain a source-bound, auditable interpretation.
 
         Evidence must establish that the selected fusion process produced this
         artifact and that its pyramid uses block averaging. Unknown decisions
@@ -445,7 +445,7 @@ class Asset:
                 )
             producer = candidates[0]
         attributes = self.zarr_attributes
-        evaluation = evaluate_ls17(
+        evaluation = evaluate_pyramid_translation_correction(
             attributes,
             producer,
             author=author,
@@ -459,7 +459,10 @@ class Asset:
             evaluations=(evaluation,),
         )
         if evaluation.outcome == Applicability.UNKNOWN:
-            warn(f"LS-17 correction was not applied: {evaluation.reason}; using recorded NGFF geometry", stacklevel=2)
+            warn(
+                f"Pyramid translation correction was not applied: {evaluation.reason}; using recorded NGFF geometry",
+                stacklevel=2,
+            )
         result = replace(self, geometry=interpretation)
         object.__setattr__(result, "_opened_zarr", self.opened_zarr)
         object.__setattr__(result, "_transforms", self._transforms)

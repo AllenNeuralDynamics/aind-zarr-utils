@@ -317,7 +317,7 @@ def zarr_to_ants(
     Explicit origin/corner arguments place the full-resolution grid while
     preserving each level's recorded translation relative to level zero.
     Missing translations mean zero; block-mean offsets require a justified
-    LS-17 interpretation rather than an implicit assumption.
+    pyramid translation interpretation rather than an implicit assumption.
     """
     opened_zarr = opened_zarr or _open_zarr(uri)
     (arr_data_spatial, dirs, spacing, _) = _zarr_to_numpy_anatomical(
@@ -421,7 +421,7 @@ def zarr_to_sitk(
     Explicit origin/corner arguments place the full-resolution grid while
     preserving each level's recorded translation relative to level zero.
     Missing translations mean zero; block-mean offsets require a justified
-    LS-17 interpretation rather than an implicit assumption.
+    pyramid translation interpretation rather than an implicit assumption.
     """
     opened_zarr = opened_zarr or _open_zarr(uri)
     (
@@ -562,7 +562,7 @@ def zarr_to_sitk_stub(
     Explicit origin/corner arguments place the full-resolution grid while
     preserving each level's recorded translation relative to level zero.
     Missing translations mean zero; block-mean offsets require a justified
-    LS-17 interpretation rather than an implicit assumption.
+    pyramid translation interpretation rather than an implicit assumption.
     """
     image_node, zarr_meta = opened_zarr or _open_zarr(uri)
     (

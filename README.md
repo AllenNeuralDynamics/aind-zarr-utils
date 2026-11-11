@@ -100,15 +100,15 @@ Registration component versions continue to select pipeline overlays independent
 of the metadata schema version. The reader's SmartSPIM helper interprets the
 observed registration 0.0.37 input convention; unverified producer conventions
 remain unresolved. Repeated registration steps require an unambiguous selection.
-Reading metadata does not certify schema validity. LS-17 corrections are explicit,
+Reading metadata does not certify schema validity. Pyramid translation corrections are explicit,
 as described below.
 
-The reader is installed from PyPI with `aind-metadata-reader>=0.2.1,<0.3`.
+The reader is installed from PyPI with `aind-metadata-reader>=0.2.2,<0.3`.
 Run `uv sync` to install the locked dependencies; a sibling checkout and internal
 GitHub access are unnecessary. The upper bound keeps this integration within the
 reader's tested experimental release series.
 
-## Physical Geometry And LS-17
+## Physical Geometry And Pyramid Translations
 
 Images and stubs use the recorded NGFF scales and translations, including
 image-level transforms. Missing translations mean zero. `Origin.default()`
@@ -116,13 +116,13 @@ honors that recorded geometry; `Origin.at(...)` and `Origin.at_corner(...)`
 rebase the full-resolution grid while preserving relative level translations.
 
 Some SmartSPIM fusion outputs have missing pyramid translations or store voxel
-counts where physical units are declared (LS-17). Apply the reader's correction
+counts where physical units are declared. Apply the reader's correction
 rule when you have evidence that the selected fusion process produced this Zarr
 and that its pyramid uses aligned block averaging:
 
 ```python
 asset = Asset.from_root(asset_uri)
-corrected = asset.with_ls17(
+corrected = asset.with_pyramid_translation_correction(
     author="your-name",
     association_evidence=(association_check_reference,),
     averaging_evidence=(block_averaging_check_reference,),
@@ -139,8 +139,8 @@ observed defect signature even for unfamiliar producer versions. It assumes no
 first-fixed version: correct translations produce `not_applicable`, and other
 patterns remain `unknown` with a warning and the original geometry.
 
-`with_ls17` returns a new asset carrying the reader's interpretation and linked
-rule evaluation. It changes the physical geometry used for images and stubs
+`with_pyramid_translation_correction` returns a new asset carrying the reader's
+interpretation and linked rule evaluation. It changes the physical geometry used for images and stubs
 without changing stored attributes, pixels, acquisition metadata, or processing
 records. `zarr_attributes` exposes the original parsed attributes; `geometry`
 retains the original/derived snapshots and replayable manifest. The interpretation
@@ -149,8 +149,8 @@ another artifact. Low-level callers can pass the result of
 `aind_zarr_utils.io.ngff.interpreted_zarr(...)` as `opened_zarr`.
 
 Historical registration frames remain separate: pipeline images, stubs, and CCF
-point transforms keep the geometry used by registration. Physical LS-17
-correction does not modify the stored ANTs transform chain.
+point transforms keep the geometry used by registration. Physical pyramid
+translation correction does not modify the stored ANTs transform chain.
 
 Earlier releases inferred a block-mean offset for every pyramid, regardless of
 stored translations. Callers relying on that behavior should now apply an

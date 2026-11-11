@@ -1,4 +1,4 @@
-# LS-17 metadata fixtures
+# Pyramid translation metadata fixtures
 
 These are unchanged copies of the reader's public processing excerpts and full
 NGFF attribute captures for SmartSPIM assets 771432 and 837772. Capture locators,
