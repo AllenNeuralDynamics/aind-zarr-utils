@@ -13,6 +13,17 @@ from aind_zarr_utils import pipeline_transformed as pt
 ATLAS_ALIGNMENT_NOTES = "Template based registration: LS -> template -> Allen CCFv3 Atlas"
 
 
+def test_pipeline6_uses_a_verified_chain_and_newer_majors_warn(caplog):
+    from aind_zarr_utils.io.transforms import _resolve_individual_transform_chain
+
+    chain = _resolve_individual_transform_chain(6)
+    assert chain.forward_chain == ["ls_to_template_SyN_1Warp.nii.gz", "ls_to_template_SyN_0GenericAffine.mat"]
+    assert chain.reverse_chain_invert == [True, False]
+    assert not caplog.records
+    assert _resolve_individual_transform_chain(7) == chain
+    assert "falling back" in caplog.text
+
+
 class TestPathUtilities:
     """Tests for path manipulation functions."""
 

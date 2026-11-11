@@ -372,7 +372,7 @@ class Asset:
         if overlay_selector is not None:
             kwargs["overlay_selector"] = overlay_selector
         asset = cls(**kwargs)
-        object.__setattr__(asset, "_opened_zarr", _open_zarr(zarr_uri))
+        object.__setattr__(asset, "_opened_zarr", _open_zarr(zarr_uri, anonymous=anonymous))
         return asset
 
     # --------------------------------------------------------------- accessors
@@ -397,7 +397,7 @@ class Asset:
     def opened_zarr(self) -> tuple[Node, dict]:
         """The opened ome-zarr ``(Node, metadata)`` tuple, opened on first access."""
         if self._opened_zarr is None:
-            object.__setattr__(self, "_opened_zarr", _open_zarr(self.alignment_zarr_uri))
+            object.__setattr__(self, "_opened_zarr", _open_zarr(self.alignment_zarr_uri, anonymous=self.anonymous))
         opened = self._opened_zarr
         assert opened is not None
         return opened

@@ -103,7 +103,7 @@ remain unresolved. Repeated registration steps require an unambiguous selection.
 Reading metadata does not certify schema validity. Pyramid translation corrections are explicit,
 as described below.
 
-The reader is installed from PyPI with `aind-metadata-reader>=0.2.2,<0.3`.
+The reader is installed from PyPI with `aind-metadata-reader>=0.2.3,<0.3`.
 Run `uv sync` to install the locked dependencies; a sibling checkout and internal
 GitHub access are unnecessary. The upper bound keeps this integration within the
 reader's tested experimental release series.
@@ -152,10 +152,18 @@ Historical registration frames remain separate: pipeline images, stubs, and CCF
 point transforms keep the geometry used by registration. Physical pyramid
 translation correction does not modify the stored ANTs transform chain.
 
+Pipeline majors 3 through 6 use the verified individual SyN warp/affine chain.
+The recorded registration-frame anchor is verified through importer 0.0.37;
+newer importer versions still emit a warning when that convention is assumed.
+
 Earlier releases inferred a block-mean offset for every pyramid, regardless of
 stored translations. Callers relying on that behavior should now apply an
 evidenced correction explicitly. Synthetic pyramids should declare their actual
 translations in NGFF metadata.
+
+Asset constructors use anonymous S3 access for metadata and image data by default.
+Pass `anonymous=False` to use the normal AWS credential chain. Access settings
+remain attached to each opened store and its child locations.
 
 ## Images And Stubs
 

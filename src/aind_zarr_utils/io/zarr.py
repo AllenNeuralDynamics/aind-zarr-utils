@@ -8,10 +8,16 @@ operates on. They do not depend on AIND-specific metadata; for that, see
 
 from __future__ import annotations
 
+import json
+import posixpath
+
 import numpy as np
+import s3fs  # type: ignore[import-untyped]
 from numpy.typing import NDArray
-from ome_zarr.io import parse_url  # type: ignore[import-untyped]
+from ome_zarr.format import CurrentFormat, Format, detect_format  # type: ignore[import-untyped]
+from ome_zarr.io import ZarrLocation, parse_url  # type: ignore[import-untyped]
 from ome_zarr.reader import Node, Reader  # type: ignore[import-untyped]
+from zarr import storage
 
 from aind_zarr_utils.io.compute import ComputeKwargs, compute_dask
 from aind_zarr_utils.io.metadata import _unit_conversion
@@ -62,7 +68,45 @@ def ensure_native_endian(a: np.ndarray, *, inplace: bool = False) -> np.ndarray:
     return a.astype(dt.newbyteorder("="), copy=False)
 
 
-def _open_zarr(uri: str) -> tuple[Node, dict]:
+class _S3ZarrLocation(ZarrLocation):
+    """Preserve per-open authentication across OME-Zarr format detection and children."""
+
+    def __init__(self, uri: str, anonymous: bool, fmt: Format | None = None) -> None:
+        self._uri = uri.rstrip("/")
+        self._anonymous = anonymous
+        fs = s3fs.S3FileSystem(anon=anonymous)
+        attributes = {}
+        for name in (".zattrs", "zarr.json"):
+            try:
+                metadata = json.loads(fs.cat_file(self._uri + "/" + name))
+            except FileNotFoundError:
+                continue
+            attributes = metadata if name == ".zattrs" else metadata.get("attributes", {})
+            break
+        # Older OME-Zarr rebuilds the store when detection changes the format,
+        # discarding credentials. Detect first, using the same configured access.
+        fmt = detect_format(attributes.get("ome", attributes), fmt or CurrentFormat())
+        store_type = getattr(storage, "FsspecStore", None)
+        if store_type is not None:
+            store = store_type.from_url(self._uri, storage_options={"anon": anonymous}, read_only=True)
+        else:
+            store = storage.FSStore(self._uri, mode="r", anon=anonymous)  # type: ignore[attr-defined]
+        super().__init__(store, mode="r", fmt=fmt)
+
+    def subpath(self, subpath: str = "") -> str:
+        """Keep child paths rooted at the original S3 URI rather than a store prefix."""
+        if not subpath:
+            return self._uri
+        bucket, _, key = self._uri.removeprefix("s3://").partition("/")
+        child = posixpath.normpath(posixpath.join(key, subpath.lstrip("/")))
+        return "s3://" + bucket + ("/" + child if child != "." else "")
+
+    def create(self, path: str) -> _S3ZarrLocation:
+        """Open children with this location's access settings and detected format."""
+        return _S3ZarrLocation(self.subpath(path), self._anonymous, self.fmt)
+
+
+def _open_zarr(uri: str, *, anonymous: bool | None = None) -> tuple[Node, dict]:
     """
     Open a ZARR file and retrieve its metadata.
 
@@ -70,6 +114,8 @@ def _open_zarr(uri: str) -> tuple[Node, dict]:
     ----------
     uri : str
         URI of the ZARR file.
+    anonymous : bool or None, optional
+        Explicit S3 access mode. None preserves the storage backend's default.
 
     Returns
     -------
@@ -78,7 +124,8 @@ def _open_zarr(uri: str) -> tuple[Node, dict]:
     zarr_meta : dict
         Metadata of the ZARR file.
     """
-    reader = Reader(parse_url(uri))
+    location = _S3ZarrLocation(uri, anonymous) if uri.startswith("s3://") and anonymous is not None else parse_url(uri)
+    reader = Reader(location)
 
     # nodes may include images, labels etc
     nodes = list(reader())
