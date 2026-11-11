@@ -28,13 +28,17 @@ def _attributes(uri):
 
 
 def _write_pyramid(path, attributes):
-    group = zarr.open_group(str(path), mode="w", zarr_format=2)
+    format_keyword = {"zarr_format": 2} if hasattr(zarr, "create_array") else {"zarr_version": 2}
+    group = zarr.open_group(str(path), mode="w", **format_keyword)
     base = np.arange(16**3, dtype=np.float32).reshape(16, 16, 16)
     for level in range(4):
         factor = 2**level
         n = 16 // factor
         averaged = base.reshape(n, factor, n, factor, n, factor).mean(axis=(1, 3, 5))
-        group.create_array(str(level), data=averaged[None, None], chunks=(1, 1, n, n, n))
+        if hasattr(group, "create_array"):
+            group.create_array(str(level), data=averaged[None, None], chunks=(1, 1, n, n, n))
+        else:
+            group.create_dataset(str(level), data=averaged[None, None], chunks=(1, 1, n, n, n), dimension_separator="/")
     group.attrs.update(attributes)
     return str(path)
 
