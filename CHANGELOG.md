@@ -1,3 +1,9 @@
+## v0.19.0 (2026-11-11)
+
+### Feat
+
+- **metadata**: integrate historical metadata reader views
+
 ## v0.18.0 (2026-10-26)
 
 ### BREAKING CHANGE
