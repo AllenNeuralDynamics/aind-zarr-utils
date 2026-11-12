@@ -1,3 +1,14 @@
+## v0.20.0 (2026-11-12)
+
+### BREAKING CHANGE
+
+- pyramid offsets are no longer inferred unconditionally.
+Callers needing block-mean corrections must request them with evidence.
+
+### Fix
+
+- **zarr**: correct pyramid translations through auditable interpretations
+
 ## v0.19.0 (2026-11-11)
 
 ### Feat
