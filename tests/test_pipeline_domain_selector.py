@@ -1,5 +1,6 @@
 """Tests for pipeline_domain_selector module."""
 
+import warnings
 from datetime import date, datetime
 
 import numpy as np
@@ -9,6 +10,21 @@ from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 
 from aind_zarr_utils import pipeline_domain_selector as pds
+
+
+def test_default_anchor_covers_verified_importer_and_warns_for_future_versions():
+    header = AnatomicalHeader(origin=(0, 0, 0), spacing=(1, 1, 1), direction=np.eye(3), size_ijk=(10, 10, 10))
+    overlays = pds.get_selector().select(version="0.0.37", meta={})
+    anchor = next(
+        overlay for overlay in overlays if isinstance(overlay, pds.ForceCornerAnchorOverlayWithVersionWarning)
+    )
+    with warnings.catch_warnings(record=True) as caught:
+        corrected = anchor(header, {}, 0, zarr_import_version="0.0.37")
+    assert not caught
+    assert corrected.origin != header.origin
+    with pytest.warns(UserWarning, match="0.0.38"):
+        future = anchor(header, {}, 0, zarr_import_version="0.0.38")
+    assert future.origin == corrected.origin
 
 
 class TestOverlays:

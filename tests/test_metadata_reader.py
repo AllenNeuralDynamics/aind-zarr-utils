@@ -249,7 +249,7 @@ def test_discovery_preserves_explicit_selections(selected_views, tmp_path, real_
     (tmp_path / "metadata.nd.json").write_text(json.dumps(metadata))
     (tmp_path / "processing.json").write_text(json.dumps(processing))
     opened = zarr_mod._open_zarr(real_ome_zarr)
-    monkeypatch.setattr(asset_mod, "_open_zarr", lambda _: opened)
+    monkeypatch.setattr(asset_mod, "_open_zarr", lambda _, **kwargs: opened)
     source = str(tmp_path / "image_tile_fusing/OMEZarr/other.zarr")
     monkeypatch.setattr(asset_mod, "get_image_sources", lambda *args, **kwargs: {"other": source})
     options = {"acquisition": acquisition, "registration": registration}

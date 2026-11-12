@@ -40,6 +40,7 @@ from aind_zarr_utils.io.metadata import (
 from aind_zarr_utils.io.metadata import (
     direction_from_nd_metadata as direction_from_nd_metadata,
 )
+from aind_zarr_utils.io.ngff import level_transform
 from aind_zarr_utils.io.zarr import (
     _open_zarr as _open_zarr,
 )
@@ -286,8 +287,8 @@ def zarr_to_ants(
     scale_unit : str, optional
         Unit for scaling, by default "millimeter".
     set_origin : tuple, optional
-        LPS position of the first full-resolution voxel's center, by default
-        ``(0, 0, 0)``. Exclusive of set_corner and set_corner_lps.
+        LPS position of the first full-resolution voxel's center. ``None``
+        honors the recorded NGFF origin. Exclusive of set_corner and set_corner_lps.
     set_corner : str, optional
         Which corner of the full-resolution grid to anchor, by default None.
         If set, must specify both set_corner and set_corner_lps, exclusive of
@@ -312,9 +313,11 @@ def zarr_to_ants(
 
     Notes
     -----
-    The origin arguments describe the full-resolution grid, whatever
-    ``level`` is read: a level is placed where its voxels' level-0 sources
-    lie, so a physical point means the same tissue at every level.
+    Recorded NGFF scales and translations determine physical placement.
+    Explicit origin/corner arguments place the full-resolution grid while
+    preserving each level's recorded translation relative to level zero.
+    Missing translations mean zero; block-mean offsets require a justified
+    pyramid translation interpretation rather than an implicit assumption.
     """
     opened_zarr = opened_zarr or _open_zarr(uri)
     (arr_data_spatial, dirs, spacing, _) = _zarr_to_numpy_anatomical(
@@ -334,7 +337,7 @@ def zarr_to_ants(
         origin=_level_origin(
             uri,
             dirs,
-            spacing,
+            level=level,
             scale_unit=scale_unit,
             opened_zarr=opened_zarr,
             set_origin=set_origin,
@@ -388,8 +391,8 @@ def zarr_to_sitk(
     scale_unit : str, optional
         Unit for scaling, by default "millimeter".
     set_origin : tuple, optional
-        LPS position of the first full-resolution voxel's center, by default
-        ``(0, 0, 0)``. Exclusive of set_corner and set_corner_lps.
+        LPS position of the first full-resolution voxel's center. ``None``
+        honors the recorded NGFF origin. Exclusive of set_corner and set_corner_lps.
     set_corner : str, optional
         Which corner of the full-resolution grid to anchor, by default None.
         If set, must specify both set_corner and set_corner_lps, exclusive of
@@ -414,9 +417,11 @@ def zarr_to_sitk(
 
     Notes
     -----
-    The origin arguments describe the full-resolution grid, whatever
-    ``level`` is read: a level is placed where its voxels' level-0 sources
-    lie, so a physical point means the same tissue at every level.
+    Recorded NGFF scales and translations determine physical placement.
+    Explicit origin/corner arguments place the full-resolution grid while
+    preserving each level's recorded translation relative to level zero.
+    Missing translations mean zero; block-mean offsets require a justified
+    pyramid translation interpretation rather than an implicit assumption.
     """
     opened_zarr = opened_zarr or _open_zarr(uri)
     (
@@ -440,7 +445,7 @@ def zarr_to_sitk(
         origin=_level_origin(
             uri,
             dirs,
-            spacing,
+            level=level,
             scale_unit=scale_unit,
             opened_zarr=opened_zarr,
             set_origin=set_origin,
@@ -472,21 +477,25 @@ def _origin_args_check(
 def _level_origin(
     uri: str,
     dirs: list[str],
-    spacing: list[float],
     *,
+    level: int,
     scale_unit: str,
     opened_zarr: tuple[Node, dict],
     set_origin: tuple[float, float, float] | None,
     set_corner: str | None,
     set_corner_lps: tuple[float, float, float] | None,
 ) -> tuple[float, float, float]:
-    """LPS origin of a level whose ``spacing`` (array order) is given, in the frame the origin arguments set.
-
-    The arguments place the full-resolution grid. A level voxel is the mean of the level-0 voxels beneath it, so its
-    first center lies half a level voxel less half a level-0 voxel past the first level-0 center.
-    """
+    """Map the declared NGFF translation to LPS, or rebase it to an explicit level-0 anchor."""
     _, _, _, spacing_0, size_0 = _zarr_to_scaled(uri, level=0, scale_unit=scale_unit, opened_zarr=opened_zarr)
     dir_tup = sitk.DICOMOrientImageFilter.GetDirectionCosinesFromOrientation("".join(dirs))
+    metadata = opened_zarr[1]
+    _, translation = level_transform(metadata, level)
+    _, translation_0 = level_transform(metadata, 0)
+    spatial = [i for i, axis in enumerate(metadata["axes"]) if axis["name"] in {"x", "y", "z"}]
+    factors = np.array([_unit_conversion(metadata["axes"][i]["unit"], scale_unit) for i in spatial])
+    direction = np.reshape(dir_tup, (3, 3))
+    recorded = direction @ (translation[spatial] * factors)
+    recorded_0 = direction @ (translation_0[spatial] * factors)
     origin_type = _origin_args_check(set_origin, set_corner, set_corner_lps)
     if origin_type == "origin":
         assert set_origin is not None
@@ -497,9 +506,8 @@ def _level_origin(
             fix_corner_compute_origin(size_0, spacing_0, dir_tup, set_corner_lps, set_corner)[0], dtype=float
         )
     else:
-        origin_0 = np.zeros(3)
-    shift = np.reshape(dir_tup, (3, 3)) @ ((np.asarray(spacing, dtype=float) - np.asarray(spacing_0, dtype=float)) / 2)
-    ox, oy, oz = (float(v) for v in origin_0 + shift)
+        origin_0 = recorded_0
+    ox, oy, oz = (float(v) for v in origin_0 + recorded - recorded_0)
     return ox, oy, oz
 
 
@@ -527,8 +535,8 @@ def zarr_to_sitk_stub(
     scale_unit : str, optional
         Unit for scaling, by default "millimeter".
     set_origin : tuple, optional
-        LPS position of the first full-resolution voxel's center, by default
-        ``(0, 0, 0)``. Exclusive of set_corner and set_corner_lps.
+        LPS position of the first full-resolution voxel's center. ``None``
+        honors the recorded NGFF origin. Exclusive of set_corner and set_corner_lps.
     set_corner : str, optional
         Which corner of the full-resolution grid to anchor, by default None.
         If set, must specify both set_corner and set_corner_lps, exclusive of
@@ -550,9 +558,11 @@ def zarr_to_sitk_stub(
 
     Notes
     -----
-    The origin arguments describe the full-resolution grid, whatever
-    ``level`` is read: a level is placed where its voxels' level-0 sources
-    lie, so a physical point means the same tissue at every level.
+    Recorded NGFF scales and translations determine physical placement.
+    Explicit origin/corner arguments place the full-resolution grid while
+    preserving each level's recorded translation relative to level zero.
+    Missing translations mean zero; block-mean offsets require a justified
+    pyramid translation interpretation rather than an implicit assumption.
     """
     image_node, zarr_meta = opened_zarr or _open_zarr(uri)
     (
@@ -579,7 +589,7 @@ def zarr_to_sitk_stub(
     origin = _level_origin(
         uri,
         dirs,
-        spacing,
+        level=level,
         scale_unit=scale_unit,
         opened_zarr=(image_node, zarr_meta),
         set_origin=set_origin,

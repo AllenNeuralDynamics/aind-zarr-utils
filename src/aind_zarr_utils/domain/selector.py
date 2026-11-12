@@ -367,7 +367,7 @@ def _base_rules() -> tuple[OverlayRule, ...]:
             factory=lambda meta: ForceCornerAnchorOverlayWithVersionWarning(
                 corner_code="RAS",
                 target_point_labeled=(-1.5114, -1.5, 1.5),
-                last_verified_buggy_version="0.0.34",
+                last_verified_buggy_version="0.0.37",
             ),
             rule_priority=90,
         )

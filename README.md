@@ -100,12 +100,70 @@ Registration component versions continue to select pipeline overlays independent
 of the metadata schema version. The reader's SmartSPIM helper interprets the
 observed registration 0.0.37 input convention; unverified producer conventions
 remain unresolved. Repeated registration steps require an unambiguous selection.
-Reading metadata does not apply LS-17 corrections or certify schema validity.
+Reading metadata does not certify schema validity. Pyramid translation corrections are explicit,
+as described below.
 
-The reader is installed from PyPI with `aind-metadata-reader>=0.2.0,<0.3`.
+The reader is installed from PyPI with `aind-metadata-reader>=0.2.3,<0.3`.
 Run `uv sync` to install the locked dependencies; a sibling checkout and internal
 GitHub access are unnecessary. The upper bound keeps this integration within the
 reader's tested experimental release series.
+
+## Physical Geometry And Pyramid Translations
+
+Images and stubs use the recorded NGFF scales and translations, including
+image-level transforms. Missing translations mean zero. `Origin.default()`
+honors that recorded geometry; `Origin.at(...)` and `Origin.at_corner(...)`
+rebase the full-resolution grid while preserving relative level translations.
+
+Some SmartSPIM fusion outputs have missing pyramid translations or store voxel
+counts where physical units are declared. Apply the reader's correction
+rule when you have evidence that the selected fusion process produced this Zarr
+and that its pyramid uses aligned block averaging:
+
+```python
+asset = Asset.from_root(asset_uri)
+corrected = asset.with_pyramid_translation_correction(
+    author="your-name",
+    association_evidence=(association_check_reference,),
+    averaging_evidence=(block_averaging_check_reference,),
+)
+image = corrected.image(level=3)
+decision = corrected.geometry.evaluations[0]
+manifest = corrected.geometry.manifest()
+```
+
+The evidence references should identify the checks performed for this artifact.
+The fusion process is selected by its recorded output channel when unique;
+pass `producer=selected_process` to resolve multiple runs. The rule diagnoses the
+observed defect signature even for unfamiliar producer versions. It assumes no
+first-fixed version: correct translations produce `not_applicable`, and other
+patterns remain `unknown` with a warning and the original geometry.
+
+`with_pyramid_translation_correction` returns a new asset carrying the reader's
+interpretation and linked rule evaluation. It changes the physical geometry used for images and stubs
+without changing stored attributes, pixels, acquisition metadata, or processing
+records. `zarr_attributes` exposes the original parsed attributes; `geometry`
+retains the original/derived snapshots and replayable manifest. The interpretation
+is bound to the source locator and attribute contents and cannot be reused for
+another artifact. Low-level callers can pass the result of
+`aind_zarr_utils.io.ngff.interpreted_zarr(...)` as `opened_zarr`.
+
+Historical registration frames remain separate: pipeline images, stubs, and CCF
+point transforms keep the geometry used by registration. Physical pyramid
+translation correction does not modify the stored ANTs transform chain.
+
+Pipeline majors 3 through 6 use the verified individual SyN warp/affine chain.
+The recorded registration-frame anchor is verified through importer 0.0.37;
+newer importer versions still emit a warning when that convention is assumed.
+
+Earlier releases inferred a block-mean offset for every pyramid, regardless of
+stored translations. Callers relying on that behavior should now apply an
+evidenced correction explicitly. Synthetic pyramids should declare their actual
+translations in NGFF metadata.
+
+Asset constructors use anonymous S3 access for metadata and image data by default.
+Pass `anonymous=False` to use the normal AWS credential chain. Access settings
+remain attached to each opened store and its child locations.
 
 ## Images And Stubs
 

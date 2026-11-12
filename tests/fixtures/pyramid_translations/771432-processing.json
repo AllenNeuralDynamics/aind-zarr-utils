@@ -1,0 +1,78 @@
+{
+  "schema_version": "1.1.4",
+  "describedBy": "https://raw.githubusercontent.com/AllenNeuralDynamics/aind-data-schema/main/src/aind_data_schema/core/processing.py",
+  "processing_pipeline": {
+    "pipeline_version": "3.0.1",
+    "data_processes": [
+      {
+        "name": "Image tile fusing",
+        "code_version": "0.0.2",
+        "code_url": "",
+        "input_location": "/tmp/nxf.GH0xaZ5Efk/capsule/data/bigstitcher.xml",
+        "output_location": "/tmp/nxf.GH0xaZ5Efk/capsule/results/Ex_665_Em_700.zarr",
+        "parameters": {
+          "n_workers": 16,
+          "pyramid_levels": 4,
+          "scale_factor": [
+            2,
+            2,
+            2
+          ],
+          "threads_per_worker": 1,
+          "voxel_resolution": [
+            1.8,
+            1.8,
+            2
+          ]
+        },
+        "notes": "Fusing channel Ex_665_Em_700.zarr"
+      },
+      {
+        "name": "Image tile fusing",
+        "code_version": "0.0.2",
+        "code_url": "",
+        "input_location": "/tmp/nxf.TV5UxwvpJv/capsule/data/bigstitcher.xml",
+        "output_location": "/tmp/nxf.TV5UxwvpJv/capsule/results/Ex_639_Em_667.zarr",
+        "parameters": {
+          "n_workers": 16,
+          "pyramid_levels": 4,
+          "scale_factor": [
+            2,
+            2,
+            2
+          ],
+          "threads_per_worker": 1,
+          "voxel_resolution": [
+            1.8,
+            1.8,
+            2
+          ]
+        },
+        "notes": "Fusing channel Ex_639_Em_667.zarr"
+      },
+      {
+        "name": "Image tile fusing",
+        "code_version": "0.0.2",
+        "code_url": "",
+        "input_location": "/tmp/nxf.1CF5SOgR4h/capsule/data/bigstitcher.xml",
+        "output_location": "/tmp/nxf.1CF5SOgR4h/capsule/results/Ex_561_Em_593.zarr",
+        "parameters": {
+          "n_workers": 16,
+          "pyramid_levels": 4,
+          "scale_factor": [
+            2,
+            2,
+            2
+          ],
+          "threads_per_worker": 1,
+          "voxel_resolution": [
+            1.8,
+            1.8,
+            2
+          ]
+        },
+        "notes": "Fusing channel Ex_561_Em_593.zarr"
+      }
+    ]
+  }
+}

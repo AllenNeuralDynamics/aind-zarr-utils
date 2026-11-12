@@ -119,7 +119,7 @@ class TestAssetExplicit:
 
             assert first is sentinel
             assert second is sentinel
-            mock_open.assert_called_once_with(asset.alignment_zarr_uri)
+            mock_open.assert_called_once_with(asset.alignment_zarr_uri, anonymous=True)
 
 
 class TestAssetEagerConstructors:
@@ -142,7 +142,7 @@ class TestAssetEagerConstructors:
             asset = Asset.from_root("s3://bucket/data/asset/")
 
             mock_align.assert_called_once()
-            mock_open.assert_called_once_with(zarr_uri)
+            mock_open.assert_called_once_with(zarr_uri, anonymous=True)
             assert asset.alignment_zarr_uri == zarr_uri
             assert asset.source_zarr_uri is None
             assert dict(asset.metadata) == metadata
@@ -223,7 +223,7 @@ class TestAssetCachesAcrossCalls:
             asset.stub()
 
             # _open_zarr is called exactly once across both methods.
-            mock_open.assert_called_once_with(asset.alignment_zarr_uri)
+            mock_open.assert_called_once_with(asset.alignment_zarr_uri, anonymous=True)
 
             # Both delegated functions received the cached opened_zarr.
             assert mock_sitk.call_args.kwargs.get("opened_zarr") is sentinel
@@ -279,7 +279,7 @@ class TestAssetCachesAcrossCalls:
             asset.transform(pts, to=Space.CCF_MM)
 
             # The full chain opens the Zarr exactly once across all three methods.
-            mock_open.assert_called_once_with(asset.alignment_zarr_uri)
+            mock_open.assert_called_once_with(asset.alignment_zarr_uri, anonymous=True)
             # Transform-chain paths are resolved exactly once even though
             # the transform crossed CCF.
             mock_xforms.assert_called_once()
