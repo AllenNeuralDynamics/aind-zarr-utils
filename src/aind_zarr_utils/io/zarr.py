@@ -90,7 +90,7 @@ class _S3ZarrLocation(ZarrLocation):
         if store_type is not None:
             store = store_type.from_url(self._uri, storage_options={"anon": anonymous}, read_only=True)
         else:
-            store = getattr(storage, "FSStore")(self._uri, mode="r", anon=anonymous)
+            store = storage.FSStore(self._uri, mode="r", anon=anonymous)  # type: ignore[attr-defined,unused-ignore]
         super().__init__(store, mode="r", fmt=fmt)
 
     def subpath(self, subpath: str = "") -> str:
