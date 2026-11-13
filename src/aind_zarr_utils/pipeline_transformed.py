@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import os
 import warnings
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
@@ -371,7 +372,8 @@ def base_and_pipeline_zarr_to_sitk(
     Returns
     -------
     base_img : ants.core.ANTsImage
-        The uncorrected ANTs image from the Zarr at the requested level.
+        The Zarr image at the requested level, in its physical frame
+        (fusion pyramid translations corrected).
     pipeline_img : ants.core.ANTsImage
         A new ANTs image instance reflecting the spatial domain.
     """
@@ -386,6 +388,7 @@ def base_and_pipeline_zarr_to_sitk(
         metadata,
         level=level,
         opened_zarr=(image_node, zarr_meta),
+        processing_data=processing_data if isinstance(processing_data, Mapping) else None,
         compute_kwargs=compute_kwargs,
     )
 
@@ -462,7 +465,8 @@ def base_and_pipeline_zarr_to_ants(
     Returns
     -------
     base_img : ants.core.ANTsImage
-        The uncorrected ANTs image from the Zarr at the requested level.
+        The Zarr image at the requested level, in its physical frame
+        (fusion pyramid translations corrected).
     pipeline_img : ants.core.ANTsImage
         A new ANTs image instance reflecting the spatial domain.
     """
@@ -477,6 +481,7 @@ def base_and_pipeline_zarr_to_ants(
         metadata,
         level=level,
         opened_zarr=(image_node, zarr_meta),
+        processing_data=processing_data if isinstance(processing_data, Mapping) else None,
         compute_kwargs=compute_kwargs,
     )
 

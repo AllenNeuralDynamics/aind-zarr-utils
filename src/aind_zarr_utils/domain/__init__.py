@@ -14,4 +14,6 @@ The split here is dependency-driven:
 * :mod:`aind_zarr_utils.domain.selector` — the :class:`Overlay` protocol,
   :class:`OverlayRule`, :class:`OverlaySelector`, ``apply_overlays``,
   and the default-rules / shared-singleton machinery.
+* :mod:`aind_zarr_utils.domain.pyramid` — fusion-version rules that correct
+  pyramid-level translations in the physical (not registration) frame.
 """

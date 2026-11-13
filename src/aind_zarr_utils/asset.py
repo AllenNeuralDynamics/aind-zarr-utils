@@ -56,17 +56,16 @@ from aind_metadata_reader import (
     Interpretation,
     Process,
     apply_changes,
-    read_processing,
 )
 from aind_metadata_reader.smartspim import evaluate_pyramid_translation_correction
 
+from aind_zarr_utils.domain.pyramid import FusionPyramidRule, fusion_producer, fusion_pyramid_interpretation
 from aind_zarr_utils.domain.selector import OverlaySelector, get_selector
 from aind_zarr_utils.formats.neuroglancer import get_image_sources
 from aind_zarr_utils.image import apply_pipeline_overlays
 from aind_zarr_utils.io.compute import ComputeKwargs
 from aind_zarr_utils.io.ngff import attributes_document, interpreted_zarr
 from aind_zarr_utils.io.paths import (
-    _zarr_base_name_any,
     alignment_zarr_uri_and_metadata_from_zarr_or_asset_pathlike,
 )
 from aind_zarr_utils.io.transforms import pipeline_transforms_local_paths
@@ -167,6 +166,11 @@ class Asset:
     geometry : Interpretation, optional
         An explicit interpretation of this Zarr's NGFF attributes. Used for physical
         image geometry and retained for audit; historical registration geometry stays separate.
+        Replaces the automatic fusion pyramid correction.
+    pyramid_rules : tuple of FusionPyramidRule, optional
+        Fusion pyramid-translation rules applied when ``geometry`` is not given. Defaults to
+        :data:`~aind_zarr_utils.domain.pyramid.DEFAULT_FUSION_PYRAMID_RULES`; ``()`` uses
+        recorded NGFF translations.
     """
 
     alignment_zarr_uri: str
@@ -183,6 +187,10 @@ class Asset:
     acquisition: Acquisition | CoordinateFrame | None = field(default=None, kw_only=True)
     registration: Process | None = field(default=None, kw_only=True)
     geometry: Interpretation | None = field(default=None, kw_only=True)
+    pyramid_rules: tuple[FusionPyramidRule, ...] | None = field(default=None, kw_only=True)
+
+    # Lazily-evaluated automatic pyramid interpretation, boxed so ``None`` (no rule applies) is cacheable.
+    _pyramid: tuple[Interpretation | None] | None = field(default=None, init=False, repr=False, compare=False)
 
     # Lazily-populated cache of the opened Zarr ``(Node, metadata)`` tuple.
     # Set via the :attr:`opened_zarr` property or by the eager ``from_*``
@@ -408,11 +416,32 @@ class Asset:
         return attributes_document(self.alignment_zarr_uri, self.opened_zarr)
 
     @property
+    def pyramid_geometry(self) -> Interpretation | None:
+        """The interpretation used for physical geometry: explicit ``geometry``, else the fusion rules' result."""
+        if self.geometry is not None:
+            return self.geometry
+        if self._pyramid is None:
+            interpretation = fusion_pyramid_interpretation(
+                self.alignment_zarr_uri,
+                self.opened_zarr,
+                self._processing_dict(),
+                rules=self.pyramid_rules,
+            )
+            object.__setattr__(self, "_pyramid", (interpretation,))
+        assert self._pyramid is not None
+        return self._pyramid[0]
+
+    @property
     def anatomical_zarr(self) -> tuple[Node, dict]:
-        """Use the explicitly interpreted geometry for physical images, retaining the raw opened Zarr."""
-        if self.geometry is None:
+        """The opened Zarr under :attr:`pyramid_geometry`, for physical images; the raw Zarr is unchanged."""
+        interpretation = self.pyramid_geometry
+        if interpretation is None:
             return self.opened_zarr
-        return interpreted_zarr(self.alignment_zarr_uri, self.opened_zarr, self.geometry)
+        return interpreted_zarr(self.alignment_zarr_uri, self.opened_zarr, interpretation)
+
+    def _physical_zarr(self, level: int) -> tuple[Node, dict]:
+        """Level 0 never moves under pyramid rules, so only coarser levels need the producer."""
+        return self.anatomical_zarr if level > 0 or self.geometry is not None else self.opened_zarr
 
     def with_pyramid_translation_correction(
         self,
@@ -433,17 +462,11 @@ class Asset:
         if self.geometry is not None:
             raise ValueError("Asset already has a geometry interpretation; compose further changes explicitly")
         if producer is None:
-            channel = _zarr_base_name_any(self.alignment_zarr_uri)
-            candidates = [
-                p
-                for p in read_processing(Document(dict(self.processing))).find("Image tile fusing")
-                if p.output_location and _zarr_base_name_any(p.output_location) == channel
-            ]
-            if len(candidates) != 1:
+            producer = fusion_producer(self.processing, self.alignment_zarr_uri)
+            if producer is None:
                 raise ValueError(
                     "Select one fusion producer explicitly; channel matching alone is not association proof"
                 )
-            producer = candidates[0]
         attributes = self.zarr_attributes
         evaluation = evaluate_pyramid_translation_correction(
             attributes,
@@ -553,7 +576,7 @@ class Asset:
                 self._geometry_metadata(),
                 level=level,
                 scale_unit=scale_unit,
-                opened_zarr=self.anatomical_zarr,
+                opened_zarr=self._physical_zarr(level),
                 compute_kwargs=effective_compute,
                 **legacy_origin,
             )
@@ -563,7 +586,7 @@ class Asset:
                 self._geometry_metadata(),
                 level=level,
                 scale_unit=scale_unit,
-                opened_zarr=self.anatomical_zarr,
+                opened_zarr=self._physical_zarr(level),
                 compute_kwargs=effective_compute,
                 **legacy_origin,
             )
@@ -616,7 +639,7 @@ class Asset:
             self._geometry_metadata(),
             level=level,
             scale_unit=scale_unit,
-            opened_zarr=self.anatomical_zarr,
+            opened_zarr=self._physical_zarr(level),
             **legacy_origin,
         )
 

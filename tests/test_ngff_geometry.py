@@ -57,7 +57,8 @@ def faulty_asset(request, tmp_path, mock_nd_metadata):
             "input_location": "/fixture/Ex_639_Em_667.zarr/3",
         }
     )
-    return Asset(uri, mock_nd_metadata, processing), subject
+    # Explicit-evidence tests compare against recorded geometry, so the automatic fusion rules are off.
+    return Asset(uri, mock_nd_metadata, processing, pyramid_rules=()), subject
 
 
 def test_missing_translations_are_not_silently_replaced_by_block_mean_assumptions(real_ome_zarr, mock_nd_metadata):

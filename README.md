@@ -115,38 +115,44 @@ image-level transforms. Missing translations mean zero. `Origin.default()`
 honors that recorded geometry; `Origin.at(...)` and `Origin.at_corner(...)`
 rebase the full-resolution grid while preserving relative level translations.
 
-Some SmartSPIM fusion outputs have missing pyramid translations or store voxel
-counts where physical units are declared. Apply the reader's correction
-rule when you have evidence that the selected fusion process produced this Zarr
-and that its pyramid uses aligned block averaging:
+No SmartSPIM fusion release records correct pyramid translations. Levels are
+aligned block means, so level `k` sits `(2**k - 1) / 2` level-0 voxels past
+level 0, but the capsule's Python writer (fusion `<0.0.4`) records no
+translation and BigStitcher-Spark (fusion `>=0.0.3`) records the offset in
+voxels under micrometer axes. `aind_zarr_utils.domain.pyramid` keys a rule for
+each on the fusion process's `code_version` and the writer that actually ran,
+read from the Zarr's `Bigstitcher-Spark` attributes and the process notes.
+
+`Asset` applies these rules by default, and `zarr_to_sitk`, `zarr_to_ants` and
+`zarr_to_sitk_stub` apply them when given `processing_data`:
 
 ```python
 asset = Asset.from_root(asset_uri)
+image = asset.image(level=3)  # corrected
+manifest = asset.pyramid_geometry.manifest()  # audit trail
+image = zarr_to_sitk(uri, metadata, level=3, processing_data=processing)
+```
+
+Fusion versions newer than the last verified one are corrected with a warning.
+A missing or ambiguous fusion record, a version no rule covers, notes that
+contradict the Zarr attributes, or translations that do not show the rule's
+defect leave the recorded geometry in place, with a warning. Pass
+`pyramid_rules=()` to an `Asset` to use recorded translations.
+
+To supply your own evidence instead, use `with_pyramid_translation_correction`:
+
+```python
 corrected = asset.with_pyramid_translation_correction(
     author="your-name",
     association_evidence=(association_check_reference,),
     averaging_evidence=(block_averaging_check_reference,),
 )
-image = corrected.image(level=3)
-decision = corrected.geometry.evaluations[0]
-manifest = corrected.geometry.manifest()
 ```
 
-The evidence references should identify the checks performed for this artifact.
-The fusion process is selected by its recorded output channel when unique;
-pass `producer=selected_process` to resolve multiple runs. The rule diagnoses the
-observed defect signature even for unfamiliar producer versions. It assumes no
-first-fixed version: correct translations produce `not_applicable`, and other
-patterns remain `unknown` with a warning and the original geometry.
-
-`with_pyramid_translation_correction` returns a new asset carrying the reader's
-interpretation and linked rule evaluation. It changes the physical geometry used for images and stubs
-without changing stored attributes, pixels, acquisition metadata, or processing
-records. `zarr_attributes` exposes the original parsed attributes; `geometry`
-retains the original/derived snapshots and replayable manifest. The interpretation
-is bound to the source locator and attribute contents and cannot be reused for
-another artifact. Low-level callers can pass the result of
-`aind_zarr_utils.io.ngff.interpreted_zarr(...)` as `opened_zarr`.
+Either way the result is the reader's interpretation, bound to this Zarr's
+attribute capture, with a replayable manifest. Stored attributes, pixels,
+acquisition metadata and processing records are unchanged. Low-level callers
+can pass `aind_zarr_utils.io.ngff.interpreted_zarr(...)` as `opened_zarr`.
 
 Historical registration frames remain separate: pipeline images, stubs, and CCF
 point transforms keep the geometry used by registration. Physical pyramid
@@ -156,10 +162,7 @@ Pipeline majors 3 through 6 use the verified individual SyN warp/affine chain.
 The recorded registration-frame anchor is verified through importer 0.0.37;
 newer importer versions still emit a warning when that convention is assumed.
 
-Earlier releases inferred a block-mean offset for every pyramid, regardless of
-stored translations. Callers relying on that behavior should now apply an
-evidenced correction explicitly. Synthetic pyramids should declare their actual
-translations in NGFF metadata.
+Synthetic pyramids should declare their actual translations in NGFF metadata.
 
 Asset constructors use anonymous S3 access for metadata and image data by default.
 Pass `anonymous=False` to use the normal AWS credential chain. Access settings

@@ -10,6 +10,9 @@ them from their new homes.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import Any
+
 import ants  # type: ignore[import-untyped]
 import numpy as np
 import SimpleITK as sitk
@@ -24,6 +27,7 @@ from ome_zarr.io import parse_url as parse_url  # type: ignore[import-untyped]
 from ome_zarr.reader import Node as Node  # type: ignore[import-untyped]
 from ome_zarr.reader import Reader as Reader
 
+from aind_zarr_utils.domain.pyramid import fusion_corrected_zarr
 from aind_zarr_utils.io.compute import ComputeKwargs, compute_dask
 from aind_zarr_utils.io.metadata import (
     _unit_conversion as _unit_conversion,
@@ -271,6 +275,7 @@ def zarr_to_ants(
     set_corner_lps: tuple[float, float, float] | None = None,
     opened_zarr: tuple[Node, dict] | None = None,
     *,
+    processing_data: Mapping[str, Any] | None = None,
     compute_kwargs: ComputeKwargs | None = None,
 ) -> ANTsImage:
     """
@@ -299,6 +304,9 @@ def zarr_to_ants(
     opened_zarr : tuple, optional
         Pre-opened ZARR file (image_node, zarr_meta), by default None. If
         provided, this will be used instead of opening the ZARR file again.
+    processing_data : Mapping, optional
+        Parsed ``processing.json``. When given, level > 0 translations are
+        corrected for the fusion version that wrote this Zarr.
     compute_kwargs : Mapping, optional
         Options forwarded to dask's ``compute()`` when reading the pixel
         data, e.g. ``{"scheduler": "threads", "num_workers": 16}``. Reads of
@@ -316,10 +324,13 @@ def zarr_to_ants(
     Recorded NGFF scales and translations determine physical placement.
     Explicit origin/corner arguments place the full-resolution grid while
     preserving each level's recorded translation relative to level zero.
-    Missing translations mean zero; block-mean offsets require a justified
-    pyramid translation interpretation rather than an implicit assumption.
+    Missing translations mean zero. Pass ``processing_data`` to correct the
+    translations of fusion versions known to record them wrongly; see
+    :mod:`aind_zarr_utils.domain.pyramid`.
     """
     opened_zarr = opened_zarr or _open_zarr(uri)
+    if processing_data is not None and level > 0:
+        opened_zarr = fusion_corrected_zarr(uri, opened_zarr, processing_data)
     (arr_data_spatial, dirs, spacing, _) = _zarr_to_numpy_anatomical(
         uri,
         nd_metadata,
@@ -375,6 +386,7 @@ def zarr_to_sitk(
     set_corner_lps: tuple[float, float, float] | None = None,
     opened_zarr: tuple[Node, dict] | None = None,
     *,
+    processing_data: Mapping[str, Any] | None = None,
     compute_kwargs: ComputeKwargs | None = None,
 ) -> sitk.Image:
     """
@@ -403,6 +415,9 @@ def zarr_to_sitk(
     opened_zarr : tuple, optional
         Pre-opened ZARR file (image_node, zarr_meta), by default None. If
         provided, this will be used instead of opening the ZARR file again.
+    processing_data : Mapping, optional
+        Parsed ``processing.json``. When given, level > 0 translations are
+        corrected for the fusion version that wrote this Zarr.
     compute_kwargs : Mapping, optional
         Options forwarded to dask's ``compute()`` when reading the pixel
         data, e.g. ``{"scheduler": "threads", "num_workers": 16}``. Reads of
@@ -420,10 +435,13 @@ def zarr_to_sitk(
     Recorded NGFF scales and translations determine physical placement.
     Explicit origin/corner arguments place the full-resolution grid while
     preserving each level's recorded translation relative to level zero.
-    Missing translations mean zero; block-mean offsets require a justified
-    pyramid translation interpretation rather than an implicit assumption.
+    Missing translations mean zero. Pass ``processing_data`` to correct the
+    translations of fusion versions known to record them wrongly; see
+    :mod:`aind_zarr_utils.domain.pyramid`.
     """
     opened_zarr = opened_zarr or _open_zarr(uri)
+    if processing_data is not None and level > 0:
+        opened_zarr = fusion_corrected_zarr(uri, opened_zarr, processing_data)
     (
         arr_data_spatial,
         dirs,
@@ -520,6 +538,8 @@ def zarr_to_sitk_stub(
     set_corner: str | None = None,
     set_corner_lps: tuple[float, float, float] | None = None,
     opened_zarr: tuple[Node, dict] | None = None,
+    *,
+    processing_data: Mapping[str, Any] | None = None,
 ) -> tuple[sitk.Image, tuple[int, int, int]]:
     """
     Create a stub SimpleITK image with the same metadata as the ZARR file.
@@ -547,6 +567,9 @@ def zarr_to_sitk_stub(
     opened_zarr : tuple, optional
         Pre-opened ZARR file (image_node, zarr_meta), by default None. If
         provided, this will be used instead of opening the ZARR file again.
+    processing_data : Mapping, optional
+        Parsed ``processing.json``. When given, level > 0 translations are
+        corrected for the fusion version that wrote this Zarr.
 
     Returns
     -------
@@ -561,10 +584,14 @@ def zarr_to_sitk_stub(
     Recorded NGFF scales and translations determine physical placement.
     Explicit origin/corner arguments place the full-resolution grid while
     preserving each level's recorded translation relative to level zero.
-    Missing translations mean zero; block-mean offsets require a justified
-    pyramid translation interpretation rather than an implicit assumption.
+    Missing translations mean zero. Pass ``processing_data`` to correct the
+    translations of fusion versions known to record them wrongly; see
+    :mod:`aind_zarr_utils.domain.pyramid`.
     """
-    image_node, zarr_meta = opened_zarr or _open_zarr(uri)
+    opened_zarr = opened_zarr or _open_zarr(uri)
+    if processing_data is not None and level > 0:
+        opened_zarr = fusion_corrected_zarr(uri, opened_zarr, processing_data)
+    image_node, zarr_meta = opened_zarr
     (
         image_node,
         rej_axes,
