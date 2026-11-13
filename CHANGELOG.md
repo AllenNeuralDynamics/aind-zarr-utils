@@ -1,3 +1,16 @@
+## v0.21.0 (2026-11-13)
+
+### BREAKING CHANGE
+
+- Asset images and stubs at level > 0, and the base images
+of base_and_pipeline_zarr_to_sitk/ants, move to their block-mean positions
+for recognized fusion outputs. Pass pyramid_rules=() to keep recorded
+translations.
+
+### Feat
+
+- **pyramid**: correct fusion pyramid translations by fusion version
+
 ## v0.20.0 (2026-11-12)
 
 ### BREAKING CHANGE
