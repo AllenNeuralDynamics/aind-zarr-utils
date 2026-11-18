@@ -6,6 +6,12 @@ on:
     branches: [ main ]
     types: [ completed ]
   workflow_dispatch:
+    inputs:
+      increment:
+        description: "auto infers the bump from the commits; force one to release ci or chore changes"
+        type: choice
+        options: [auto, PATCH, MINOR, MAJOR]
+        default: auto
 
 permissions:
   contents: write    # needed to push commits/tags
@@ -29,5 +35,6 @@ jobs:
     uses: AllenNeuralDynamics/galen-uv-workflows/.github/workflows/bump-version.yml@v2
     with:
       default-branch: main
+      increment: ${{ inputs.increment || 'auto' }}
     secrets:
       repo-token: ${{ secrets.SERVICE_TOKEN }}
