@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.15'",
@@ -176,7 +176,7 @@ types = [
 [package.metadata]
 requires-dist = [
     { name = "aind-anatomical-utils", specifier = ">=0.4" },
-    { name = "aind-metadata-reader", specifier = ">=0.2.3,<0.3" },
+    { name = "aind-metadata-reader", specifier = ">=0.2.3" },
     { name = "aind-registration-utils", specifier = ">=0.1" },
     { name = "aind-s3-cache", specifier = ">=0.1" },
     { name = "antspyx", specifier = ">=0.6.2" },
